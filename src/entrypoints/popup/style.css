@@ -1,0 +1,143 @@
+:root {
+  color: #d1d3d9;
+  background: #111216;
+  font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 300px;
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #8b7cf6;
+  outline-offset: 2px;
+}
+
+.popup-shell {
+  padding: 14px;
+}
+
+.popup-shell header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.popup-logo {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #fff;
+  background: #6757d9;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.popup-shell header div {
+  display: grid;
+}
+
+.popup-shell header strong {
+  color: #f2f3f5;
+  font-size: 14px;
+}
+
+.popup-shell header span:last-child {
+  color: #9297a3;
+  font-size: 11px;
+}
+
+.popup-status {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  color: #b5b8c0;
+  background: #181a20;
+  border: 1px solid #2a2d36;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.popup-status > span {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  background: #9297a3;
+  border-radius: 50%;
+}
+
+.popup-status > span.is-ready {
+  background: #57c58a;
+}
+
+.popup-toggle {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  margin-bottom: 10px;
+  border: 1px solid #2a2d36;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.popup-toggle > span {
+  display: grid;
+  gap: 2px;
+}
+
+.popup-toggle strong {
+  color: #f2f3f5;
+  font-size: 12px;
+}
+
+.popup-toggle small {
+  color: #9297a3;
+  font-size: 11px;
+}
+
+.popup-toggle input {
+  width: 34px;
+  height: 18px;
+  accent-color: #8b7cf6;
+}
+
+.popup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.popup-actions button {
+  min-height: 34px;
+  color: #d1d3d9;
+  background: #181a20;
+  border: 1px solid #2a2d36;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.popup-actions button:hover {
+  color: #f2f3f5;
+  background: #20232b;
+}

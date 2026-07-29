@@ -1,0 +1,166 @@
+:root {
+  color: #353842;
+  background: #f5f6f8;
+  font-family: 'Segoe UI', Inter, system-ui, sans-serif;
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid #6757d9;
+  outline-offset: 2px;
+}
+
+.options-shell {
+  width: min(680px, calc(100% - 32px));
+  margin: 40px auto;
+}
+
+.options-shell > header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.options-shell > header > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #fff;
+  background: #6757d9;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 3px;
+  color: #17181c;
+  font-size: 20px;
+}
+
+header p,
+section p,
+label small,
+footer {
+  color: #69707d;
+}
+
+header p,
+section p {
+  margin-bottom: 0;
+  line-height: 1.55;
+}
+
+section {
+  padding: 18px;
+  margin-bottom: 14px;
+  background: #fff;
+  border: 1px solid #dadce3;
+  border-radius: 10px;
+}
+
+h2 {
+  margin-bottom: 12px;
+  color: #17181c;
+  font-size: 14px;
+}
+
+label {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-block: 9px;
+  border-top: 1px solid #e7e8ec;
+}
+
+label > span {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+label small {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+select {
+  min-width: 138px;
+  min-height: 34px;
+  padding-inline: 9px;
+  color: #353842;
+  background: #fafafb;
+  border: 1px solid #dadce3;
+  border-radius: 6px;
+}
+
+input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: #6757d9;
+}
+
+footer {
+  min-height: 20px;
+  padding-inline: 4px;
+  font-size: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #d1d3d9;
+    background: #0d0e11;
+  }
+
+  h1,
+  h2 {
+    color: #f2f3f5;
+  }
+
+  header p,
+  section p,
+  label small,
+  footer {
+    color: #9297a3;
+  }
+
+  section {
+    background: #111216;
+    border-color: #2a2d36;
+  }
+
+  label {
+    border-color: #2a2d36;
+  }
+
+  select {
+    color: #d1d3d9;
+    background: #181a20;
+    border-color: #2a2d36;
+  }
+}

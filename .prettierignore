@@ -1,0 +1,7 @@
+node_modules
+.wxt
+.output
+coverage
+artifacts/ui
+references
+package-lock.json
