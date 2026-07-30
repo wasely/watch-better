@@ -1,6 +1,7 @@
 import { useId, useState, type KeyboardEvent } from 'react';
 
 import { Icon, type IconName } from '@/components/Icon';
+import { AskPanel, type AskPanelProps } from '@/features/ask/AskPanel';
 import type { PanelTab } from '@/features/settings/settings';
 import {
   TranscriptPanel,
@@ -22,6 +23,7 @@ export interface CutThroughAppProps {
   readonly initialTab?: PanelTab;
   readonly initialCollapsed?: boolean;
   readonly transcript?: TranscriptPanelProps;
+  readonly ask?: AskPanelProps;
   readonly onOpenSettings?: () => void;
 }
 
@@ -52,26 +54,7 @@ const transcriptStatus = (
   }
 };
 
-function PlaceholderContent({
-  tab,
-}: {
-  readonly tab: Exclude<PanelTab, 'transcript'>;
-}) {
-  if (tab === 'ask') {
-    return (
-      <div className="ct-placeholder">
-        <div className="ct-placeholder__icon" aria-hidden="true">
-          <Icon name="message" />
-        </div>
-        <strong>Ask with context</strong>
-        <p>Build a timestamped prompt, then copy it or open ChatGPT explicitly.</p>
-        <button className="ct-button ct-button--primary" type="button">
-          Prepare a question
-        </button>
-      </div>
-    );
-  }
-
+function PlaceholderContent() {
   return (
     <div className="ct-placeholder">
       <div className="ct-placeholder__icon" aria-hidden="true">
@@ -91,6 +74,7 @@ export function CutThroughApp({
   initialTab = 'transcript',
   initialCollapsed = false,
   transcript,
+  ask,
   onOpenSettings,
 }: CutThroughAppProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>(initialTab);
@@ -98,6 +82,10 @@ export function CutThroughApp({
   const id = useId();
   const transcriptProps: TranscriptPanelProps = transcript ?? {
     state: LOADING_TRANSCRIPT_STATE,
+  };
+  const askProps: AskPanelProps = ask ?? {
+    transcript:
+      transcriptProps.state.kind === 'ready' ? transcriptProps.state.document : null,
   };
   const status = transcriptStatus(transcriptProps.state);
 
@@ -224,8 +212,10 @@ export function CutThroughApp({
               {...transcriptProps}
               onCopy={transcriptProps.onCopy ?? writeClipboardText}
             />
+          ) : activeTab === 'ask' ? (
+            <AskPanel {...askProps} onCopy={askProps.onCopy ?? writeClipboardText} />
           ) : (
-            <PlaceholderContent tab={activeTab} />
+            <PlaceholderContent />
           )}
         </div>
       </section>

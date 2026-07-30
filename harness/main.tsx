@@ -2,6 +2,7 @@ import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { CutThroughApp, type ResolvedTheme } from '@/app/CutThroughApp';
+import type { PanelTab } from '@/features/settings/settings';
 import type { TranscriptViewState } from '@/features/transcript/transcript-view-state';
 import {
   spanishTranscript,
@@ -41,6 +42,9 @@ const initialScenario: HarnessScenarioId =
   requestedScenario && requestedScenario in scenarioLabels
     ? (requestedScenario as HarnessScenarioId)
     : 'tutorial';
+const requestedTab = harnessParams.get('tab');
+const initialTab: PanelTab =
+  requestedTab === 'ask' || requestedTab === 'skip' ? requestedTab : 'transcript';
 
 function NeighborCard() {
   return (
@@ -63,6 +67,7 @@ function Harness() {
   const [theme, setTheme] = useState<ResolvedTheme>(initialTheme);
   const [width, setWidth] = useState<HarnessWidth>(initialWidth);
   const [scenario, setScenario] = useState<HarnessScenarioId>(initialScenario);
+  const [panelTab, setPanelTab] = useState<PanelTab>(initialTab);
   const [selectedTrackId, setSelectedTrackId] = useState('en-human');
   const [activeIndex, setActiveIndex] = useState(4);
   const [collapsed, setCollapsed] = useState(false);
@@ -91,6 +96,25 @@ function Harness() {
     scenario === 'selected' && transcriptState.kind === 'ready'
       ? transcriptState.document.segments.slice(2, 6).map((segment) => segment.id)
       : undefined;
+  const askSelectedSegmentIds = useMemo(
+    () =>
+      new Set(
+        scenario === 'selected' && transcriptState.kind === 'ready'
+          ? transcriptState.document.segments.slice(2, 6).map((segment) => segment.id)
+          : [],
+      ),
+    [scenario, transcriptState],
+  );
+  const askInitialQuestion =
+    harnessParams.get('empty') === '1'
+      ? ''
+      : scenario === 'podcast'
+        ? 'Summarize this video with the strongest evidence and important caveats.'
+        : scenario === 'selected'
+          ? 'Explain why these selected sections matter and identify the evidence.'
+          : scenario === 'search'
+            ? 'Find where they discuss evidence and explain the surrounding context.'
+            : 'List the key ideas and cite the strongest timestamped evidence.';
 
   const remount = (nextCollapsed: boolean) => {
     setCollapsed(nextCollapsed);
@@ -123,6 +147,21 @@ function Harness() {
           >
             <option value="dark">Dark</option>
             <option value="light">Light</option>
+          </select>
+        </label>
+
+        <label>
+          Panel tab
+          <select
+            onChange={(event) => {
+              setPanelTab(event.currentTarget.value as PanelTab);
+              setInstance((value) => value + 1);
+            }}
+            value={panelTab}
+          >
+            <option value="transcript">Transcript</option>
+            <option value="ask">Ask</option>
+            <option value="skip">Skip</option>
           </select>
         </label>
 
@@ -201,8 +240,19 @@ function Harness() {
         <aside className="harness-column" style={{ width }}>
           {neighborFirst ? <NeighborCard /> : null}
           <CutThroughApp
+            ask={{
+              transcript:
+                transcriptState.kind === 'ready' ? transcriptState.document : null,
+              selectedSegmentIds: askSelectedSegmentIds,
+              currentTimeSeconds: activeSegment?.startSeconds ?? null,
+              initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
+              initialQuestion: askInitialQuestion,
+              onCopy: () => Promise.resolve(),
+              onOpenChatGPT: () => Promise.resolve(),
+            }}
             initialCollapsed={collapsed}
-            key={`${instance}-${scenario}`}
+            initialTab={panelTab}
+            key={`${instance}-${scenario}-${panelTab}`}
             theme={theme}
             transcript={{
               state: transcriptState,

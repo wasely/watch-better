@@ -25,7 +25,7 @@ describe('CutThroughApp foundation shell', () => {
       'aria-selected',
       'true',
     );
-    expect(screen.getByText('Ask with context')).toBeInTheDocument();
+    expect(screen.getByText('Suggested actions')).toBeInTheDocument();
   });
 
   it('supports arrow-key navigation between tabs', async () => {

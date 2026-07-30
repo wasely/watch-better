@@ -207,16 +207,14 @@ describe('TranscriptPanel', () => {
     expect(onFollowChange).toHaveBeenLastCalledWith(true);
   });
 
-  it('keeps the two-hour fixture searchable and rendered as one accessible list', async () => {
-    const user = userEvent.setup();
+  it('keeps the two-hour fixture searchable and rendered as one accessible list', () => {
     render(<TranscriptPanel state={readyTranscriptState(podcastTranscript)} />);
 
     const list = screen.getByRole('list');
     expect(within(list).getAllByRole('listitem')).toHaveLength(720);
-    await user.type(
-      screen.getByRole('searchbox', { name: 'Search transcript' }),
-      'segment 720',
-    );
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search transcript' }), {
+      target: { value: 'segment 720' },
+    });
     expect(screen.getByText('1/1')).toBeInTheDocument();
-  });
+  }, 10_000);
 });

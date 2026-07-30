@@ -42,10 +42,10 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: normal/loading/unavailable/disabled/error/multi-track/long/search/selected/active states and required interactions render.
   - Verify: component tests, keyboard checks, screenshots.
   - Status: Verified 2026-07-29; all fixture states, seek/search/range selection/copy/follow/language/keyboard interactions, 720-row stress fixture, and repaired screenshot matrix passed.
-- [ ] **MVP-021 · P0 · PRD-020–PRD-025 — Ask fixture UI**
+- [x] **MVP-021 · P0 · PRD-020–PRD-025 — Ask fixture UI**
   - Acceptance: contexts, suggestions, question composer, size disclosure, copy/open feedback, and honest handoff explanation render and behave.
   - Verify: component tests and screenshots.
-  - Status: Pending.
+  - Status: Verified 2026-07-29; all contexts/actions, bounded prompt disclosure, explicit copy/open and failure feedback, stale-copy protection, unavailable state, and repaired dark/light 320/402/480px screenshot matrix passed.
 - [ ] **MVP-022 · P0 · PRD-030–PRD-035 — Skip fixture UI**
   - Acceptance: disabled/enabled/presets/status/warning/time/advanced/reset states render and behave.
   - Verify: component tests and screenshots.
@@ -95,10 +95,10 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 
 ## Phase 5 — ChatGPT handoff
 
-- [ ] **MVP-050 · P0 · PRD-020, PRD-021, PRD-024 — Deterministic prompt provider**
+- [x] **MVP-050 · P0 · PRD-020, PRD-021, PRD-024 — Deterministic prompt provider**
   - Acceptance: each context/suggestion builds bounded, timestamp-preserving prompts without network calls.
   - Verify: unit snapshot/behavior tests including huge transcripts.
-  - Status: Pending.
+  - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded and Ask feature code has no network/browser API calls.
 - [ ] **MVP-051 · P0 · PRD-022, PRD-023, PRD-025 — Explicit copy/open actions**
   - Acceptance: separate user actions copy prompt and open ChatGPT; no automation/hidden transmission/fake response exists.
   - Verify: service/component tests, manifest audit, manual tab check.
