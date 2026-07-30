@@ -1,4 +1,4 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 
 import { Icon, type IconName } from '@/components/Icon';
 import { AskPanel, type AskPanelProps } from '@/features/ask/AskPanel';
@@ -81,6 +81,8 @@ export function CutThroughApp({
   const activeTab = controlledActiveTab ?? internalActiveTab;
   const collapsed = controlledCollapsed ?? internalCollapsed;
   const id = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const collapseFocusTarget = useRef<boolean | null>(null);
   const transcriptProps: TranscriptPanelProps = transcript ?? {
     state: LOADING_TRANSCRIPT_STATE,
   };
@@ -98,12 +100,23 @@ export function CutThroughApp({
   };
   const status = transcriptStatus(transcriptProps.state);
 
+  useLayoutEffect(() => {
+    if (collapseFocusTarget.current !== collapsed) return;
+
+    const target = collapsed
+      ? rootRef.current?.querySelector<HTMLElement>('.ct-launcher')
+      : rootRef.current?.querySelector<HTMLElement>(`[data-tab-id="${activeTab}"]`);
+    target?.focus();
+    collapseFocusTarget.current = null;
+  }, [activeTab, collapsed]);
+
   const selectTab = (nextTab: PanelTab) => {
     if (controlledActiveTab === undefined) setInternalActiveTab(nextTab);
     onTabChange?.(nextTab);
   };
 
   const setPanelCollapsed = (nextCollapsed: boolean) => {
+    collapseFocusTarget.current = nextCollapsed;
     if (controlledCollapsed === undefined) setInternalCollapsed(nextCollapsed);
     onCollapsedChange?.(nextCollapsed);
   };
@@ -132,30 +145,37 @@ export function CutThroughApp({
     });
   };
 
-  if (collapsed) {
-    return (
-      <div className="cutthrough-root" data-theme={theme}>
+  return (
+    <div className="cutthrough-root" data-theme={theme} ref={rootRef}>
+      {collapsed ? (
         <button
-          aria-label="Expand CutThrough"
+          aria-label={`Expand CutThrough. ${status.label}.`}
           className="ct-launcher"
           onClick={() => setPanelCollapsed(false)}
-          title="Expand CutThrough"
+          title={`Expand CutThrough — ${status.label}`}
           type="button"
         >
           <span className="ct-brand-mark" aria-hidden="true">
             <Icon name="spark" />
           </span>
           <span
+            aria-hidden="true"
             className={`ct-launcher__status ct-launcher__status--${status.readiness}`}
-          />
+          >
+            {status.readiness === 'ready'
+              ? '✓'
+              : status.readiness === 'loading'
+                ? '…'
+                : '!'}
+          </span>
         </button>
-      </div>
-    );
-  }
+      ) : null}
 
-  return (
-    <div className="cutthrough-root" data-theme={theme}>
-      <section aria-label="CutThrough video companion" className="ct-panel">
+      <section
+        aria-label="CutThrough video companion"
+        className="ct-panel"
+        hidden={collapsed}
+      >
         <header className="ct-header">
           <div className="ct-identity">
             <span className="ct-brand-mark" aria-hidden="true">
@@ -221,22 +241,37 @@ export function CutThroughApp({
         </nav>
 
         <div
-          aria-labelledby={`${id}-${activeTab}-tab`}
+          aria-labelledby={`${id}-transcript-tab`}
           className="ct-panel__body"
-          id={`${id}-${activeTab}-panel`}
+          hidden={activeTab !== 'transcript'}
+          id={`${id}-transcript-panel`}
           role="tabpanel"
-          tabIndex={0}
+          tabIndex={activeTab === 'transcript' ? 0 : -1}
         >
-          {activeTab === 'transcript' ? (
-            <TranscriptPanel
-              {...transcriptProps}
-              onCopy={transcriptProps.onCopy ?? writeClipboardText}
-            />
-          ) : activeTab === 'ask' ? (
-            <AskPanel {...askProps} onCopy={askProps.onCopy ?? writeClipboardText} />
-          ) : (
-            <SkipPanel {...skipProps} />
-          )}
+          <TranscriptPanel
+            {...transcriptProps}
+            onCopy={transcriptProps.onCopy ?? writeClipboardText}
+          />
+        </div>
+        <div
+          aria-labelledby={`${id}-ask-tab`}
+          className="ct-panel__body"
+          hidden={activeTab !== 'ask'}
+          id={`${id}-ask-panel`}
+          role="tabpanel"
+          tabIndex={activeTab === 'ask' ? 0 : -1}
+        >
+          <AskPanel {...askProps} onCopy={askProps.onCopy ?? writeClipboardText} />
+        </div>
+        <div
+          aria-labelledby={`${id}-skip-tab`}
+          className="ct-panel__body"
+          hidden={activeTab !== 'skip'}
+          id={`${id}-skip-panel`}
+          role="tabpanel"
+          tabIndex={activeTab === 'skip' ? 0 : -1}
+        >
+          <SkipPanel {...skipProps} />
         </div>
       </section>
     </div>

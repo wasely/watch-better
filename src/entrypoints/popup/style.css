@@ -3,6 +3,11 @@
   background: #111216;
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+  background: #fff;
+}
+
 * {
   box-sizing: border-box;
 }

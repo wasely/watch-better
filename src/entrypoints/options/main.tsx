@@ -1,21 +1,30 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { browser } from 'wxt/browser';
 
 import { OptionsView, type OptionsTheme } from '@/entrypoints/options/OptionsView';
 import {
   DEFAULT_SETTINGS,
   type CutThroughSettings,
 } from '@/features/settings/settings';
-import { SettingsRepository } from '@/storage/settings-repository';
+import type { ExtensionRequest, ExtensionResponse } from '@/messaging/messages';
+import {
+  SETTINGS_STORAGE_KEY,
+  SettingsRepository,
+} from '@/storage/settings-repository';
 
 import './style.css';
 
 const repository = new SettingsRepository();
 
+const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
+  browser.runtime.sendMessage(request);
+
 function Options() {
   const [settings, setSettings] = useState<CutThroughSettings>(DEFAULT_SETTINGS);
   const [status, setStatus] = useState('Loading settings…');
   const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [systemTheme, setSystemTheme] = useState<OptionsTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
@@ -23,22 +32,35 @@ function Options() {
   useEffect(() => {
     let disposed = false;
 
-    void repository
-      .load()
-      .then((loadedSettings) => {
-        if (disposed) return;
-        setSettings(loadedSettings);
-        setLoaded(true);
-        setStatus('Settings loaded');
-      })
-      .catch(() => {
-        if (disposed) return;
-        setLoaded(true);
-        setStatus('Could not load settings. Safe defaults are shown.');
-      });
+    const syncSettings = (nextStatus?: string) => {
+      void repository
+        .load()
+        .then((loadedSettings) => {
+          if (disposed) return;
+          setSettings(loadedSettings);
+          setLoaded(true);
+          if (nextStatus) setStatus(nextStatus);
+        })
+        .catch(() => {
+          if (disposed) return;
+          setLoaded(true);
+          if (nextStatus)
+            setStatus('Could not load settings. Safe defaults are shown.');
+        });
+    };
+    const handleStorageChange = (
+      changes: Record<string, { readonly newValue?: unknown }>,
+      areaName: string,
+    ) => {
+      if (areaName === 'local' && SETTINGS_STORAGE_KEY in changes) syncSettings();
+    };
+
+    browser.storage.onChanged.addListener(handleStorageChange);
+    syncSettings('Settings loaded');
 
     return () => {
       disposed = true;
+      browser.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
 
@@ -49,14 +71,27 @@ function Options() {
     return () => query.removeEventListener('change', updateTheme);
   }, []);
 
-  const save = async (next: CutThroughSettings) => {
-    setSettings(next);
+  const save = async (changes: Partial<CutThroughSettings>) => {
+    setSettings((current) => ({ ...current, ...changes }));
+    setSaving(true);
     setStatus('Saving…');
     try {
-      await repository.save(next);
+      const response = await send({ type: 'settings:update', changes });
+      if (!response.ok) throw new Error(response.message);
+      if (response.type !== 'settings:updated') {
+        throw new Error('Unexpected settings response.');
+      }
+      setSettings(response.settings);
       setStatus('Saved');
     } catch {
       setStatus('Could not save settings. Try again.');
+      try {
+        setSettings(await repository.load());
+      } catch {
+        // Keep the last visible values when storage remains unavailable.
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -72,7 +107,7 @@ function Options() {
 
   return (
     <OptionsView
-      disabled={!loaded}
+      disabled={!loaded || saving}
       onChange={(next) => void save(next)}
       settings={settings}
       status={status}

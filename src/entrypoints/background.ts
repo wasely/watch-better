@@ -5,9 +5,12 @@ import {
   type ExtensionRequest,
   type ExtensionResponse,
 } from '@/messaging/messages';
-import { SettingsRepository } from '@/storage/settings-repository';
+import {
+  SettingsRepository,
+  SettingsWriteCoordinator,
+} from '@/storage/settings-repository';
 
-const settingsRepository = new SettingsRepository();
+const settingsCoordinator = new SettingsWriteCoordinator(new SettingsRepository());
 
 const isSupportedWatchUrl = (url: string | undefined): boolean => {
   if (!url) return false;
@@ -27,7 +30,7 @@ const isSupportedWatchUrl = (url: string | undefined): boolean => {
 const handleRequest = async (request: ExtensionRequest): Promise<ExtensionResponse> => {
   switch (request.type) {
     case 'runtime:get-status': {
-      const settings = await settingsRepository.load();
+      const settings = await settingsCoordinator.load();
       const [activeTab] = await browser.tabs.query({
         active: true,
         currentWindow: true,
@@ -44,11 +47,13 @@ const handleRequest = async (request: ExtensionRequest): Promise<ExtensionRespon
       };
     }
     case 'runtime:set-enabled': {
-      const current = await settingsRepository.load();
-      const settings = await settingsRepository.save({
-        ...current,
+      const settings = await settingsCoordinator.patch({
         extensionEnabled: request.enabled,
       });
+      return { ok: true, type: 'settings:updated', settings };
+    }
+    case 'settings:update': {
+      const settings = await settingsCoordinator.patch(request.changes);
       return { ok: true, type: 'settings:updated', settings };
     }
     case 'chatgpt:open':

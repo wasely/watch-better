@@ -48,6 +48,7 @@
   --ct-text: #d1d3d9;
   --ct-text-muted: #9297a3;
   --ct-accent: #8b7cf6;
+  --ct-accent-strong: #6757d9;
   --ct-accent-soft: rgb(139 124 246 / 14%);
   --ct-success: #57c58a;
   --ct-warning: #e2a84a;
@@ -65,9 +66,10 @@
   --ct-text: #353842;
   --ct-text-muted: #69707d;
   --ct-accent: #6757d9;
+  --ct-accent-strong: #5949c3;
   --ct-accent-soft: rgb(103 87 217 / 11%);
   --ct-success: #237a4b;
-  --ct-warning: #9a6400;
+  --ct-warning: #8d5900;
   --ct-error: #c53c47;
   --ct-shadow: 0 4px 16px rgb(28 31 40 / 10%);
 }

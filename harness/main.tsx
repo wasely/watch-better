@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import { CutThroughApp, type ResolvedTheme } from '@/app/CutThroughApp';
 import { OptionsView } from '@/entrypoints/options/OptionsView';
-import { PopupView } from '@/entrypoints/popup/PopupView';
+import { PopupView, type PopupAction } from '@/entrypoints/popup/PopupView';
 import {
   DEFAULT_SETTINGS,
   type CutThroughSettings,
@@ -29,13 +29,14 @@ type HarnessWidth = (typeof widths)[number];
 type HarnessScenarioId = TranscriptFixtureId | 'search' | 'selected';
 type HarnessSurface = 'panel' | 'popup' | 'options';
 type PopupFixtureId =
-  'loading' | 'supported' | 'mounted' | 'unsupported' | 'disabled' | 'error';
+  'loading' | 'supported' | 'mounted' | 'unsupported' | 'disabled' | 'busy' | 'error';
 
 interface PopupFixture {
   readonly label: string;
   readonly status: RuntimeStatus | null;
   readonly message: string;
   readonly error: boolean;
+  readonly busyAction?: Exclude<PopupAction, null>;
 }
 
 const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
@@ -88,6 +89,18 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
     },
     message: 'Enable the extension to show its YouTube panel.',
     error: false,
+  },
+  busy: {
+    label: 'Restore in progress',
+    status: {
+      enabled: true,
+      supportedPage: true,
+      panelMounted: false,
+      version: '0.1.0',
+    },
+    message: 'Waiting for the panel restore request to finish.',
+    error: false,
+    busyAction: 'restore',
   },
   error: {
     label: 'Status error',
@@ -298,13 +311,13 @@ function Harness() {
     setPopupMessage('Panel restore simulated in the fixture.');
   };
 
-  const updateOptions = (next: CutThroughSettings) => {
-    setOptionsSettings(next);
+  const updateOptions = (changes: Partial<CutThroughSettings>) => {
+    setOptionsSettings((current) => ({ ...current, ...changes }));
     setOptionsStatus('Saved');
   };
 
   return (
-    <main className={`harness-page harness-page--${theme}`}>
+    <div className={`harness-page harness-page--${theme}`}>
       <aside aria-label="Harness controls" className="harness-controls">
         <div>
           <strong>CutThrough harness</strong>
@@ -461,7 +474,7 @@ function Harness() {
       </aside>
 
       {surface === 'panel' ? (
-        <section className="harness-stage" aria-label="Simulated YouTube page">
+        <main className="harness-stage" aria-label="Simulated YouTube page">
           <div className="harness-video">
             <span>Simulated YouTube player</span>
             <div />
@@ -524,10 +537,13 @@ function Harness() {
             />
             {!neighborFirst ? <NeighborCard /> : null}
           </aside>
-        </section>
+        </main>
       ) : surface === 'popup' ? (
-        <section className="harness-standalone" aria-label="Popup fixture">
+        <div className="harness-standalone">
           <PopupView
+            {...(popupFixtures[popupFixtureId].busyAction
+              ? { busyAction: popupFixtures[popupFixtureId].busyAction }
+              : {})}
             error={popupFixtures[popupFixtureId].error}
             message={popupMessage}
             onOpenSettings={() => setSurface('options')}
@@ -536,18 +552,18 @@ function Harness() {
             status={popupStatus}
             theme={theme}
           />
-        </section>
+        </div>
       ) : (
-        <section className="harness-options" aria-label="Settings fixture">
+        <div className="harness-options">
           <OptionsView
             onChange={updateOptions}
             settings={optionsSettings}
             status={optionsStatus}
             theme={theme}
           />
-        </section>
+        </div>
       )}
-    </main>
+    </div>
   );
 }
 

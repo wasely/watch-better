@@ -2,14 +2,23 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { browser } from 'wxt/browser';
 
-import { PopupView, type PopupAction } from '@/entrypoints/popup/PopupView';
+import {
+  PopupView,
+  type PopupAction,
+  type PopupTheme,
+} from '@/entrypoints/popup/PopupView';
+import { DEFAULT_SETTINGS, type ThemePreference } from '@/features/settings/settings';
 import type {
   ExtensionRequest,
   ExtensionResponse,
   RuntimeStatus,
 } from '@/messaging/messages';
 
+import { SettingsRepository } from '@/storage/settings-repository';
+
 import './style.css';
+
+const settingsRepository = new SettingsRepository();
 
 const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
   browser.runtime.sendMessage(request);
@@ -28,6 +37,12 @@ function Popup() {
   const [message, setMessage] = useState('Reading the active tab status…');
   const [hasError, setHasError] = useState(false);
   const [busyAction, setBusyAction] = useState<PopupAction>(null);
+  const [themePreference, setThemePreference] = useState<ThemePreference>(
+    DEFAULT_SETTINGS.theme,
+  );
+  const [systemTheme, setSystemTheme] = useState<PopupTheme>(() =>
+    matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -56,15 +71,47 @@ function Popup() {
     };
   }, []);
 
+  useEffect(() => {
+    let disposed = false;
+    const query = matchMedia('(prefers-color-scheme: dark)');
+    const updateSystemTheme = () => setSystemTheme(query.matches ? 'dark' : 'light');
+
+    query.addEventListener('change', updateSystemTheme);
+    void settingsRepository
+      .load()
+      .then((settings) => {
+        if (!disposed) setThemePreference(settings.theme);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      disposed = true;
+      query.removeEventListener('change', updateSystemTheme);
+    };
+  }, []);
+
+  const resolvedTheme: PopupTheme =
+    themePreference === 'system' ? systemTheme : themePreference;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    return () => {
+      delete document.documentElement.dataset.theme;
+    };
+  }, [resolvedTheme]);
+
   const setEnabled = async (enabled: boolean) => {
     setBusyAction('toggle');
     try {
       const response = await send({ type: 'runtime:set-enabled', enabled });
       if (response.ok && response.type === 'settings:updated') {
-        setStatus((current) => (current ? { ...current, enabled } : current));
+        const updatedStatus = status ? { ...status, enabled } : null;
+        setStatus(updatedStatus);
         setMessage(
           enabled
-            ? 'CutThrough enabled. Open a YouTube watch page to use it.'
+            ? updatedStatus
+              ? statusMessage(updatedStatus)
+              : 'CutThrough enabled.'
             : 'CutThrough disabled. Existing playback remains unchanged.',
         );
       } else if (!response.ok) {
@@ -109,6 +156,7 @@ function Popup() {
       onRestorePanel={() => void invoke('restore', { type: 'panel:restore' })}
       onSetEnabled={(enabled) => void setEnabled(enabled)}
       status={status}
+      theme={resolvedTheme}
     />
   );
 }

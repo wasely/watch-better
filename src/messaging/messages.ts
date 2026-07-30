@@ -10,6 +10,10 @@ export type RuntimeStatus = {
 export type ExtensionRequest =
   | { readonly type: 'runtime:get-status' }
   | { readonly type: 'runtime:set-enabled'; readonly enabled: boolean }
+  | {
+      readonly type: 'settings:update';
+      readonly changes: Partial<CutThroughSettings>;
+    }
   | { readonly type: 'panel:restore' }
   | { readonly type: 'settings:open' }
   | { readonly type: 'chatgpt:open' };
@@ -31,7 +35,11 @@ export type ExtensionResponse =
 export const isExtensionRequest = (value: unknown): value is ExtensionRequest => {
   if (typeof value !== 'object' || value === null || !('type' in value)) return false;
 
-  const candidate = value as { readonly type?: unknown; readonly enabled?: unknown };
+  const candidate = value as {
+    readonly type?: unknown;
+    readonly enabled?: unknown;
+    readonly changes?: unknown;
+  };
   switch (candidate.type) {
     case 'runtime:get-status':
     case 'panel:restore':
@@ -40,6 +48,12 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
       return true;
     case 'runtime:set-enabled':
       return typeof candidate.enabled === 'boolean';
+    case 'settings:update':
+      return (
+        typeof candidate.changes === 'object' &&
+        candidate.changes !== null &&
+        !Array.isArray(candidate.changes)
+      );
     default:
       return false;
   }

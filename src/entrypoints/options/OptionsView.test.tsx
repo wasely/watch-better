@@ -28,7 +28,7 @@ describe('OptionsView', () => {
     expect(screen.getByText('Settings loaded')).toBeInTheDocument();
   });
 
-  it('emits complete settings for panel and transcript changes', () => {
+  it('emits focused patches for panel and transcript changes', () => {
     const onChange = vi.fn();
     render(
       <OptionsView
@@ -41,16 +41,10 @@ describe('OptionsView', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /^Default tab/ }), {
       target: { value: 'skip' },
     });
-    expect(onChange).toHaveBeenLastCalledWith({
-      ...DEFAULT_SETTINGS,
-      defaultTab: 'skip',
-    });
+    expect(onChange).toHaveBeenLastCalledWith({ defaultTab: 'skip' });
 
     fireEvent.click(screen.getByRole('checkbox', { name: /^Follow playback/ }));
-    expect(onChange).toHaveBeenLastCalledWith({
-      ...DEFAULT_SETTINGS,
-      autoFollowTranscript: false,
-    });
+    expect(onChange).toHaveBeenLastCalledWith({ autoFollowTranscript: false });
   });
 
   it('applies complete pause presets and explicit handoff behavior', () => {
@@ -67,17 +61,13 @@ describe('OptionsView', () => {
       target: { value: 'aggressive' },
     });
     expect(onChange).toHaveBeenLastCalledWith({
-      ...DEFAULT_SETTINGS,
       pause: configurationForSkipPreset('aggressive', false),
     });
 
     fireEvent.change(screen.getByRole('combobox', { name: /^ChatGPT actions/ }), {
       target: { value: 'copy-only' },
     });
-    expect(onChange).toHaveBeenLastCalledWith({
-      ...DEFAULT_SETTINGS,
-      chatgptHandoff: 'copy-only',
-    });
+    expect(onChange).toHaveBeenLastCalledWith({ chatgptHandoff: 'copy-only' });
   });
 
   it('disables controls while settings are loading', () => {

@@ -409,6 +409,40 @@
   }
 }
 
+@container cutthrough (max-width: 239px) {
+  .ct-handoff-actions > div:last-child {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container cutthrough (max-width: 207px) {
+  .ct-context-picker > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ct-context-picker button {
+    white-space: normal;
+    border-right: 0;
+    border-bottom: 1px solid var(--ct-border);
+  }
+
+  .ct-context-picker button:last-child {
+    border-bottom: 0;
+  }
+
+  .ct-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--ct-space-2);
+  }
+
+  .ct-section-heading span {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
 @container cutthrough (max-width: 359px) {
   .ct-ask {
     padding: var(--ct-space-4);

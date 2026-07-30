@@ -87,13 +87,7 @@ export function PopupView({
 
       <button
         aria-checked={enabled}
-        aria-label={
-          status
-            ? enabled
-              ? 'Disable CutThrough'
-              : 'Enable CutThrough'
-            : 'CutThrough enablement unavailable'
-        }
+        aria-label={toggleTitle}
         className="ct-popup-toggle"
         disabled={loading || error || busyAction !== null}
         onClick={() => onSetEnabled(!enabled)}
@@ -121,7 +115,9 @@ export function PopupView({
       </div>
 
       <footer>
-        {busyAction ? 'Working…' : 'No transcript or prompt content is stored here.'}
+        <span aria-live="polite" role="status">
+          {busyAction ? 'Working…' : 'No transcript or prompt content is stored here.'}
+        </span>
       </footer>
     </main>
   );

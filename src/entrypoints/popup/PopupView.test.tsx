@@ -46,7 +46,7 @@ describe('PopupView', () => {
     );
 
     expect(screen.getByText('Watch page ready')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('switch', { name: 'Disable CutThrough' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Extension enabled' }));
     fireEvent.click(screen.getByRole('button', { name: /Restore panel/ }));
     fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
 
@@ -79,13 +79,13 @@ describe('PopupView', () => {
 
     expect(screen.getByText('CutThrough is disabled')).toBeInTheDocument();
     expect(screen.getByText('Extension disabled')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Enable CutThrough' })).toHaveAttribute(
+    expect(screen.getByRole('switch', { name: 'Extension disabled' })).toHaveAttribute(
       'aria-checked',
       'false',
     );
 
     rerender(<PopupView {...baseProps} busyAction="settings" status={readyStatus} />);
-    expect(screen.getByText('Working…')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Working…');
     expect(screen.getByRole('button', { name: /Settings/ })).toBeDisabled();
   });
 

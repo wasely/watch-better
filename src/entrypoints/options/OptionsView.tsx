@@ -19,7 +19,7 @@ export interface OptionsViewProps {
   readonly status: string;
   readonly theme?: OptionsTheme;
   readonly disabled?: boolean;
-  readonly onChange: (settings: CutThroughSettings) => void;
+  readonly onChange: (changes: Partial<CutThroughSettings>) => void;
 }
 
 export function OptionsView({
@@ -29,8 +29,8 @@ export function OptionsView({
   disabled = false,
   onChange,
 }: OptionsViewProps) {
-  const update = (patch: Partial<CutThroughSettings>) => {
-    onChange({ ...settings, ...patch });
+  const update = (changes: Partial<CutThroughSettings>) => {
+    onChange(changes);
   };
 
   return (

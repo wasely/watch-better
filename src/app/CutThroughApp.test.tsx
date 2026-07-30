@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -48,6 +48,30 @@ describe('CutThroughApp foundation shell', () => {
     expect(askTab).toHaveFocus();
   });
 
+  it('keeps tab targets mounted and preserves transcript state', () => {
+    render(
+      <CutThroughApp transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }} />,
+    );
+
+    for (const name of ['Transcript', 'Ask', 'Skip']) {
+      const targetId = screen.getByRole('tab', { name }).getAttribute('aria-controls');
+      expect(targetId).not.toBeNull();
+      expect(document.getElementById(targetId ?? '')).toHaveAttribute(
+        'role',
+        'tabpanel',
+      );
+    }
+
+    const search = screen.getByPlaceholderText('Search transcript');
+    fireEvent.change(search, { target: { value: 'evidence' } });
+    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse CutThrough' }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand CutThrough/ }));
+
+    expect(screen.getByPlaceholderText('Search transcript')).toHaveValue('evidence');
+  });
+
   it('supports controlled tab state and reports requested changes', () => {
     const onTabChange = vi.fn();
     const { rerender } = render(
@@ -74,7 +98,7 @@ describe('CutThroughApp foundation shell', () => {
       <CutThroughApp collapsed onCollapsedChange={onCollapsedChange} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand CutThrough' }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand CutThrough/ }));
     expect(onCollapsedChange).toHaveBeenCalledWith(false);
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
 
@@ -88,9 +112,14 @@ describe('CutThroughApp foundation shell', () => {
 
     await user.click(screen.getByRole('button', { name: 'Collapse CutThrough' }));
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    const launcher = screen.getByRole('button', { name: /Expand CutThrough/ });
+    await waitFor(() => expect(launcher).toHaveFocus());
 
-    await user.click(screen.getByRole('button', { name: 'Expand CutThrough' }));
+    await user.click(launcher);
     expect(screen.getByRole('tablist')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Transcript' })).toHaveFocus(),
+    );
   });
 
   it('routes settings through the provided callback', async () => {

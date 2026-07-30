@@ -37,3 +37,29 @@ export class SettingsRepository {
     return normalizeSettings(DEFAULT_SETTINGS);
   }
 }
+
+export class SettingsWriteCoordinator {
+  readonly #repository: SettingsRepository;
+  #queue: Promise<void> = Promise.resolve();
+
+  public constructor(repository: SettingsRepository = new SettingsRepository()) {
+    this.#repository = repository;
+  }
+
+  public load(): Promise<CutThroughSettings> {
+    return this.#queue.then(() => this.#repository.load());
+  }
+
+  public patch(changes: Partial<CutThroughSettings>): Promise<CutThroughSettings> {
+    const operation = this.#queue.then(async () => {
+      const current = await this.#repository.load();
+      return this.#repository.save({ ...current, ...changes });
+    });
+
+    this.#queue = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }
+}

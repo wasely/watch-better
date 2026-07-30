@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '@/features/settings/settings';
 import {
   SETTINGS_STORAGE_KEY,
   SettingsRepository,
+  SettingsWriteCoordinator,
   type KeyValueStorageArea,
 } from './settings-repository';
 
@@ -43,6 +44,26 @@ describe('SettingsRepository', () => {
 
     expect(storage.values[SETTINGS_STORAGE_KEY]).toEqual(saved);
     await expect(repository.load()).resolves.toEqual(saved);
+  });
+
+  it('serializes patches against the latest stored value', async () => {
+    const storage = new MemoryStorageArea();
+    const repository = new SettingsRepository(storage);
+    const coordinator = new SettingsWriteCoordinator(repository);
+    await repository.save({
+      ...DEFAULT_SETTINGS,
+      extensionEnabled: true,
+      defaultTab: 'ask',
+    });
+
+    const [disabled, changedTab] = await Promise.all([
+      coordinator.patch({ extensionEnabled: false }),
+      coordinator.patch({ defaultTab: 'skip' }),
+    ]);
+
+    expect(disabled).toMatchObject({ extensionEnabled: false, defaultTab: 'ask' });
+    expect(changedTab).toMatchObject({ extensionEnabled: false, defaultTab: 'skip' });
+    await expect(coordinator.load()).resolves.toEqual(changedTab);
   });
 
   it('removes persisted values on reset', async () => {
