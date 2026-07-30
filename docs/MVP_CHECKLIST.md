@@ -50,10 +50,10 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: disabled/enabled/presets/status/warning/time/advanced/reset states render and behave.
   - Verify: component tests and screenshots.
   - Status: Verified 2026-07-29; off/waiting/ready/active/aggressive/unsupported/error fixtures, explicit reversible switch, three presets, approximate savings, advanced controls, reset, safety warnings, responsive measurements, and repaired dark/light screenshot matrix passed.
-- [ ] **MVP-023 · P1 · PRD-004, PRD-042, PRD-050 — Shell, settings, popup states**
+- [x] **MVP-023 · P1 · PRD-004, PRD-042, PRD-050 — Shell, settings, popup states**
   - Acceptance: header/tabs/collapse/settings and constrained popup are complete in fixtures.
   - Verify: component tests and screenshots.
-  - Status: Pending.
+  - Status: Verified 2026-07-30; controlled tabs/collapse, all typed settings, seven popup/action states, browser-driven interactions, honest failure UI, and dark/light narrow/desktop screenshots passed.
 - [ ] **MVP-024 · P1 · PRD-050–PRD-052 — Visual/accessibility fixture review**
   - Acceptance: inspected dark/light × narrow/wide screenshots show no clipping/overflow and keyboard/focus/accessibility checks pass.
   - Verify: artifacts under `artifacts/ui/`, automated accessibility checks, manual inspection notes.

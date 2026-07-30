@@ -48,6 +48,40 @@ describe('CutThroughApp foundation shell', () => {
     expect(askTab).toHaveFocus();
   });
 
+  it('supports controlled tab state and reports requested changes', () => {
+    const onTabChange = vi.fn();
+    const { rerender } = render(
+      <CutThroughApp activeTab="ask" onTabChange={onTabChange} />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Skip' }));
+    expect(onTabChange).toHaveBeenCalledWith('skip');
+    expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    rerender(<CutThroughApp activeTab="skip" onTabChange={onTabChange} />);
+    expect(screen.getByRole('tab', { name: 'Skip' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it('supports controlled collapse state and reports expansion', () => {
+    const onCollapsedChange = vi.fn();
+    const { rerender } = render(
+      <CutThroughApp collapsed onCollapsedChange={onCollapsedChange} />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand CutThrough' }));
+    expect(onCollapsedChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+
+    rerender(<CutThroughApp collapsed={false} onCollapsedChange={onCollapsedChange} />);
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
+  });
+
   it('collapses to and restores from the icon launcher', async () => {
     const user = userEvent.setup();
     render(<CutThroughApp />);

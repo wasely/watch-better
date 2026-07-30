@@ -25,10 +25,14 @@ export type PanelReadiness = 'loading' | 'ready' | 'unavailable';
 export interface CutThroughAppProps {
   readonly theme?: ResolvedTheme;
   readonly initialTab?: PanelTab;
+  readonly activeTab?: PanelTab;
   readonly initialCollapsed?: boolean;
+  readonly collapsed?: boolean;
   readonly transcript?: TranscriptPanelProps;
   readonly ask?: AskPanelProps;
   readonly skip?: SkipPanelProps;
+  readonly onTabChange?: (tab: PanelTab) => void;
+  readonly onCollapsedChange?: (collapsed: boolean) => void;
   readonly onOpenSettings?: () => void;
 }
 
@@ -62,14 +66,20 @@ const transcriptStatus = (
 export function CutThroughApp({
   theme = 'dark',
   initialTab = 'transcript',
+  activeTab: controlledActiveTab,
   initialCollapsed = false,
+  collapsed: controlledCollapsed,
   transcript,
   ask,
   skip,
+  onTabChange,
+  onCollapsedChange,
   onOpenSettings,
 }: CutThroughAppProps) {
-  const [activeTab, setActiveTab] = useState<PanelTab>(initialTab);
-  const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [internalActiveTab, setInternalActiveTab] = useState<PanelTab>(initialTab);
+  const [internalCollapsed, setInternalCollapsed] = useState(initialCollapsed);
+  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const collapsed = controlledCollapsed ?? internalCollapsed;
   const id = useId();
   const transcriptProps: TranscriptPanelProps = transcript ?? {
     state: LOADING_TRANSCRIPT_STATE,
@@ -88,6 +98,16 @@ export function CutThroughApp({
   };
   const status = transcriptStatus(transcriptProps.state);
 
+  const selectTab = (nextTab: PanelTab) => {
+    if (controlledActiveTab === undefined) setInternalActiveTab(nextTab);
+    onTabChange?.(nextTab);
+  };
+
+  const setPanelCollapsed = (nextCollapsed: boolean) => {
+    if (controlledCollapsed === undefined) setInternalCollapsed(nextCollapsed);
+    onCollapsedChange?.(nextCollapsed);
+  };
+
   const handleTabKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
@@ -104,7 +124,7 @@ export function CutThroughApp({
     if (!next) return;
 
     const tablist = event.currentTarget;
-    setActiveTab(next.id);
+    selectTab(next.id);
     requestAnimationFrame(() => {
       Array.from(tablist.querySelectorAll<HTMLElement>('[data-tab-id]'))
         .find((element) => element.dataset.tabId === next.id)
@@ -118,7 +138,7 @@ export function CutThroughApp({
         <button
           aria-label="Expand CutThrough"
           className="ct-launcher"
-          onClick={() => setCollapsed(false)}
+          onClick={() => setPanelCollapsed(false)}
           title="Expand CutThrough"
           type="button"
         >
@@ -153,6 +173,7 @@ export function CutThroughApp({
             <button
               aria-label="Open CutThrough settings"
               className="ct-icon-button"
+              disabled={!onOpenSettings}
               onClick={onOpenSettings}
               title="Settings"
               type="button"
@@ -162,7 +183,7 @@ export function CutThroughApp({
             <button
               aria-label="Collapse CutThrough"
               className="ct-icon-button"
-              onClick={() => setCollapsed(true)}
+              onClick={() => setPanelCollapsed(true)}
               title="Collapse"
               type="button"
             >
@@ -187,7 +208,7 @@ export function CutThroughApp({
                 data-tab-id={tab.id}
                 id={`${id}-${tab.id}-tab`}
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => selectTab(tab.id)}
                 role="tab"
                 tabIndex={selected ? 0 : -1}
                 type="button"

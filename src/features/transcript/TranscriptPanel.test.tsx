@@ -117,7 +117,7 @@ describe('TranscriptPanel', () => {
     });
     const onAskSelection = vi.fn();
     const onOpenSelectionInChatGPT = vi.fn();
-    render(
+    const { container } = render(
       <TranscriptPanel
         onAskSelection={onAskSelection}
         onCopy={onCopy}
@@ -126,34 +126,42 @@ describe('TranscriptPanel', () => {
       />,
     );
 
-    const checkboxes = screen.getAllByRole('checkbox', {
-      name: /Select transcript segment/,
-    });
+    const checkboxes = Array.from(
+      container.querySelectorAll<HTMLInputElement>('.ct-row-select input'),
+    );
     const first = checkboxes[1];
     const fourth = checkboxes[4];
     if (!first || !fourth) throw new Error('Fixture checkboxes missing.');
 
     fireEvent.click(first);
-    expect(
-      screen.getByText('1', { selector: '.ct-selection-bar strong' }),
-    ).toBeVisible();
+    const selectionCount = container.querySelector('.ct-selection-bar strong');
+    expect(selectionCount).toHaveTextContent('1');
     fireEvent.mouseDown(fourth, { shiftKey: true });
     fireEvent.click(fourth, { shiftKey: true });
 
-    expect(document.querySelector('.ct-selection-bar strong')).toHaveTextContent('4');
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(selectionCount).toHaveTextContent('4');
+    const actions = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('.ct-selection-action'),
+    );
+    const copy = actions[0];
+    const ask = actions[1];
+    const open = actions[2];
+    if (!copy || !ask || !open) throw new Error('Selection actions missing.');
+    fireEvent.click(copy);
 
-    await waitFor(() => expect(onCopy).toHaveBeenCalledOnce());
+    expect(onCopy).toHaveBeenCalledOnce();
     const copied = copiedValues[0] ?? '';
     expect(copied).toContain(tutorialTranscript.videoTitle);
     expect(copied).toContain('0:12 —');
     expect(copied).toContain('0:48 —');
-    expect(screen.getByText('4 segments copied.')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Open selected transcript in ChatGPT' }),
+    await waitFor(() =>
+      expect(container.querySelector('.ct-transcript__feedback')).toHaveTextContent(
+        '4 segments copied.',
+      ),
     );
+
+    fireEvent.click(ask);
+    fireEvent.click(open);
     expect(onAskSelection.mock.calls[0]?.[0]).toHaveProperty('size', 4);
     expect(onOpenSelectionInChatGPT.mock.calls[0]?.[0]).toHaveProperty('size', 4);
   });

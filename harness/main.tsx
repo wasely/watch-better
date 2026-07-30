@@ -2,11 +2,18 @@ import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { CutThroughApp, type ResolvedTheme } from '@/app/CutThroughApp';
-import type { PanelTab } from '@/features/settings/settings';
+import { OptionsView } from '@/entrypoints/options/OptionsView';
+import { PopupView } from '@/entrypoints/popup/PopupView';
+import {
+  DEFAULT_SETTINGS,
+  type CutThroughSettings,
+  type PanelTab,
+} from '@/features/settings/settings';
 import type {
   SkipConfiguration,
   SkipEngineSnapshot,
 } from '@/features/skip/skip-engine';
+import type { RuntimeStatus } from '@/messaging/messages';
 import type { TranscriptViewState } from '@/features/transcript/transcript-view-state';
 import { skipFixtures, type SkipFixtureId } from '@/test/fixtures/skip';
 import {
@@ -20,6 +27,75 @@ import './style.css';
 const widths = [320, 402, 480] as const;
 type HarnessWidth = (typeof widths)[number];
 type HarnessScenarioId = TranscriptFixtureId | 'search' | 'selected';
+type HarnessSurface = 'panel' | 'popup' | 'options';
+type PopupFixtureId =
+  'loading' | 'supported' | 'mounted' | 'unsupported' | 'disabled' | 'error';
+
+interface PopupFixture {
+  readonly label: string;
+  readonly status: RuntimeStatus | null;
+  readonly message: string;
+  readonly error: boolean;
+}
+
+const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
+  loading: {
+    label: 'Loading',
+    status: null,
+    message: 'Reading the active tab status…',
+    error: false,
+  },
+  supported: {
+    label: 'Watch page ready',
+    status: {
+      enabled: true,
+      supportedPage: true,
+      panelMounted: false,
+      version: '0.1.0',
+    },
+    message: 'Watch page detected. Restore the panel if it is hidden.',
+    error: false,
+  },
+  mounted: {
+    label: 'Panel visible',
+    status: {
+      enabled: true,
+      supportedPage: true,
+      panelMounted: true,
+      version: '0.1.0',
+    },
+    message: 'CutThrough is mounted on this video.',
+    error: false,
+  },
+  unsupported: {
+    label: 'Unsupported page',
+    status: {
+      enabled: true,
+      supportedPage: false,
+      panelMounted: false,
+      version: '0.1.0',
+    },
+    message: 'Open a desktop YouTube watch page to use CutThrough.',
+    error: false,
+  },
+  disabled: {
+    label: 'Extension disabled',
+    status: {
+      enabled: false,
+      supportedPage: true,
+      panelMounted: false,
+      version: '0.1.0',
+    },
+    message: 'Enable the extension to show its YouTube panel.',
+    error: false,
+  },
+  error: {
+    label: 'Status error',
+    status: null,
+    message: 'Could not read CutThrough status. Try again.',
+    error: true,
+  },
+};
 
 const scenarioLabels: Record<HarnessScenarioId, string> = {
   tutorial: '5-minute tutorial',
@@ -50,6 +126,16 @@ const initialScenario: HarnessScenarioId =
 const requestedTab = harnessParams.get('tab');
 const initialTab: PanelTab =
   requestedTab === 'ask' || requestedTab === 'skip' ? requestedTab : 'transcript';
+const requestedSurface = harnessParams.get('surface');
+const initialSurface: HarnessSurface =
+  requestedSurface === 'popup' || requestedSurface === 'options'
+    ? requestedSurface
+    : 'panel';
+const requestedPopupFixture = harnessParams.get('popup');
+const initialPopupFixtureId: PopupFixtureId =
+  requestedPopupFixture && requestedPopupFixture in popupFixtures
+    ? (requestedPopupFixture as PopupFixtureId)
+    : 'supported';
 const requestedSkipFixture = harnessParams.get('skip');
 const initialSkipFixtureId: SkipFixtureId =
   requestedSkipFixture && requestedSkipFixture in skipFixtures
@@ -57,6 +143,7 @@ const initialSkipFixtureId: SkipFixtureId =
     : 'off';
 const copyShouldFail = harnessParams.get('copy') === 'error';
 const openShouldFail = harnessParams.get('open') === 'error';
+const initialCollapsed = harnessParams.get('collapsed') === '1';
 
 function NeighborCard() {
   return (
@@ -77,6 +164,18 @@ const baseFixtureId = (scenario: HarnessScenarioId): TranscriptFixtureId =>
 
 function Harness() {
   const [theme, setTheme] = useState<ResolvedTheme>(initialTheme);
+  const [surface, setSurface] = useState<HarnessSurface>(initialSurface);
+  const [popupFixtureId, setPopupFixtureId] =
+    useState<PopupFixtureId>(initialPopupFixtureId);
+  const [popupStatus, setPopupStatus] = useState<RuntimeStatus | null>(
+    popupFixtures[initialPopupFixtureId].status,
+  );
+  const [popupMessage, setPopupMessage] = useState(
+    popupFixtures[initialPopupFixtureId].message,
+  );
+  const [optionsSettings, setOptionsSettings] =
+    useState<CutThroughSettings>(DEFAULT_SETTINGS);
+  const [optionsStatus, setOptionsStatus] = useState('Settings loaded');
   const [width, setWidth] = useState<HarnessWidth>(initialWidth);
   const [scenario, setScenario] = useState<HarnessScenarioId>(initialScenario);
   const [panelTab, setPanelTab] = useState<PanelTab>(initialTab);
@@ -90,7 +189,7 @@ function Harness() {
   );
   const [selectedTrackId, setSelectedTrackId] = useState('en-human');
   const [activeIndex, setActiveIndex] = useState(4);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [neighborFirst, setNeighborFirst] = useState(false);
   const [instance, setInstance] = useState(0);
 
@@ -180,6 +279,30 @@ function Harness() {
     });
   };
 
+  const changePopupFixture = (nextId: PopupFixtureId) => {
+    const nextFixture = popupFixtures[nextId];
+    setPopupFixtureId(nextId);
+    setPopupStatus(nextFixture.status);
+    setPopupMessage(nextFixture.message);
+  };
+
+  const updatePopupEnabled = (enabled: boolean) => {
+    setPopupStatus((current) => (current ? { ...current, enabled } : current));
+    setPopupMessage(enabled ? 'CutThrough enabled.' : 'CutThrough disabled.');
+  };
+
+  const restorePopupPanel = () => {
+    setPopupStatus((current) =>
+      current ? { ...current, panelMounted: true } : current,
+    );
+    setPopupMessage('Panel restore simulated in the fixture.');
+  };
+
+  const updateOptions = (next: CutThroughSettings) => {
+    setOptionsSettings(next);
+    setOptionsStatus('Saved');
+  };
+
   return (
     <main className={`harness-page harness-page--${theme}`}>
       <aside aria-label="Harness controls" className="harness-controls">
@@ -200,166 +323,230 @@ function Harness() {
         </label>
 
         <label>
-          Panel tab
+          Surface
           <select
-            onChange={(event) => {
-              setPanelTab(event.currentTarget.value as PanelTab);
-              setInstance((value) => value + 1);
-            }}
-            value={panelTab}
+            onChange={(event) =>
+              setSurface(event.currentTarget.value as HarnessSurface)
+            }
+            value={surface}
           >
-            <option value="transcript">Transcript</option>
-            <option value="ask">Ask</option>
-            <option value="skip">Skip</option>
+            <option value="panel">YouTube panel</option>
+            <option value="popup">Toolbar popup</option>
+            <option value="options">Settings page</option>
           </select>
         </label>
 
-        {panelTab === 'skip' ? (
+        {surface === 'panel' ? (
+          <>
+            <label>
+              Panel tab
+              <select
+                onChange={(event) => {
+                  setPanelTab(event.currentTarget.value as PanelTab);
+                  setInstance((value) => value + 1);
+                }}
+                value={panelTab}
+              >
+                <option value="transcript">Transcript</option>
+                <option value="ask">Ask</option>
+                <option value="skip">Skip</option>
+              </select>
+            </label>
+
+            {panelTab === 'skip' ? (
+              <label>
+                Skip state
+                <select
+                  onChange={(event) =>
+                    changeSkipFixture(event.currentTarget.value as SkipFixtureId)
+                  }
+                  value={skipFixtureId}
+                >
+                  {(Object.keys(skipFixtures) as SkipFixtureId[]).map((fixtureId) => (
+                    <option key={fixtureId} value={fixtureId}>
+                      {skipFixtures[fixtureId].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+
+            <label>
+              Column width
+              <select
+                onChange={(event) =>
+                  setWidth(Number(event.currentTarget.value) as HarnessWidth)
+                }
+                value={width}
+              >
+                {widths.map((option) => (
+                  <option key={option} value={option}>
+                    {option}px
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Fixture
+              <select
+                onChange={(event) =>
+                  changeScenario(event.currentTarget.value as HarnessScenarioId)
+                }
+                value={scenario}
+              >
+                {(Object.keys(scenarioLabels) as HarnessScenarioId[]).map((id) => (
+                  <option key={id} value={id}>
+                    {scenarioLabels[id]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {transcriptState.kind === 'ready' ? (
+              <label>
+                Active row
+                <input
+                  max={transcriptState.document.segments.length - 1}
+                  min="0"
+                  onChange={(event) =>
+                    setActiveIndex(Number(event.currentTarget.value))
+                  }
+                  type="range"
+                  value={Math.min(
+                    activeIndex,
+                    transcriptState.document.segments.length - 1,
+                  )}
+                />
+              </label>
+            ) : null}
+
+            <label className="harness-check">
+              <input
+                checked={collapsed}
+                onChange={(event) => remount(event.currentTarget.checked)}
+                type="checkbox"
+              />
+              Start collapsed
+            </label>
+
+            <label className="harness-check">
+              <input
+                checked={neighborFirst}
+                onChange={(event) => setNeighborFirst(event.currentTarget.checked)}
+                type="checkbox"
+              />
+              Neighbor above
+            </label>
+          </>
+        ) : null}
+
+        {surface === 'popup' ? (
           <label>
-            Skip state
+            Popup state
             <select
               onChange={(event) =>
-                changeSkipFixture(event.currentTarget.value as SkipFixtureId)
+                changePopupFixture(event.currentTarget.value as PopupFixtureId)
               }
-              value={skipFixtureId}
+              value={popupFixtureId}
             >
-              {(Object.keys(skipFixtures) as SkipFixtureId[]).map((fixtureId) => (
+              {(Object.keys(popupFixtures) as PopupFixtureId[]).map((fixtureId) => (
                 <option key={fixtureId} value={fixtureId}>
-                  {skipFixtures[fixtureId].label}
+                  {popupFixtures[fixtureId].label}
                 </option>
               ))}
             </select>
           </label>
         ) : null}
-
-        <label>
-          Column width
-          <select
-            onChange={(event) =>
-              setWidth(Number(event.currentTarget.value) as HarnessWidth)
-            }
-            value={width}
-          >
-            {widths.map((option) => (
-              <option key={option} value={option}>
-                {option}px
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Fixture
-          <select
-            onChange={(event) =>
-              changeScenario(event.currentTarget.value as HarnessScenarioId)
-            }
-            value={scenario}
-          >
-            {(Object.keys(scenarioLabels) as HarnessScenarioId[]).map((id) => (
-              <option key={id} value={id}>
-                {scenarioLabels[id]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {transcriptState.kind === 'ready' ? (
-          <label>
-            Active row
-            <input
-              max={transcriptState.document.segments.length - 1}
-              min="0"
-              onChange={(event) => setActiveIndex(Number(event.currentTarget.value))}
-              type="range"
-              value={Math.min(
-                activeIndex,
-                transcriptState.document.segments.length - 1,
-              )}
-            />
-          </label>
-        ) : null}
-
-        <label className="harness-check">
-          <input
-            checked={collapsed}
-            onChange={(event) => remount(event.currentTarget.checked)}
-            type="checkbox"
-          />
-          Start collapsed
-        </label>
-
-        <label className="harness-check">
-          <input
-            checked={neighborFirst}
-            onChange={(event) => setNeighborFirst(event.currentTarget.checked)}
-            type="checkbox"
-          />
-          Neighbor above
-        </label>
       </aside>
 
-      <section className="harness-stage" aria-label="Simulated YouTube page">
-        <div className="harness-video">
-          <span>Simulated YouTube player</span>
-          <div />
-        </div>
-        <aside className="harness-column" style={{ width }}>
-          {neighborFirst ? <NeighborCard /> : null}
-          <CutThroughApp
-            ask={{
-              transcript:
-                transcriptState.kind === 'ready' ? transcriptState.document : null,
-              selectedSegmentIds: askSelectedSegmentIds,
-              currentTimeSeconds: activeSegment?.startSeconds ?? null,
-              initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
-              initialQuestion: askInitialQuestion,
-              onCopy: () =>
-                copyShouldFail
-                  ? Promise.reject(new Error('Fixture clipboard failure.'))
-                  : Promise.resolve(),
-              onOpenChatGPT: () =>
-                openShouldFail
-                  ? Promise.reject(new Error('Fixture tab failure.'))
-                  : Promise.resolve(),
-            }}
-            initialCollapsed={collapsed}
-            initialTab={panelTab}
-            key={`${instance}-${scenario}-${panelTab}`}
-            skip={{
-              configuration: skipConfiguration,
-              snapshot: skipSnapshot,
-              detectionLabel: 'Transcript-gap fixture candidate',
-              initialAdvancedOpen: skipFixtures[skipFixtureId].advancedOpen ?? false,
-              onConfigurationChange: updateSkipConfiguration,
-              onReset: () => changeSkipFixture('off'),
-            }}
+      {surface === 'panel' ? (
+        <section className="harness-stage" aria-label="Simulated YouTube page">
+          <div className="harness-video">
+            <span>Simulated YouTube player</span>
+            <div />
+          </div>
+          <aside className="harness-column" style={{ width }}>
+            {neighborFirst ? <NeighborCard /> : null}
+            <CutThroughApp
+              ask={{
+                transcript:
+                  transcriptState.kind === 'ready' ? transcriptState.document : null,
+                selectedSegmentIds: askSelectedSegmentIds,
+                currentTimeSeconds: activeSegment?.startSeconds ?? null,
+                initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
+                initialQuestion: askInitialQuestion,
+                onCopy: () =>
+                  copyShouldFail
+                    ? Promise.reject(new Error('Fixture clipboard failure.'))
+                    : Promise.resolve(),
+                onOpenChatGPT: () =>
+                  openShouldFail
+                    ? Promise.reject(new Error('Fixture tab failure.'))
+                    : Promise.resolve(),
+              }}
+              activeTab={panelTab}
+              collapsed={collapsed}
+              key={`${instance}-${scenario}`}
+              onCollapsedChange={setCollapsed}
+              onOpenSettings={() => setSurface('options')}
+              onTabChange={setPanelTab}
+              skip={{
+                configuration: skipConfiguration,
+                snapshot: skipSnapshot,
+                detectionLabel: 'Transcript-gap fixture candidate',
+                initialAdvancedOpen: skipFixtures[skipFixtureId].advancedOpen ?? false,
+                onConfigurationChange: updateSkipConfiguration,
+                onReset: () => changeSkipFixture('off'),
+              }}
+              theme={theme}
+              transcript={{
+                state: transcriptState,
+                activeSegmentId: activeSegment?.id ?? null,
+                initialQuery: scenario === 'search' ? 'evidence' : '',
+                ...(selectedFixtureIds
+                  ? { initialSelectedSegmentIds: selectedFixtureIds }
+                  : {}),
+                onAskSelection: () => undefined,
+                onCopy: () => Promise.resolve(),
+                onEnableTranscript: () => changeScenario('tutorial'),
+                onOpenSelectionInChatGPT: () => undefined,
+                onRetry: () => changeScenario('tutorial'),
+                onSeek: (segment) => {
+                  if (transcriptState.kind !== 'ready') return;
+                  const index = transcriptState.document.segments.findIndex(
+                    (candidate) => candidate.id === segment.id,
+                  );
+                  if (index >= 0) setActiveIndex(index);
+                },
+                onTrackChange: setSelectedTrackId,
+              }}
+            />
+            {!neighborFirst ? <NeighborCard /> : null}
+          </aside>
+        </section>
+      ) : surface === 'popup' ? (
+        <section className="harness-standalone" aria-label="Popup fixture">
+          <PopupView
+            error={popupFixtures[popupFixtureId].error}
+            message={popupMessage}
+            onOpenSettings={() => setSurface('options')}
+            onRestorePanel={restorePopupPanel}
+            onSetEnabled={updatePopupEnabled}
+            status={popupStatus}
             theme={theme}
-            transcript={{
-              state: transcriptState,
-              activeSegmentId: activeSegment?.id ?? null,
-              initialQuery: scenario === 'search' ? 'evidence' : '',
-              ...(selectedFixtureIds
-                ? { initialSelectedSegmentIds: selectedFixtureIds }
-                : {}),
-              onAskSelection: () => undefined,
-              onCopy: () => Promise.resolve(),
-              onEnableTranscript: () => changeScenario('tutorial'),
-              onOpenSelectionInChatGPT: () => undefined,
-              onRetry: () => changeScenario('tutorial'),
-              onSeek: (segment) => {
-                if (transcriptState.kind !== 'ready') return;
-                const index = transcriptState.document.segments.findIndex(
-                  (candidate) => candidate.id === segment.id,
-                );
-                if (index >= 0) setActiveIndex(index);
-              },
-              onTrackChange: setSelectedTrackId,
-            }}
           />
-          {!neighborFirst ? <NeighborCard /> : null}
-        </aside>
-      </section>
+        </section>
+      ) : (
+        <section className="harness-options" aria-label="Settings fixture">
+          <OptionsView
+            onChange={updateOptions}
+            settings={optionsSettings}
+            status={optionsStatus}
+            theme={theme}
+          />
+        </section>
+      )}
     </main>
   );
 }

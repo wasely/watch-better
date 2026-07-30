@@ -1,35 +1,37 @@
 # Status
 
-Updated: 2026-07-29
+Updated: 2026-07-30
 
 ## Last completed task
 
-**MVP-022 — Verified Skip fixture UI.** CutThrough now renders safe off, waiting, ready, active, aggressive, unsupported, and restored-error states; an explicit reversible switch; conservative/balanced/aggressive presets; approximate time saved; advanced timing/rate/jump controls; reset; and prominent approximate/aggressive safety warnings.
+**MVP-023 — Verified shell, settings, and popup fixture states.** The panel now supports controlled tabs/collapse with isolated fallbacks; the toolbar popup covers loading, supported, mounted, unsupported, disabled, busy, and error states; and the settings surface edits every typed MVP setting with explicit save/load feedback.
 
 ## Current task
 
-**MVP-023 — Complete shell, settings, and popup fixture states.**
+**MVP-024 — Complete visual/accessibility fixture review.**
 
 ## Validation results
 
-- Formatting, ESLint, strict TypeScript, full Vitest suite, coverage, and production WXT build passed for the latest verified code.
-- Full suite: 9 files, 51 tests passed.
-- Coverage: 74.96% statements / 78.45% lines overall; Skip feature 88.33% statements / 89.28% lines.
-- Production build: `.output/chrome-mv3/`, 474.13 kB total. Development package: `.output/cutthrough-0.1.0-chrome.zip`, 146.18 kB.
-- Vitest uses one thread with file parallelism disabled. Forked/multi-worker runs timed out while the host CPU was externally saturated; the bounded worker configuration completed the full suite and coverage without skipped tests.
-- Browser-driven switch round-trip enabled a ready state and then restored Off; component tests cover full presets, custom controls, reset, elevated risk, malformed savings, and enabled error reversal.
-- Responsive measurements: no horizontal overflow or out-of-panel buttons at 320/402/480px; measured panel heights were 508–576px closed and 714px with all advanced controls open.
-- Skip screenshot artifacts:
-  - `artifacts/ui/skip-dark-402-off.png`
-  - `artifacts/ui/skip-light-480-active-advanced.png`
-  - `artifacts/ui/skip-dark-320-aggressive.png`
-  - `artifacts/ui/skip-light-320-unsupported.png`
-  - `artifacts/ui/skip-dark-402-error.png`
-- Error UI was repaired before final capture to remove a redundant approximate-warning card and replace misleading `On` copy with `Turn off`. The final dark/light × narrow/wide matrix passed independent visual review.
-- Additional Ask action-state evidence:
-  - `artifacts/ui/ask-dark-402-copied.png`
-  - `artifacts/ui/ask-light-402-open-error.png`
-- Production bundle audit found no transcript/Ask/Skip fixture markers; built manifest permissions remain `storage` plus the YouTube host only.
+- Prettier, ESLint, strict TypeScript, full Vitest suite, coverage, production WXT build, and zip passed.
+- Full suite: 11 files, 62 tests passed.
+- Coverage: 70.25% statements / 72.98% lines overall; shell 89.58% statements / 93.02% lines; Skip remains 88.33% statements / 89.28% lines.
+- Production build: `.output/chrome-mv3/`, 488.06 kB total. Development package: `.output/cutthrough-0.1.0-chrome.zip`, 149.71 kB.
+- Browser-driven smoke passed popup Restore Panel → Settings, collapsed launcher → expanded Ask tab, and options changes → Saved. No page, HTTP, or console errors remained after adding the harness data favicon.
+- Popup review repaired an unknown-status state that previously implied the extension was enabled. Loading/error now show neutral disabled enablement with honest copy.
+- Inspected dark/light desktop/narrow popup, settings, collapsed, and expanded screenshots show no clipped controls or horizontal overflow. Evidence:
+  - `artifacts/ui/shell-popup-dark-loading.png`
+  - `artifacts/ui/shell-popup-dark-supported.png`
+  - `artifacts/ui/shell-popup-dark-error.png`
+  - `artifacts/ui/shell-popup-light-disabled.png`
+  - `artifacts/ui/shell-popup-light-mounted.png`
+  - `artifacts/ui/shell-popup-light-unsupported.png`
+  - `artifacts/ui/shell-options-light-desktop.png`
+  - `artifacts/ui/shell-options-dark-narrow.png`
+  - `artifacts/ui/shell-options-light-saved.png`
+  - `artifacts/ui/shell-panel-dark-320-collapsed.png`
+  - `artifacts/ui/shell-panel-dark-320-expanded.png`
+  - `artifacts/ui/shell-panel-light-480-transcript.png`
+- Production bundle audit found no fixture markers; built manifest permissions remain `storage` plus the YouTube host only.
 
 ## Known defects
 
@@ -48,7 +50,7 @@ None.
 
 ## Next recommended task
 
-Implement MVP-023 as one slice: finish controlled header/tab/collapse/settings states, connect fixture settings behavior, complete constrained popup states/actions, add component tests, capture popup/shell screenshots, and repair visual defects.
+Complete MVP-024: run automated accessibility checks, keyboard/focus checks, 200% text zoom, reduced-motion, and final dark/light × narrow/wide overflow review. Repair only verified defects, then close fixture UI.
 
 ## Exact commands last run
 
@@ -60,10 +62,10 @@ npm --prefix /c/code/watch-better run test
 npm --prefix /c/code/watch-better run test:coverage
 npm --prefix /c/code/watch-better run build
 npm --prefix /c/code/watch-better run zip
-npm --prefix /c/code/watch-better run dev:harness -- --host 127.0.0.1
-playwright screenshot --browser chromium --viewport-size "1280,1000" --full-page --wait-for-selector ".ct-skip-warning--strong" "http://127.0.0.1:4173/?tab=skip&theme=dark&width=320&skip=aggressive" artifacts/ui/skip-dark-320-aggressive.png
+npm --prefix /c/code/watch-better run dev:harness -- --host 127.0.0.1 --port 4173
+# Python Playwright smoke drove popup, shell, and options interactions against the harness.
 ```
 
 ## Commit status
 
-Foundation: `417ff68`. Transcript: `484260d`. Ask: `8b21de7`. Skip slice is verified for local history. Remote push remains prohibited.
+Foundation: `417ff68`. Transcript: `484260d`. Ask: `8b21de7`. Skip: `8a75a8e`. Shell/settings/popup slice is verified for local history. Remote push remains prohibited.
