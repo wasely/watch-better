@@ -25,5 +25,31 @@ describe('extension message validation', () => {
     expect(isExtensionRequest({ type: 'chatgpt:open', prompt: 'hidden data' })).toBe(
       false,
     );
+    expect(isExtensionRequest({ type: 'chatgpt:get-status' })).toBe(true);
+    expect(isExtensionRequest({ type: 'chatgpt:configure', apiKey: 'sk-test' })).toBe(
+      true,
+    );
+    expect(isExtensionRequest({ type: 'chatgpt:configure', apiKey: '' })).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'chatgpt:send',
+        message: 'Use the transcript.',
+        previousResponseId: null,
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'chatgpt:send',
+        message: '',
+        previousResponseId: null,
+      }),
+    ).toBe(false);
+    expect(
+      isExtensionRequest({
+        type: 'chatgpt:send',
+        message: 'Continue',
+        previousResponseId: 'wrong-prefix',
+      }),
+    ).toBe(false);
   });
 });

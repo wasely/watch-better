@@ -18,13 +18,13 @@ describe('OptionsView', () => {
 
     expect(screen.getByRole('heading', { name: 'Panel defaults' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Transcript' })).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: 'Pause compression' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Jump cutter' })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Handoff and privacy' }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/No analytics, account, backend/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/stores no analytics, transcripts, or conversations/),
+    ).toBeInTheDocument();
     expect(screen.getByText('Settings loaded')).toBeInTheDocument();
   });
 
@@ -90,5 +90,24 @@ describe('OptionsView', () => {
         .getAllByRole('checkbox')
         .every((control) => control.hasAttribute('disabled')),
     ).toBe(true);
+  });
+
+  it('saves an OpenAI API key through the background-only handler', () => {
+    const onConfigureChatGPT = vi.fn(() => Promise.resolve());
+    render(
+      <OptionsView
+        onChange={() => undefined}
+        onConfigureChatGPT={onConfigureChatGPT}
+        settings={DEFAULT_SETTINGS}
+        status="Settings loaded"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('OpenAI API key'), {
+      target: { value: 'sk-test-key' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save key' }));
+
+    expect(onConfigureChatGPT).toHaveBeenCalledWith('sk-test-key');
   });
 });

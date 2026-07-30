@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A compact YouTube transcript, ChatGPT handoff, and pause-compression companion.",
+  "description": "A compact YouTube transcript, embedded ChatGPT, and jump-cutter companion.",
   "scripts": {
     "dev": "wxt",
     "dev:harness": "vite --config harness/vite.config.ts",

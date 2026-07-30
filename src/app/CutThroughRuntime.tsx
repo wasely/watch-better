@@ -32,6 +32,7 @@ import {
   SETTINGS_STORAGE_KEY,
 } from '@/storage/settings-repository';
 import { TranscriptCache } from '@/storage/transcript-cache';
+import { CHAT_CONFIG_STORAGE_KEY, type ChatConfigStatus } from '@/storage/chat-config';
 
 import { CutThroughApp, type ResolvedTheme } from './CutThroughApp';
 
@@ -104,6 +105,11 @@ export function CutThroughRuntime({
     ReadonlySet<TranscriptSegmentId>
   >(new Set());
   const [skipSnapshot, setSkipSnapshot] = useState<SkipEngineSnapshot>(EMPTY_SKIP);
+  const [chatStatus, setChatStatus] = useState<ChatConfigStatus>({
+    configured: false,
+    model: 'gpt-5.6',
+  });
+  const [primeRequestId, setPrimeRequestId] = useState(0);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
@@ -171,6 +177,28 @@ export function CutThroughRuntime({
       browser.storage.onChanged.removeListener(onStorageChange);
     };
   }, [repository]);
+
+  useEffect(() => {
+    let disposed = false;
+    const refresh = () => {
+      void send({ type: 'chatgpt:get-status' }).then((response) => {
+        if (disposed || !response.ok || response.type !== 'chatgpt:status') return;
+        setChatStatus({ configured: response.configured, model: response.model });
+      });
+    };
+    const onStorageChange = (
+      changes: Record<string, { readonly newValue?: unknown }>,
+      areaName: string,
+    ) => {
+      if (areaName === 'local' && CHAT_CONFIG_STORAGE_KEY in changes) refresh();
+    };
+    browser.storage.onChanged.addListener(onStorageChange);
+    refresh();
+    return () => {
+      disposed = true;
+      browser.storage.onChanged.removeListener(onStorageChange);
+    };
+  }, []);
 
   const patchSettings = useCallback(async (changes: Partial<CutThroughSettings>) => {
     setSettings((current) => ({ ...current, ...changes }));
@@ -340,6 +368,12 @@ export function CutThroughRuntime({
         onAskSelection: (segmentIds) => {
           setSelectedSegmentIds(new Set(segmentIds));
           setActiveTab('ask');
+          setPrimeRequestId((current) => current + 1);
+        },
+        onAskTranscript: () => {
+          setSelectedSegmentIds(new Set());
+          setActiveTab('ask');
+          setPrimeRequestId((current) => current + 1);
         },
         onOpenSelectionInChatGPT: (segmentIds) => {
           setSelectedSegmentIds(new Set(segmentIds));
@@ -356,6 +390,21 @@ export function CutThroughRuntime({
         transcript: transcriptDocument,
         selectedSegmentIds,
         currentTimeSeconds: playbackState.currentTimeSeconds,
+        chatConfigured: chatStatus.configured,
+        chatModel: chatStatus.model,
+        primeRequestId,
+        onConfigureChatGPT: () => void send({ type: 'settings:open' }),
+        onSendChatGPT: async (request) => {
+          const response = await send({ type: 'chatgpt:send', ...request });
+          if (!response.ok) throw new Error(response.message);
+          if (response.type !== 'chatgpt:response')
+            throw new Error('Unexpected ChatGPT response.');
+          return {
+            text: response.text,
+            responseId: response.responseId,
+            model: response.model,
+          };
+        },
         onOpenChatGPT: async () => {
           const response = await send({ type: 'chatgpt:open' });
           if (!response.ok) throw new Error(response.message);
@@ -364,7 +413,7 @@ export function CutThroughRuntime({
       skip={{
         configuration: settings.pause,
         snapshot: skipSnapshot,
-        detectionLabel: 'Padded transcript-gap detector',
+        detectionLabel: 'Built-in transcript-gap jump cutter',
         onConfigurationChange: (pause) => {
           skipEngineRef.current?.update(pause);
           void patchSettings({ pause }).catch(() => undefined);

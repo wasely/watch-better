@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { Icon } from '@/components/Icon';
 import type {
   ChatGPTHandoffBehavior,
@@ -20,6 +22,9 @@ export interface OptionsViewProps {
   readonly theme?: OptionsTheme;
   readonly disabled?: boolean;
   readonly onChange: (changes: Partial<CutThroughSettings>) => void;
+  readonly chatConfigured?: boolean;
+  readonly chatModel?: string;
+  readonly onConfigureChatGPT?: (apiKey: string) => void;
 }
 
 export function OptionsView({
@@ -28,7 +33,11 @@ export function OptionsView({
   theme = 'light',
   disabled = false,
   onChange,
+  chatConfigured = false,
+  chatModel = 'gpt-5.6',
+  onConfigureChatGPT,
 }: OptionsViewProps) {
+  const [apiKey, setApiKey] = useState('');
   const update = (changes: Partial<CutThroughSettings>) => {
     onChange(changes);
   };
@@ -75,7 +84,7 @@ export function OptionsView({
           >
             <option value="transcript">Transcript</option>
             <option value="ask">Ask</option>
-            <option value="skip">Skip</option>
+            <option value="skip">Jump Cut</option>
           </select>
         </label>
         <label className="ct-options-row">
@@ -163,11 +172,11 @@ export function OptionsView({
       </section>
 
       <section aria-labelledby="pause-title" className="ct-options-card">
-        <h2 id="pause-title">Pause compression</h2>
+        <h2 id="pause-title">Jump cutter</h2>
         <label className="ct-options-row">
           <span>
             <strong>Enable experimental controls</strong>
-            <small>Off by default; no engine is selected yet.</small>
+            <small>Off by default; compresses padded transcript gaps.</small>
           </span>
           <input
             checked={settings.pause.enabled}
@@ -206,6 +215,48 @@ export function OptionsView({
 
       <section aria-labelledby="handoff-title" className="ct-options-card">
         <h2 id="handoff-title">Handoff and privacy</h2>
+        <div className="ct-options-row ct-options-row--credential">
+          <span>
+            <strong>Embedded ChatGPT</strong>
+            <small>
+              {chatConfigured
+                ? `Connected with ${chatModel}. Enter a new key to replace it.`
+                : 'Add your OpenAI API key to chat with the video inside CutThrough.'}
+            </small>
+          </span>
+          <div className="ct-options-credential">
+            <input
+              aria-label="OpenAI API key"
+              autoComplete="off"
+              disabled={disabled || !onConfigureChatGPT}
+              onChange={(event) => setApiKey(event.currentTarget.value)}
+              placeholder={chatConfigured ? 'API key saved' : 'sk-…'}
+              type="password"
+              value={apiKey}
+            />
+            <button
+              className="ct-button"
+              disabled={disabled || !onConfigureChatGPT || !apiKey.trim()}
+              onClick={() => {
+                onConfigureChatGPT?.(apiKey);
+                setApiKey('');
+              }}
+              type="button"
+            >
+              {chatConfigured ? 'Replace key' : 'Save key'}
+            </button>
+            {chatConfigured ? (
+              <button
+                className="ct-button"
+                disabled={disabled || !onConfigureChatGPT}
+                onClick={() => onConfigureChatGPT?.('')}
+                type="button"
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+        </div>
         <label className="ct-options-row">
           <span>
             <strong>ChatGPT actions</strong>
@@ -245,8 +296,12 @@ export function OptionsView({
           </select>
         </label>
         <p className="ct-options-privacy">
-          No analytics, account, backend, hidden transcript transmission, or permanent
-          transcript storage.
+          CutThrough stores no analytics, transcripts, or conversations permanently.
+          Chat sends bounded transcript context to OpenAI only after an explicit Ask or
+          Send action, subject to your OpenAI API data controls. The API key stays in
+          local extension storage and is never returned to the page. OpenAI retains
+          Responses API state for at least 30 days by default; API usage can incur
+          charges.
         </p>
       </section>
 

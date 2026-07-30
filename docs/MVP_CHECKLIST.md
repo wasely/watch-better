@@ -93,18 +93,18 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Verify: stress fixtures, accessibility tests, live unavailable video.
   - Status: Long, unavailable, error, keyboard, Axe, and 200% zoom fixtures pass; live unavailable-video check pending.
 
-## Phase 5 — ChatGPT handoff
+## Phase 5 — embedded ChatGPT
 
 - [x] **MVP-050 · P0 · PRD-020, PRD-021, PRD-024 — Deterministic prompt provider**
   - Acceptance: each context/suggestion builds bounded, timestamp-preserving prompts without network calls.
   - Verify: unit snapshot/behavior tests including huge transcripts.
-  - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded and Ask feature code has no network/browser API calls.
-- [~] **MVP-051 · P0 · PRD-022, PRD-023, PRD-025 — Explicit copy/open actions**
-  - Acceptance: separate user actions copy prompt and open ChatGPT; no automation/hidden transmission/fake response exists.
-  - Verify: service/component tests, manifest audit, manual tab check.
-  - Status: Runtime/message/component and production-source audits pass; manual ChatGPT tab check pending.
+  - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded.
+- [~] **MVP-051 · P0 · PRD-022, PRD-023, PRD-025 — Embedded transcript chat**
+  - Acceptance: Transcript Ask primes native chat; follow-ups chain responses; keys stay extension-only; transmission is explicit and bounded; external open carries no content.
+  - Verify: service/component/runtime/message/storage tests, manifest/source audit, live API check.
+  - Status: Automated API, chaining, priming, key-storage, permission, and external-open audits pass; live configured API check pending.
 
-## Phase 6 — pause compression
+## Phase 6 — jump cutter
 
 - [x] **MVP-060 · P0 · PRD-031 — Pause-detection feasibility spike**
   - Acceptance: four candidate methods are tested/researched and documented with permissions, reliability, and decision evidence.
@@ -114,7 +114,7 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: selected engine is off by default, validates timing, avoids ads/repeats, reverses immediately, and restores rate on all exits.
   - Verify: deterministic engine/controller integration tests.
   - Status: Verified 2026-07-30; deterministic tests cover gap planning, ads, malformed timing, repeated jumps, rate changes, disable, and dispose restoration.
-- [x] **MVP-062 · P1 · PRD-034 — Skip controls and measurement**
+- [x] **MVP-062 · P1 · PRD-034 — Jump Cut controls and measurement**
   - Acceptance: presets/advanced/reset/status/warnings/time-saved connect to engine and persist correctly.
   - Verify: component/integration tests and controlled playback fixture.
   - Status: Verified 2026-07-30; persisted configuration drives the real engine and the panel reports approximate savings and honest detector state.
@@ -136,11 +136,11 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 - [x] **MVP-073 · P0 · PRD-053 — Full canonical validation**
   - Acceptance: clean install plus format/lint/type/tests/build/zip all pass with no critical/high defects.
   - Verify: exact commands and results in `STATUS.md`.
-  - Status: Verified 2026-07-30; clean `npm ci`, format, lint, strict typecheck, 86 tests, coverage, build, and zip pass with no high automated defect.
+  - Status: Verified 2026-07-30; clean install baseline, format, lint, strict typecheck, 93 tests, coverage, build, and zip pass with no high automated defect.
 - [~] **MVP-074 · P0 · PRD-001–PRD-053 — Production extension smoke test**
   - Acceptance: unpacked production build satisfies live YouTube Definition of Done checks; any unavailable manual verification is explicitly blocked, never implied.
   - Verify: Chrome unpacked/manual matrix and captured evidence.
-  - Status: Built unpacked extension awaits manual loading because connected browser automation cannot control `chrome://extensions`.
+  - Status: Updated unpacked extension awaits one manual Reload because connected Chrome automation cannot control `chrome://extensions`.
 - [~] **MVP-075 · P1 · PRD-053 — Documentation and package delivery**
   - Acceptance: README/docs match implementation; zip exists; no unchecked P0/P1 item remains.
   - Verify: doc review, archive inspection, checklist audit.

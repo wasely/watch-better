@@ -172,7 +172,7 @@ export function SkipPanel({
               <Icon name="speed" />
             </span>
             <span>
-              <strong id={`${id}-title`}>Pause compression</strong>
+              <strong id={`${id}-title`}>Jump cutter</strong>
               <small>Experimental</small>
             </span>
           </div>
@@ -196,12 +196,12 @@ export function SkipPanel({
           </button>
         </div>
         <p>
-          Compresses candidate pauses while preserving speech. Off by default and
-          reversible immediately.
+          Speeds through or jumps padded caption gaps while preserving speech. Off by
+          default and reversible immediately.
         </p>
       </section>
 
-      <section aria-label="Pause compression status" className="ct-skip-status">
+      <section aria-label="Jump cutter status" className="ct-skip-status">
         <div aria-live="polite" className="ct-skip-status__state">
           <span className={`ct-skip-status__dot ct-skip-status__dot--${status.tone}`} />
           <span>

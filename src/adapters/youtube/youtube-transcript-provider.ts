@@ -247,11 +247,15 @@ const sourceFromResponse = (
 
 export class YouTubeTranscriptProvider implements TranscriptProvider {
   readonly #sources = new Map<string, VideoSource>();
+  readonly #fetch: typeof fetch;
 
   public constructor(
     private readonly documentRef: Document = document,
-    private readonly fetchImpl: typeof fetch = fetch,
-  ) {}
+    fetchImpl: typeof fetch = fetch,
+  ) {
+    const fetchOwner = documentRef.defaultView ?? globalThis;
+    this.#fetch = (...args) => Reflect.apply(fetchImpl, fetchOwner, args);
+  }
 
   public async listTracks(
     videoId: string,
@@ -277,7 +281,7 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
 
     const url = new URL(caption.baseUrl);
     url.searchParams.set('fmt', 'json3');
-    const response = await this.fetchImpl(url, {
+    const response = await this.#fetch(url, {
       credentials: 'include',
       signal,
     });
@@ -337,7 +341,7 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
     }
 
     if (!source) {
-      const response = await this.fetchImpl(
+      const response = await this.#fetch(
         `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
         { credentials: 'include', signal },
       );

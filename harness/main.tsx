@@ -154,7 +154,6 @@ const initialSkipFixtureId: SkipFixtureId =
   requestedSkipFixture && requestedSkipFixture in skipFixtures
     ? (requestedSkipFixture as SkipFixtureId)
     : 'off';
-const copyShouldFail = harnessParams.get('copy') === 'error';
 const openShouldFail = harnessParams.get('open') === 'error';
 const initialCollapsed = harnessParams.get('collapsed') === '1';
 
@@ -362,7 +361,7 @@ function Harness() {
               >
                 <option value="transcript">Transcript</option>
                 <option value="ask">Ask</option>
-                <option value="skip">Skip</option>
+                <option value="skip">Jump Cut</option>
               </select>
             </label>
 
@@ -489,10 +488,6 @@ function Harness() {
                 currentTimeSeconds: activeSegment?.startSeconds ?? null,
                 initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
                 initialQuestion: askInitialQuestion,
-                onCopy: () =>
-                  copyShouldFail
-                    ? Promise.reject(new Error('Fixture clipboard failure.'))
-                    : Promise.resolve(),
                 onOpenChatGPT: () =>
                   openShouldFail
                     ? Promise.reject(new Error('Fixture tab failure.'))

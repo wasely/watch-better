@@ -161,12 +161,29 @@ describe('CutThroughRuntime integration', () => {
           browserState.storage['cutthrough:settings'] = settings;
           return Promise.resolve({ ok: true, type: 'settings:updated', settings });
         }
+        if (request.type === 'chatgpt:get-status') {
+          return Promise.resolve({
+            ok: true,
+            type: 'chatgpt:status',
+            configured: true,
+            model: 'gpt-5.6',
+          });
+        }
+        if (request.type === 'chatgpt:send') {
+          return Promise.resolve({
+            ok: true,
+            type: 'chatgpt:response',
+            text: 'Ready for questions.',
+            responseId: 'resp_test',
+            model: 'gpt-5.6',
+          });
+        }
         return Promise.resolve({ ok: true, type: 'acknowledged' });
       },
     );
   });
 
-  it('loads real provider data, seeks playback, and opens explicit handoff', async () => {
+  it('loads data, seeks playback, and primes embedded ChatGPT from Transcript Ask', async () => {
     const pageController = new FakePageController();
     const playback = new FakePlayback();
     const provider: TranscriptProvider = {
@@ -187,9 +204,25 @@ describe('CutThroughRuntime integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Seek to 0:08' }));
     expect(playback.snapshot.currentTimeSeconds).toBe(8);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Summarize this video' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Open ChatGPT' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+    await waitFor(() =>
+      expect(browserState.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'chatgpt:send',
+          previousResponseId: null,
+        }),
+      ),
+    );
+    expect(JSON.stringify(browserState.sendMessage.mock.calls)).toContain(
+      'TRANSCRIPT CONTEXT',
+    );
+    expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(await screen.findByText('Ready for questions.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Open ChatGPT/ }));
     await waitFor(() =>
       expect(browserState.sendMessage).toHaveBeenCalledWith({ type: 'chatgpt:open' }),
     );

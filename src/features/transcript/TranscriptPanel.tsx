@@ -30,6 +30,7 @@ export interface TranscriptPanelProps {
   readonly onSeek?: (segment: TranscriptSegment) => void;
   readonly onTrackChange?: (trackId: string) => void;
   readonly onCopy?: (text: string) => void | Promise<void>;
+  readonly onAskTranscript?: () => void;
   readonly onAskSelection?: (segmentIds: ReadonlySet<TranscriptSegmentId>) => void;
   readonly onOpenSelectionInChatGPT?: (
     segmentIds: ReadonlySet<TranscriptSegmentId>,
@@ -133,6 +134,7 @@ function TranscriptReadyView({
   onSeek,
   onTrackChange,
   onCopy,
+  onAskTranscript,
   onAskSelection,
   onOpenSelectionInChatGPT,
   onFollowChange,
@@ -326,6 +328,15 @@ function TranscriptReadyView({
               ))}
             </select>
           </label>
+          <button
+            className="ct-mini-button ct-mini-button--labeled ct-mini-button--ask"
+            disabled={!onAskTranscript}
+            onClick={onAskTranscript}
+            type="button"
+          >
+            <Icon name="message" />
+            <span>Ask</span>
+          </button>
           <button
             aria-pressed={following}
             className={`ct-follow-button${following ? ' is-active' : ''}`}

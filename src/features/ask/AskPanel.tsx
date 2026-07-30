@@ -1,16 +1,16 @@
-import { useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 
 import { Icon } from '@/components/Icon';
-import type {
-  AIContextScope,
-  AIProvider,
-  GeneratedPrompt,
-} from '@/features/ask/ai-provider';
+import type { AIContextScope, AIProvider } from '@/features/ask/ai-provider';
 import { ChatGPTHandoffProvider } from '@/features/ask/chatgpt-handoff-provider';
-import {
-  SUGGESTED_ASK_ACTIONS,
-  type SuggestedAskAction,
-} from '@/features/ask/suggested-actions';
+import { SUGGESTED_ASK_ACTIONS } from '@/features/ask/suggested-actions';
 import type {
   TranscriptDocument,
   TranscriptSegmentId,
@@ -21,6 +21,27 @@ import './AskPanel.css';
 
 const DEFAULT_PROVIDER = new ChatGPTHandoffProvider();
 const EMPTY_SELECTION = new Set<TranscriptSegmentId>();
+const PRIME_QUESTION =
+  'Use this transcript as the source of truth. Get ready to answer my questions about this video, cite useful timestamps, and say when the transcript does not establish an answer.';
+
+interface ChatMessage {
+  readonly id: string;
+  readonly role: 'user' | 'assistant';
+  readonly text: string;
+  readonly pending?: boolean;
+  readonly error?: boolean;
+}
+
+export interface ChatTurnRequest {
+  readonly message: string;
+  readonly previousResponseId: string | null;
+}
+
+export interface ChatTurnResult {
+  readonly text: string;
+  readonly responseId: string;
+  readonly model: string;
+}
 
 export interface AskPanelProps {
   readonly transcript: TranscriptDocument | null;
@@ -29,30 +50,15 @@ export interface AskPanelProps {
   readonly initialScope?: AIContextScope;
   readonly initialQuestion?: string;
   readonly provider?: AIProvider;
-  readonly onCopy?: (text: string) => void | Promise<void>;
+  readonly chatConfigured?: boolean;
+  readonly chatModel?: string;
+  readonly primeRequestId?: number;
+  readonly onSendChatGPT?: (request: ChatTurnRequest) => Promise<ChatTurnResult>;
+  readonly onConfigureChatGPT?: () => void;
   readonly onOpenChatGPT?: () => void | Promise<void>;
 }
 
-const scopeLabel = (
-  scope: AIContextScope,
-  transcript: TranscriptDocument,
-  selectedCount: number,
-  currentTimeSeconds: number | null,
-): string => {
-  switch (scope) {
-    case 'entire-video':
-      return `Entire video · ${transcript.segments.length.toLocaleString()} rows`;
-    case 'current-section':
-      return `Current section · around ${formatTimestamp(currentTimeSeconds ?? 0)}`;
-    case 'selection':
-      return `Selection · ${selectedCount.toLocaleString()} rows`;
-  }
-};
-
-const approximateTokens = (characters: number): string =>
-  Math.max(1, Math.ceil(characters / 4)).toLocaleString();
-
-const resolveAvailableScope = (
+const resolveScope = (
   scope: AIContextScope,
   selectedCount: number,
   currentTimeSeconds: number | null,
@@ -62,6 +68,20 @@ const resolveAvailableScope = (
   return scope;
 };
 
+const scopeLabel = (
+  scope: AIContextScope,
+  transcript: TranscriptDocument,
+  selectedCount: number,
+  currentTimeSeconds: number | null,
+): string => {
+  if (scope === 'selection') return `${selectedCount} selected rows`;
+  if (scope === 'current-section')
+    return `Around ${formatTimestamp(currentTimeSeconds ?? 0)}`;
+  return `${transcript.segments.length.toLocaleString()} transcript rows`;
+};
+
+const messageId = (): string => crypto.randomUUID();
+
 function AskUnavailableState() {
   return (
     <div className="ct-ask-state" role="status">
@@ -69,10 +89,7 @@ function AskUnavailableState() {
         <Icon name="message" />
       </span>
       <strong>Transcript context is required</strong>
-      <p>
-        Load an available transcript before building a timestamped ChatGPT handoff.
-        CutThrough will not invent missing video context.
-      </p>
+      <p>Load the video's transcript before starting a grounded chat.</p>
     </div>
   );
 }
@@ -84,120 +101,179 @@ export function AskPanel({
   initialScope = 'entire-video',
   initialQuestion = '',
   provider = DEFAULT_PROVIDER,
-  onCopy,
+  chatConfigured = false,
+  chatModel = 'gpt-5.6',
+  primeRequestId = 0,
+  onSendChatGPT,
+  onConfigureChatGPT,
   onOpenChatGPT,
 }: AskPanelProps) {
-  const initialResolvedScope = resolveAvailableScope(
-    initialScope,
-    selectedSegmentIds.size,
-    currentTimeSeconds,
+  const [scope, setScope] = useState<AIContextScope>(() =>
+    resolveScope(initialScope, selectedSegmentIds.size, currentTimeSeconds),
   );
-  const [scope, setScope] = useState<AIContextScope>(initialResolvedScope);
   const [question, setQuestion] = useState(initialQuestion);
+  const [messages, setMessages] = useState<readonly ChatMessage[]>([]);
+  const [previousResponseId, setPreviousResponseId] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const [copiedPrompt, setCopiedPrompt] = useState<string | null>(null);
-  const questionRef = useRef<HTMLTextAreaElement>(null);
-  const resolvedScope = resolveAvailableScope(
+  const [resolvedModel, setResolvedModel] = useState(chatModel);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const primeSeenRef = useRef(0);
+  const resolvedScope = resolveScope(
     scope,
     selectedSegmentIds.size,
     currentTimeSeconds,
   );
 
-  const generated = useMemo<GeneratedPrompt | null>(() => {
-    if (!transcript || !question.trim()) return null;
-    return provider.buildPrompt({
-      transcript,
-      scope: resolvedScope,
-      currentTimeSeconds,
-      selectedSegmentIds,
-      question,
-    });
-  }, [
-    currentTimeSeconds,
-    provider,
-    question,
-    resolvedScope,
-    selectedSegmentIds,
-    transcript,
-  ]);
-  const copied = generated !== null && copiedPrompt === generated.text;
+  useEffect(() => {
+    messagesRef.current?.scrollTo?.({ top: messagesRef.current.scrollHeight });
+  }, [messages]);
+
+  const buildFirstTurn = useCallback(
+    (userQuestion: string): string => {
+      if (!transcript) return userQuestion;
+      return provider.buildPrompt({
+        transcript,
+        scope: resolvedScope,
+        currentTimeSeconds,
+        selectedSegmentIds,
+        question: userQuestion,
+      }).text;
+    },
+    [currentTimeSeconds, provider, resolvedScope, selectedSegmentIds, transcript],
+  );
+
+  const sendQuestion = useCallback(
+    async (userQuestion: string, displayText = userQuestion) => {
+      const trimmed = userQuestion.trim();
+      if (!trimmed || sending) return;
+      if (!chatConfigured || !onSendChatGPT) {
+        setFeedback('Add an OpenAI API key in CutThrough settings first.');
+        return;
+      }
+      const userId = messageId();
+      const assistantId = messageId();
+      setSending(true);
+      setFeedback('Sending bounded transcript context to OpenAI…');
+      setMessages((current) => [
+        ...current,
+        { id: userId, role: 'user', text: displayText },
+        { id: assistantId, role: 'assistant', text: 'Thinking…', pending: true },
+      ]);
+      try {
+        const result = await onSendChatGPT({
+          message: previousResponseId ? trimmed : buildFirstTurn(trimmed),
+          previousResponseId,
+        });
+        setPreviousResponseId(result.responseId);
+        setResolvedModel(result.model);
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId
+              ? { id: assistantId, role: 'assistant', text: result.text }
+              : message,
+          ),
+        );
+        setFeedback('Ready');
+      } catch (error) {
+        const text =
+          error instanceof Error ? error.message : 'ChatGPT could not answer.';
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantId
+              ? { id: assistantId, role: 'assistant', text, error: true }
+              : message,
+          ),
+        );
+        setFeedback('Message failed');
+      } finally {
+        setSending(false);
+      }
+    },
+    [buildFirstTurn, chatConfigured, onSendChatGPT, previousResponseId, sending],
+  );
+
+  useEffect(() => {
+    if (primeRequestId <= 0 || primeSeenRef.current === primeRequestId) return;
+    primeSeenRef.current = primeRequestId;
+    void sendQuestion(
+      PRIME_QUESTION,
+      'Use this transcript and get ready for questions.',
+    );
+  }, [primeRequestId, sendQuestion]);
+
+  const transcriptSummary = useMemo(
+    () =>
+      transcript
+        ? scopeLabel(
+            resolvedScope,
+            transcript,
+            selectedSegmentIds.size,
+            currentTimeSeconds,
+          )
+        : '',
+    [currentTimeSeconds, resolvedScope, selectedSegmentIds.size, transcript],
+  );
 
   if (!transcript) return <AskUnavailableState />;
 
-  const chooseScope = (nextScope: AIContextScope) => {
-    setScope(nextScope);
-    setFeedback('');
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const next = question.trim();
+    if (!next) return;
+    setQuestion('');
+    void sendQuestion(next);
   };
 
-  const copyPrompt = async () => {
-    if (!generated || !onCopy) return;
-    try {
-      await onCopy(generated.text);
-      setCopiedPrompt(generated.text);
-      setFeedback('Prompt copied. Open ChatGPT and paste when you are ready.');
-    } catch {
-      setCopiedPrompt(null);
-      setFeedback('Could not copy the prompt. Check clipboard access and try again.');
-    }
-  };
-
-  const openChatGPT = async () => {
-    if (!onOpenChatGPT) return;
-    try {
-      await onOpenChatGPT();
-      setFeedback(
-        copied
-          ? 'ChatGPT opened. Paste the copied prompt when ready.'
-          : 'ChatGPT opened. Nothing was copied or sent automatically.',
-      );
-    } catch {
-      setFeedback('Could not open ChatGPT. Open chatgpt.com manually.');
-    }
-  };
-
-  const applySuggestedAction = (action: SuggestedAskAction) => {
-    setQuestion(action.question);
-    setScope(
-      resolveAvailableScope(action.scope, selectedSegmentIds.size, currentTimeSeconds),
-    );
-    setFeedback('');
-    requestAnimationFrame(() => {
-      questionRef.current?.focus();
-      if (action.id === 'find-topic') {
-        questionRef.current?.setSelectionRange(
-          action.question.length,
-          action.question.length,
-        );
-      }
-    });
+  const newConversation = () => {
+    setMessages([]);
+    setPreviousResponseId(null);
+    setFeedback('New conversation. The next message will include transcript context.');
   };
 
   return (
-    <div className="ct-ask">
-      <div className="ct-ask__mode">
+    <div className="ct-ask ct-chat">
+      <div className="ct-chat__head">
         <div>
           <span className="ct-mode-badge">
-            <Icon name="external" />
-            Handoff mode
+            <Icon name="spark" />
+            Embedded ChatGPT
           </span>
-          <span>
-            {scopeLabel(
-              resolvedScope,
-              transcript,
-              selectedSegmentIds.size,
-              currentTimeSeconds,
-            )}
-          </span>
+          <strong>{transcript.videoTitle}</strong>
+          <span>{transcriptSummary}</span>
         </div>
-        <p>CutThrough builds a prompt locally. It never reads or automates ChatGPT.</p>
+        <button
+          className="ct-mini-button ct-mini-button--labeled"
+          disabled={sending}
+          onClick={newConversation}
+          type="button"
+        >
+          New chat
+        </button>
       </div>
 
+      {!chatConfigured ? (
+        <div className="ct-chat__setup" role="status">
+          <Icon name="settings" />
+          <div>
+            <strong>Connect OpenAI to chat here</strong>
+            <span>
+              Add your API key once. It stays in local extension storage and is never
+              exposed to YouTube.
+            </span>
+          </div>
+          <button className="ct-button ct-button--primary" onClick={onConfigureChatGPT}>
+            Open settings
+          </button>
+        </div>
+      ) : null}
+
       <fieldset className="ct-context-picker">
-        <legend>Context</legend>
+        <legend>Transcript context</legend>
         <div>
           <button
             aria-pressed={resolvedScope === 'entire-video'}
-            onClick={() => chooseScope('entire-video')}
+            onClick={() => setScope('entire-video')}
             type="button"
           >
             Entire video
@@ -205,7 +281,7 @@ export function AskPanel({
           <button
             aria-pressed={resolvedScope === 'current-section'}
             disabled={currentTimeSeconds === null}
-            onClick={() => chooseScope('current-section')}
+            onClick={() => setScope('current-section')}
             type="button"
           >
             Current section
@@ -213,7 +289,7 @@ export function AskPanel({
           <button
             aria-pressed={resolvedScope === 'selection'}
             disabled={selectedSegmentIds.size === 0}
-            onClick={() => chooseScope('selection')}
+            onClick={() => setScope('selection')}
             type="button"
           >
             Selected ({selectedSegmentIds.size})
@@ -221,127 +297,87 @@ export function AskPanel({
         </div>
       </fieldset>
 
-      <section aria-labelledby="ct-suggested-actions" className="ct-suggestions">
-        <div className="ct-section-heading">
-          <strong id="ct-suggested-actions">Suggested actions</strong>
-          <span>Choose one or write your own</span>
-        </div>
-        <div className="ct-suggestion-list">
-          {SUGGESTED_ASK_ACTIONS.map((action) => (
-            <button
-              key={action.id}
-              onClick={() => applySuggestedAction(action)}
-              type="button"
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-        <label className="ct-suggestion-select">
-          <span>Suggested task</span>
-          <select
-            defaultValue=""
-            onChange={(event) => {
-              const action = SUGGESTED_ASK_ACTIONS.find(
-                (candidate) => candidate.id === event.currentTarget.value,
-              );
-              if (action) applySuggestedAction(action);
-              event.currentTarget.value = '';
-            }}
-          >
-            <option disabled value="">
-              Choose a suggested task…
-            </option>
-            {SUGGESTED_ASK_ACTIONS.map((action) => (
-              <option key={action.id} value={action.id}>
-                {action.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
-
-      <section aria-labelledby="ct-question-label" className="ct-composer">
-        <div className="ct-section-heading">
-          <strong id="ct-question-label">Question or task</strong>
-          <span>{question.length.toLocaleString()} characters</span>
-        </div>
-        <textarea
-          aria-labelledby="ct-question-label"
-          maxLength={4_000}
-          onChange={(event) => {
-            setQuestion(event.currentTarget.value);
-            setFeedback('');
-          }}
-          placeholder="What do you want ChatGPT to analyze?"
-          ref={questionRef}
-          rows={4}
-          value={question}
-        />
-      </section>
-
-      <section aria-label="Generated handoff details" className="ct-handoff-summary">
-        {generated ? (
-          <>
-            <div className="ct-handoff-summary__stats">
-              <span>
-                <strong>{generated.characterCount.toLocaleString()}</strong> chars
-              </span>
-              <span>≈{approximateTokens(generated.characterCount)} tokens</span>
-              <span>{generated.includedSegmentCount.toLocaleString()} included</span>
-            </div>
-            {generated.wasTruncated ? (
-              <div className="ct-context-warning" role="status">
-                <strong>Context trimmed</strong>
-                <span>
-                  {generated.omittedSegmentCount > 0
-                    ? `${generated.omittedSegmentCount.toLocaleString()} rows omitted. `
-                    : 'Part of one transcript row was shortened. '}
-                  The prompt tells ChatGPT not to imply the missing context was checked.
-                </span>
-              </div>
-            ) : null}
-            <details>
-              <summary>Preview generated prompt</summary>
-              <pre>{generated.text}</pre>
-            </details>
-          </>
+      <div
+        aria-label="ChatGPT conversation"
+        aria-live="polite"
+        className="ct-chat__messages"
+        ref={messagesRef}
+        role="log"
+      >
+        {messages.length === 0 ? (
+          <div className="ct-chat__welcome">
+            <Icon name="message" />
+            <strong>Ask anything about this video</strong>
+            <span>
+              Your first message includes bounded timestamped transcript context.
+            </span>
+          </div>
         ) : (
-          <p className="ct-handoff-summary__empty">
-            Choose a suggested action or enter a question to build the local prompt.
-          </p>
+          messages.map((message) => (
+            <article
+              className={`ct-chat-message ct-chat-message--${message.role}${message.pending ? ' is-pending' : ''}${message.error ? ' is-error' : ''}`}
+              key={message.id}
+            >
+              <strong>{message.role === 'user' ? 'You' : 'ChatGPT'}</strong>
+              <p>{message.text}</p>
+            </article>
+          ))
         )}
-      </section>
-
-      <div className="ct-handoff-actions">
-        <div>
-          <Icon name="spark" />
-          <span>1. Copy prompt. 2. Open ChatGPT. Opening never transfers content.</span>
-        </div>
-        <div>
-          <button
-            className="ct-button ct-button--primary"
-            disabled={!generated || !onCopy}
-            onClick={() => void copyPrompt()}
-            type="button"
-          >
-            <Icon name={copied ? 'check' : 'copy'} />
-            {copied ? 'Copied' : 'Copy prompt'}
-          </button>
-          <button
-            className="ct-button"
-            disabled={!generated || !onOpenChatGPT}
-            onClick={() => void openChatGPT()}
-            type="button"
-          >
-            <Icon name="external" />
-            Open ChatGPT
-          </button>
-        </div>
       </div>
 
-      <div aria-live="polite" className="ct-ask__feedback">
-        {feedback}
+      <div aria-label="Suggested video questions" className="ct-chat__suggestions">
+        {SUGGESTED_ASK_ACTIONS.slice(0, 4).map((action) => (
+          <button
+            key={action.id}
+            onClick={() => {
+              setQuestion(action.question);
+              setScope(
+                resolveScope(action.scope, selectedSegmentIds.size, currentTimeSeconds),
+              );
+            }}
+            type="button"
+          >
+            {action.label}
+          </button>
+        ))}
+      </div>
+
+      <form className="ct-chat__composer" onSubmit={submit}>
+        <label className="ct-sr-only" htmlFor="ct-chat-question">
+          Ask about this video
+        </label>
+        <textarea
+          disabled={!chatConfigured || sending}
+          id="ct-chat-question"
+          maxLength={4_000}
+          onChange={(event) => setQuestion(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter')
+              event.currentTarget.form?.requestSubmit();
+          }}
+          placeholder="Ask a question about the video…"
+          rows={3}
+          value={question}
+        />
+        <button
+          className="ct-button ct-button--primary"
+          disabled={!chatConfigured || sending || !question.trim()}
+          type="submit"
+        >
+          <Icon name="spark" />
+          {sending ? 'Thinking…' : 'Send'}
+        </button>
+      </form>
+
+      <div className="ct-chat__footer">
+        <span aria-live="polite">{feedback || `Ready · ${resolvedModel}`}</span>
+        <button
+          className="ct-link-button"
+          onClick={() => void onOpenChatGPT?.()}
+          type="button"
+        >
+          Open ChatGPT ↗
+        </button>
       </div>
     </div>
   );

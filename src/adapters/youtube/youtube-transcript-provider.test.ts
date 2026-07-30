@@ -89,4 +89,50 @@ describe('YouTubeTranscriptProvider', () => {
     expect(transcript.segments[0]?.text).toBe('Evidence.');
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('fmt=json3');
   });
+
+  it('invokes browser fetch with its Window receiver', async () => {
+    history.replaceState({}, '', '/watch?v=video-2');
+    const script = document.createElement('script');
+    script.textContent = `var ytInitialPlayerResponse = ${JSON.stringify({
+      videoDetails: { videoId: 'video-2', title: 'Bound fetch' },
+      captions: {
+        playerCaptionsTracklistRenderer: {
+          captionTracks: [
+            {
+              baseUrl: 'https://www.youtube.com/api/timedtext?v=video-2&lang=en',
+              languageCode: 'en',
+              name: { simpleText: 'English' },
+              vssId: '.en',
+            },
+          ],
+        },
+      },
+    })};`;
+    document.head.append(script);
+    const receivers: unknown[] = [];
+    const receiverSensitiveFetch = function (this: unknown) {
+      receivers.push(this);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            events: [
+              {
+                tStartMs: 0,
+                dDurationMs: 1_000,
+                segs: [{ utf8: 'Bound fetch works.' }],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    } as typeof fetch;
+    const provider = new YouTubeTranscriptProvider(document, receiverSensitiveFetch);
+    const signal = new AbortController().signal;
+
+    const tracks = await provider.listTracks('video-2', signal);
+    await provider.load({ videoId: 'video-2', trackId: tracks[0]?.id ?? null }, signal);
+
+    expect(receivers).toEqual([window]);
+  });
 });

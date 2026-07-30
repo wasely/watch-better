@@ -185,6 +185,20 @@ describe('TranscriptPanel', () => {
     expect(screen.getByText('Full transcript copied.')).toBeInTheDocument();
   });
 
+  it('starts a full-transcript chat from the visible Ask button', async () => {
+    const user = userEvent.setup();
+    const onAskTranscript = vi.fn();
+    render(
+      <TranscriptPanel
+        onAskTranscript={onAskTranscript}
+        state={readyTranscriptState()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(onAskTranscript).toHaveBeenCalledOnce();
+  });
+
   it('suspends and explicitly resumes playback following', async () => {
     const user = userEvent.setup();
     const onFollowChange = vi.fn();

@@ -24,14 +24,14 @@ describe('CutThroughApp foundation shell', () => {
       'aria-selected',
       'true',
     );
-    expect(screen.getByText('Suggested actions')).toBeInTheDocument();
+    expect(screen.getByText('Embedded ChatGPT')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Skip' }));
-    expect(screen.getByRole('tab', { name: 'Skip' })).toHaveAttribute(
+    fireEvent.click(screen.getByRole('tab', { name: 'Jump Cut' }));
+    expect(screen.getByRole('tab', { name: 'Jump Cut' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
-    expect(screen.getByText('Pause compression')).toBeInTheDocument();
+    expect(screen.getByText('Jump cutter')).toBeInTheDocument();
     expect(screen.getByText('Unavailable')).toBeInTheDocument();
   });
 
@@ -53,7 +53,7 @@ describe('CutThroughApp foundation shell', () => {
       <CutThroughApp transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }} />,
     );
 
-    for (const name of ['Transcript', 'Ask', 'Skip']) {
+    for (const name of ['Transcript', 'Ask', 'Jump Cut']) {
       const targetId = screen.getByRole('tab', { name }).getAttribute('aria-controls');
       expect(targetId).not.toBeNull();
       expect(document.getElementById(targetId ?? '')).toHaveAttribute(
@@ -78,7 +78,7 @@ describe('CutThroughApp foundation shell', () => {
       <CutThroughApp activeTab="ask" onTabChange={onTabChange} />,
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Skip' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Jump Cut' }));
     expect(onTabChange).toHaveBeenCalledWith('skip');
     expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute(
       'aria-selected',
@@ -86,7 +86,7 @@ describe('CutThroughApp foundation shell', () => {
     );
 
     rerender(<CutThroughApp activeTab="skip" onTabChange={onTabChange} />);
-    expect(screen.getByRole('tab', { name: 'Skip' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Jump Cut' })).toHaveAttribute(
       'aria-selected',
       'true',
     );

@@ -171,7 +171,7 @@ export class TranscriptGapSkipEngine implements SkipEngine {
     }
     if (playback.adActive) {
       this.#setRate(this.#originalRate);
-      this.#publish('unsupported', 'Pause compression is suspended during ads.');
+      this.#publish('unsupported', 'Jump cutting is suspended during ads.');
       return;
     }
     if (this.#segments.length === 0) {

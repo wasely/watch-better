@@ -31,16 +31,16 @@ Help users evaluate videos, extract useful information, and reduce viewing time 
 - **PRD-018 (P1):** Remain responsive with very long transcripts and long segments through list windowing or an equivalent measured approach.
 - **PRD-019 (P1):** Support keyboard navigation, visible focus, accessible names, text zoom, and screen readers.
 
-### Ask and ChatGPT handoff
+### Ask and ChatGPT
 
 - **PRD-020 (P0):** Offer Entire video, Current section, and Selected transcript contexts plus a custom question and specified suggested actions.
 - **PRD-021 (P0):** Generate structured prompts with source identity and timestamps through an `AIProvider`; preserve an API-backed extension point.
-- **PRD-022 (P0):** Copy a generated prompt only after an explicit user action and confirm clipboard success/failure honestly.
-- **PRD-023 (P0):** Open `https://chatgpt.com/` only after an explicit user action; do not inject, paste, submit, iframe, scrape, or read ChatGPT.
+- **PRD-022 (P0):** From Transcript, expose **Ask**; it switches tabs and explicitly primes chat with bounded timestamped transcript context.
+- **PRD-023 (P0):** Provide native in-panel multi-turn chat through OpenAI's Responses API. Keep credentials/API calls in the service worker; do not iframe, modify, scrape, or automate ChatGPT.
 - **PRD-024 (P1):** Show approximate context size and handle oversized transcripts using deterministic bounded context with a clear disclosure.
-- **PRD-025 (P1):** Never claim an AI answer was generated inside CutThrough.
+- **PRD-025 (P1):** Preserve conversation continuity with response IDs, expose honest API/configuration errors, and keep external ChatGPT opening separate and content-free.
 
-### Pause compression
+### Jump cutter
 
 - **PRD-030 (P0):** Ship pause compression disabled by default, explicitly enabled, immediately reversible, and labeled experimental when approximate.
 - **PRD-031 (P0):** Complete and record a feasibility comparison of transcript gaps, video-element audio analysis, tab capture, and hybrid methods before selecting the engine.
@@ -52,9 +52,9 @@ Help users evaluate videos, extract useful information, and reduce viewing time 
 ### Settings, popup, privacy
 
 - **PRD-040 (P0):** Store typed settings for enablement, default tab, transcript behavior/font size/theme/collapse, pause settings, handoff behavior, and temporary caching.
-- **PRD-041 (P0):** Do not permanently store transcripts, prompts, questions, or conversation history by default; bound and document any temporary cache.
+- **PRD-041 (P0):** CutThrough does not persist transcripts, prompts, questions, or conversation history locally by default; bound and document temporary cache, and disclose OpenAI API retention and billing implications for explicit chat.
 - **PRD-042 (P1):** Toolbar popup contains status, enable/disable, settings, restore panel, and version only.
-- **PRD-043 (P0):** No backend, analytics, tracking, authentication, API key, remote executable code, or hidden transcript transmission.
+- **PRD-043 (P0):** No CutThrough backend, analytics, tracking, authentication, remote executable code, or hidden transcript transmission. Store a user-supplied OpenAI key locally and send bounded context only on explicit Ask/Send.
 - **PRD-044 (P0):** Request only permissions needed for implemented MVP behavior and document each one.
 
 ### UI and quality
@@ -66,12 +66,12 @@ Help users evaluate videos, extract useful information, and reduce viewing time 
 
 ## Out of scope
 
-Semantic or sponsor skipping; content-value classification; no-caption speech-to-text; Shorts/live/mobile/other websites; embedded AI; ChatGPT automation; accounts/payments/cloud sync; video downloading/editing; analytics/tracking.
+Semantic or sponsor skipping; content-value classification; no-caption speech-to-text; Shorts/live/mobile/other websites; ChatGPT page automation; accounts/payments/cloud sync; video downloading/editing; analytics/tracking.
 
 ## Success indicators
 
 - User reaches a transcript row and seeks in under two interactions after load.
-- Search/selection/copy and explicit ChatGPT handoff work without hidden transmission.
+- Search/selection/copy and explicit transcript-grounded chat work without hidden transmission.
 - SPA navigation repeatedly leaves one current panel and one current transcript.
-- Pause compression cannot leave playback altered after disable/navigation.
+- Jump cutting cannot leave playback altered after disable/navigation.
 - All P0/P1 acceptance conditions are verified or transparently marked as manual blockers.

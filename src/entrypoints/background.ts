@@ -9,8 +9,11 @@ import {
   SettingsRepository,
   SettingsWriteCoordinator,
 } from '@/storage/settings-repository';
+import { ChatConfigRepository } from '@/storage/chat-config';
+import { sendOpenAIChat } from '@/services/openai-chat';
 
 const settingsCoordinator = new SettingsWriteCoordinator(new SettingsRepository());
+const chatConfigRepository = new ChatConfigRepository();
 
 const isSupportedWatchUrl = (url: string | undefined): boolean => {
   if (!url) return false;
@@ -84,6 +87,31 @@ const handleRequest = async (request: ExtensionRequest): Promise<ExtensionRespon
     case 'chatgpt:open':
       await browser.tabs.create({ url: 'https://chatgpt.com/' });
       return { ok: true, type: 'acknowledged' };
+    case 'chatgpt:get-status': {
+      const status = await chatConfigRepository.status();
+      return { ok: true, type: 'chatgpt:status', ...status };
+    }
+    case 'chatgpt:configure': {
+      const status = await chatConfigRepository.configure(request.apiKey);
+      return { ok: true, type: 'chatgpt:status', ...status };
+    }
+    case 'chatgpt:send': {
+      const config = await chatConfigRepository.load();
+      if (!config.credential)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Add an OpenAI API key in CutThrough settings first.',
+        };
+      const { credential, safetyIdentifier } = config;
+      const result = await sendOpenAIChat({
+        credential,
+        message: request.message,
+        previousResponseId: request.previousResponseId,
+        safetyIdentifier,
+      });
+      return { ok: true, type: 'chatgpt:response', ...result };
+    }
     case 'settings:open':
       await browser.runtime.openOptionsPage();
       return { ok: true, type: 'acknowledged' };

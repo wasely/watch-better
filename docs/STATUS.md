@@ -4,33 +4,33 @@ Updated: 2026-07-30
 
 ## Current state
 
-**Production release candidate.** The production runtime, automated hardening, clean install, build, and package pass. Loading the unpacked build in Chrome and completing the live YouTube matrix is the only remaining release gate.
+**Production release candidate.** The transcript receiver, first-position mount, native embedded chat, Transcript Ask flow, and built-in Jump Cut UI are implemented. Automated hardening, build, and package pass. Reloading the unpacked extension and completing the updated live YouTube/API smoke test is the remaining release gate.
 
 ## Implemented
 
 - One normal-flow WXT Shadow Root host with right-rail, below-video, theater, fullscreen, collapse, popup restore, and no-duplicate lifecycle handling.
 - Typed YouTube SPA generations, stale-load aborts, cleanup, and replacement-safe HTML video control.
 - Real caption discovery from matching player bootstrap or credentialed watch HTML; JSON3/XML timed-text normalization, track choice, search, selection, active row, and seek.
-- Deterministic bounded ChatGPT prompt creation; explicit copy and content-free open actions only.
-- Conservative padded transcript-gap compression with ad/timing guards, one-jump protection, approximate savings, and rate restoration. Disabled by default.
+- Bound transcript-grounded ChatGPT through OpenAI's Responses API, multi-turn response chaining, explicit Transcript Ask priming, local key configuration, and content-free external open.
+- Conservative built-in transcript-gap jump cutting with ad/timing guards, one-jump protection, approximate savings, and rate restoration. Disabled by default.
 - Persisted validated settings; three-entry bounded transcript cache, memory-only by default and session-only by explicit opt-in.
-- Strict message allowlists, no production fixtures, no analytics/backend/secrets, and no hidden transcript/prompt transmission.
+- Strict message allowlists, service-worker-only API credentials, no production fixtures/analytics/backend, explicit bounded transcript sends, and no ChatGPT page automation.
 
 ## Validation results
 
 - `npm ci`: 382 packages installed from lockfile; 0 vulnerabilities.
-- Canonical validation: Prettier, ESLint, strict TypeScript, 21 Vitest files / 86 tests, and WXT production build passed.
-- Coverage: 68.03% statements / 71.29% lines overall; YouTube adapters 79.66% statements / 86.71% lines; transcript 87.30% statements / 91.01% lines.
-- Build: `.output/chrome-mv3/`, 515.61 kB.
-- Package: `.output/cutthrough-0.1.0-chrome.zip`, 157.99 kB.
-- Built manifest: only `storage` and `https://www.youtube.com/*`.
-- Production audit: no fixture imports/markers, no prompt-bearing ChatGPT-open message, no Ask-network call, no excess permission.
+- Canonical validation: Prettier, ESLint, strict TypeScript, 23 Vitest files / 93 tests, and WXT production build passed.
+- Coverage: 67.74% statements / 71.06% lines overall; YouTube adapters 80.00% statements / 86.92% lines; Ask 89.73% statements / 95.93% lines.
+- Build: `.output/chrome-mv3/`, 540.81 kB.
+- Package: `.output/cutthrough-0.1.0-chrome.zip`, 167.04 kB.
+- Built manifest: only `storage`, `https://www.youtube.com/*`, and `https://api.openai.com/*`.
+- Production audit: no fixture imports/markers, prompt-bearing external-open message, iframe/security bypass, hidden send, or excess permission.
 - Browser harness: inspected dark 320px Transcript and Ask states; both fit at 319px client/scroll width with no horizontal overflow.
 - Existing full visual/accessibility matrix remains passing: Axe, keyboard/focus, reduced motion, high DPI, 200% zoom, dark/light, narrow/wide, popup, and options.
 
 ## Remaining release gate
 
-- Manually load `.output/chrome-mv3/` in `chrome://extensions`, then verify live YouTube mount, caption fetch, seek, SPA navigation/video replacement, theater/fullscreen, ad suspension, popup restore, ChatGPT tab opening, and console cleanliness.
+- Reload `.output/chrome-mv3/` in `chrome://extensions`, then verify first-position mount, caption fetch, Transcript Ask priming, configured API answer/follow-up, Jump Cut, seek, SPA navigation/video replacement, theater/fullscreen, ad suspension, popup restore, external ChatGPT opening, and console cleanliness.
 - Chrome internal pages cannot be automated by the connected browser session. No live-production claim is made until this is completed.
 
 ## Known product limits
@@ -38,7 +38,8 @@ Updated: 2026-07-30
 - YouTube's internal caption endpoints and DOM can change; failures stay explicit and retryable.
 - Caption gaps approximate silence and can miss/clip content despite padding. Feature remains experimental and off by default.
 - Videos without usable YouTube captions show an unavailable state; no speech-to-text fallback.
-- No Shorts, live streams, mobile, semantic skipping, ChatGPT automation, backend, account, sync, or analytics.
+- Embedded chat requires a user-supplied OpenAI API key; explicit chats follow the user's OpenAI API data controls.
+- No Shorts, live streams, mobile, semantic skipping, ChatGPT page automation, CutThrough backend, account, sync, or analytics.
 
 ## Exact commands
 

@@ -1,15 +1,15 @@
 # CutThrough
 
-CutThrough is a compact Chrome extension companion for desktop YouTube watch pages. It mounts beside the video and combines transcript navigation, transcript-aware ChatGPT handoff, and conservative pause compression.
+CutThrough is a compact Chrome extension companion for desktop YouTube watch pages. It stays first beside the video and combines transcript navigation, embedded transcript-grounded ChatGPT, and a conservative jump cutter.
 
 > Production release candidate. Automated validation passes; live unpacked-Chrome verification is the remaining release gate. See [`docs/STATUS.md`](docs/STATUS.md).
 
 ## MVP boundaries
 
 - Available YouTube caption tracks only; no invented transcript or no-caption speech-to-text.
-- ChatGPT handoff copies a prompt and opens ChatGPT only through explicit actions; it never automates or reads ChatGPT.
-- Pause compression is experimental, conservative, and disabled by default.
-- No backend, account, tracking, analytics, API key, semantic skipping, Shorts, live streams, or mobile support.
+- Embedded ChatGPT sends bounded transcript context to OpenAI only after **Ask** or **Send**; external ChatGPT opening remains separate and content-free.
+- The transcript-gap jump cutter is experimental, conservative, and disabled by default.
+- No CutThrough backend, account, tracking, analytics, semantic skipping, Shorts, live streams, or mobile support.
 
 ## Requirements
 
@@ -57,7 +57,7 @@ npm run build
 5. Choose `.output/chrome-mv3/` in this repository.
 6. Open a normal desktop `youtube.com/watch?v=…` page.
 
-The panel loads available YouTube captions automatically. Click a transcript row to seek, select rows to build a grounded prompt, use **Copy prompt** and **Open ChatGPT** as separate actions, or explicitly enable conservative pause compression under **Skip**. The extension never sends transcript text to ChatGPT.
+The panel loads available YouTube captions automatically. Click a row to seek, then click the transcript **Ask** button to prime the embedded chat with bounded timestamped context. Add your OpenAI API key in CutThrough settings before chatting. **Open ChatGPT** opens a normal external tab without transferring content. Enable the experimental caption-gap cutter under **Jump Cut** only when wanted.
 
 Development output from `npm run dev` is under `.output/chrome-mv3-dev/` when WXT uses its normal Chromium convention.
 
@@ -89,4 +89,4 @@ Start with:
 
 ## Privacy
 
-Transcripts and generated prompts remain in memory by default. CutThrough sends no analytics and has no backend. Clipboard and ChatGPT-opening actions require an explicit user gesture.
+CutThrough does not persist transcripts or conversations locally. The OpenAI API key stays in local extension storage. CutThrough sends no analytics and has no backend. Bounded transcript context reaches OpenAI only after explicit **Ask** or **Send** actions. Multi-turn response state uses `store: true`; OpenAI documents at least 30 days of Responses API application-state retention by default. API usage can incur charges on the key's account. See [OpenAI API data controls](https://platform.openai.com/docs/models/default-usage-policies-by-endpoint).

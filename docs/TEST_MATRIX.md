@@ -9,7 +9,7 @@
 | Transcript provider | extraction parsing, normalization, malformed data, abort           | fixture payload variants                                    | human/auto/multi-language/unavailable videos            |
 | Playback            | seek, active lookup, follow suspension, replacement                | controllable fake video                                     | real timestamp seek/highlight                           |
 | Transcript UI       | every state, search, selection, copy, keyboard                     | 5m/2h/fragmented/long/multilingual fixtures                 | representative live transcript                          |
-| Ask                 | context selection, deterministic prompt, limits                    | copy/open feedback and error fixtures                       | clipboard content and explicit ChatGPT tab              |
+| Ask                 | context selection, bounds, API parsing, response chaining          | setup/chat/error/prime fixtures                             | explicit send, answer, follow-up, external ChatGPT tab  |
 | Skip engine         | gap planning, malformed timing, repeats, ads, restore/dispose      | deterministic fake playback clock                           | conservative real-video trial, speed/seek/ad/navigation |
 | Popup/settings      | status/control/render/accessibility                                | extension-page smoke                                        | toolbar flow                                            |
 | Accessibility       | roles/names/focus, axe where supported                             | keyboard, 200% zoom, reduced motion, contrast               | screen-reader spot check                                |

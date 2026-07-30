@@ -45,7 +45,7 @@ const tabs: readonly {
 }[] = [
   { id: 'transcript', label: 'Transcript', icon: 'captions' },
   { id: 'ask', label: 'Ask', icon: 'message' },
-  { id: 'skip', label: 'Skip', icon: 'speed' },
+  { id: 'skip', label: 'Jump Cut', icon: 'speed' },
 ];
 
 const transcriptStatus = (
@@ -98,7 +98,7 @@ export function CutThroughApp({
     snapshot: {
       state: 'unsupported',
       timeSavedSeconds: 0,
-      message: 'Pause compression is not connected to this player yet.',
+      message: 'Jump cutter is not connected to this player yet.',
     },
   };
   const status = transcriptStatus(transcriptProps.state);
@@ -277,7 +277,6 @@ export function CutThroughApp({
           <AskPanel
             {...askProps}
             key={askProps.transcript?.videoId ?? 'no-transcript'}
-            onCopy={askProps.onCopy ?? writeClipboardText}
           />
         </div>
         <div

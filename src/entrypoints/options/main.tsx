@@ -12,6 +12,7 @@ import {
   SETTINGS_STORAGE_KEY,
   SettingsRepository,
 } from '@/storage/settings-repository';
+import type { ChatConfigStatus } from '@/storage/chat-config';
 
 import './style.css';
 
@@ -25,6 +26,10 @@ function Options() {
   const [status, setStatus] = useState('Loading settings…');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [chatStatus, setChatStatus] = useState<ChatConfigStatus>({
+    configured: false,
+    model: 'gpt-5.6',
+  });
   const [systemTheme, setSystemTheme] = useState<OptionsTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
@@ -62,6 +67,13 @@ function Options() {
       disposed = true;
       browser.storage.onChanged.removeListener(handleStorageChange);
     };
+  }, []);
+
+  useEffect(() => {
+    void send({ type: 'chatgpt:get-status' }).then((response) => {
+      if (response.ok && response.type === 'chatgpt:status')
+        setChatStatus({ configured: response.configured, model: response.model });
+    });
   }, []);
 
   useEffect(() => {
@@ -105,10 +117,32 @@ function Options() {
     };
   }, [resolvedTheme]);
 
+  const configureChatGPT = async (apiKey: string) => {
+    setSaving(true);
+    setStatus(apiKey ? 'Saving OpenAI key…' : 'Clearing OpenAI key…');
+    try {
+      const response = await send({ type: 'chatgpt:configure', apiKey });
+      if (!response.ok) throw new Error(response.message);
+      if (response.type !== 'chatgpt:status')
+        throw new Error('Unexpected ChatGPT status response.');
+      setChatStatus({ configured: response.configured, model: response.model });
+      setStatus(
+        response.configured ? 'Embedded ChatGPT connected' : 'OpenAI key cleared',
+      );
+    } catch {
+      setStatus('Could not save the OpenAI key. Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <OptionsView
+      chatConfigured={chatStatus.configured}
+      chatModel={chatStatus.model}
       disabled={!loaded || saving}
       onChange={(next) => void save(next)}
+      onConfigureChatGPT={(apiKey) => void configureChatGPT(apiKey)}
       settings={settings}
       status={status}
       theme={resolvedTheme}

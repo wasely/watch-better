@@ -6,9 +6,9 @@ export default defineConfig({
   manifest: {
     name: 'CutThrough',
     description:
-      'Navigate YouTube transcripts, prepare ChatGPT prompts, and conservatively compress pauses.',
+      'Navigate YouTube transcripts, ask ChatGPT, and conservatively jump caption gaps.',
     permissions: ['storage'],
-    host_permissions: ['https://www.youtube.com/*'],
+    host_permissions: ['https://www.youtube.com/*', 'https://api.openai.com/*'],
     action: {
       default_title: 'CutThrough',
     },

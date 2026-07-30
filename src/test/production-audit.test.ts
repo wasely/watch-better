@@ -17,7 +17,7 @@ describe('production privacy and permission audit', () => {
     }
   });
 
-  it('keeps ChatGPT handoff explicit and content-free', () => {
+  it('keeps external ChatGPT handoff explicit and content-free', () => {
     const messages = read('src/messaging/messages.ts');
     const background = read('src/entrypoints/background.ts');
     expect(messages).toContain("{ readonly type: 'chatgpt:open' }");
@@ -27,11 +27,14 @@ describe('production privacy and permission audit', () => {
     expect(background).not.toMatch(/chatgpt.*prompt|prompt.*chatgpt/is);
   });
 
-  it('requests only storage and the YouTube host', () => {
+  it('requests only storage plus YouTube and OpenAI API hosts', () => {
     const config = read('wxt.config.ts');
     expect(config).toContain("permissions: ['storage']");
-    expect(config).toContain("host_permissions: ['https://www.youtube.com/*']");
-    expect(config).not.toMatch(/tabCapture|scripting|<all_urls>|clipboardWrite/);
+    expect(config).toContain("'https://www.youtube.com/*'");
+    expect(config).toContain("'https://api.openai.com/*'");
+    expect(config).not.toMatch(
+      /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|declarativeNetRequest/,
+    );
   });
 
   it('has no network call in Ask feature code', () => {
@@ -40,5 +43,15 @@ describe('production privacy and permission audit', () => {
       'src/features/ask/chatgpt-handoff-provider.ts',
     ])
       expect(read(path)).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket/);
+  });
+
+  it('keeps the API key in extension storage and OpenAI calls in background', () => {
+    const background = read('src/entrypoints/background.ts');
+    const service = read('src/services/openai-chat.ts');
+    const storage = read('src/storage/chat-config.ts');
+    expect(background).toContain("case 'chatgpt:send'");
+    expect(service).toContain("'https://api.openai.com/v1/responses'");
+    expect(service).toContain('Authorization: `Bearer ${request.credential}`');
+    expect(storage).toContain('configured: Boolean(config.credential)');
   });
 });

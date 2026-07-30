@@ -6,6 +6,7 @@ import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { HtmlVideoPlaybackController } from '@/adapters/youtube/playback-controller';
 import {
   isYouTubeTheaterMode,
+  placeYouTubePanelFirst,
   resolveYouTubeMountTarget,
 } from '@/adapters/youtube/youtube-mount';
 import { BrowserYouTubePageController } from '@/adapters/youtube/youtube-page-controller';
@@ -103,7 +104,7 @@ export default defineContentScript({
         return;
       }
       if (!ui.shadowHost.isConnected) ui.mount();
-      else if (ui.shadowHost.parentElement !== target) target.prepend(ui.shadowHost);
+      else placeYouTubePanelFirst(target, ui.shadowHost);
       const theaterMode = isTheaterMode();
       if (mounted && theaterMode !== lastTheaterMode) {
         lastTheaterMode = theaterMode;

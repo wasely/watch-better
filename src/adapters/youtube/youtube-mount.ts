@@ -28,3 +28,9 @@ export const resolveYouTubeMountTarget = (
     documentRef.querySelector('#primary-inner #below')
   );
 };
+
+/** Keeps CutThrough first even when another extension inserts into the rail later. */
+export const placeYouTubePanelFirst = (target: Element, host: Element): void => {
+  if (host.parentElement !== target || host.previousElementSibling !== null)
+    target.prepend(host);
+};
