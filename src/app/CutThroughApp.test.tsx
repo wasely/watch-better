@@ -2,12 +2,16 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { readyTranscriptState } from '@/test/fixtures/transcripts';
+
 import { CutThroughApp } from './CutThroughApp';
 
 describe('CutThroughApp foundation shell', () => {
   it('renders readiness and switches primary tabs', async () => {
     const user = userEvent.setup();
-    render(<CutThroughApp readiness="ready" />);
+    render(
+      <CutThroughApp transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }} />,
+    );
 
     expect(screen.getByText('Transcript ready')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Transcript' })).toHaveAttribute(
@@ -22,6 +26,19 @@ describe('CutThroughApp foundation shell', () => {
       'true',
     );
     expect(screen.getByText('Ask with context')).toBeInTheDocument();
+  });
+
+  it('supports arrow-key navigation between tabs', async () => {
+    const user = userEvent.setup();
+    render(<CutThroughApp transcript={{ state: readyTranscriptState() }} />);
+
+    const transcriptTab = screen.getByRole('tab', { name: 'Transcript' });
+    transcriptTab.focus();
+    await user.keyboard('{ArrowRight}');
+
+    const askTab = screen.getByRole('tab', { name: 'Ask' });
+    expect(askTab).toHaveAttribute('aria-selected', 'true');
+    expect(askTab).toHaveFocus();
   });
 
   it('collapses to and restores from the icon launcher', async () => {

@@ -27,10 +27,10 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: settings defaults/validation/repository work; manifest requests only documented implemented permissions.
   - Verify: unit tests, manifest inspection, production build.
   - Status: Verified 2026-07-29; settings tests passed and built manifest contains only `storage` plus YouTube host access.
-- [~] **MVP-013 · P1 · PRD-001, PRD-050 — Design tokens and UI primitives**
+- [x] **MVP-013 · P1 · PRD-001, PRD-050 — Design tokens and UI primitives**
   - Acceptance: isolated tokens/primitives support dark/light, focus, reduced motion, and narrow widths without host rem leakage.
   - Verify: component tests and harness visual inspection.
-  - Status: In progress; master tokens and shell primitives exist, dark 402px screenshot passed visual review; full theme/width matrix remains.
+  - Status: Verified 2026-07-29; dark/light and 320/402/480px container states use shared tokens, container queries, visible focus, and reduced-motion rules; repaired screenshot matrix passed review.
 - [x] **MVP-014 · P0 · PRD-052 — Fixture harness foundation**
   - Acceptance: local harness runs production panel components and switches fixture/theme/width/neighbor states.
   - Verify: `npm run dev:harness`, browser smoke test.
@@ -38,10 +38,10 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 
 ## Phase 2 — complete fixture UI
 
-- [ ] **MVP-020 · P0 · PRD-010–PRD-019 — Transcript fixture UI**
+- [x] **MVP-020 · P0 · PRD-010–PRD-019 — Transcript fixture UI**
   - Acceptance: normal/loading/unavailable/disabled/error/multi-track/long/search/selected/active states and required interactions render.
   - Verify: component tests, keyboard checks, screenshots.
-  - Status: Pending.
+  - Status: Verified 2026-07-29; all fixture states, seek/search/range selection/copy/follow/language/keyboard interactions, 720-row stress fixture, and repaired screenshot matrix passed.
 - [ ] **MVP-021 · P0 · PRD-020–PRD-025 — Ask fixture UI**
   - Acceptance: contexts, suggestions, question composer, size disclosure, copy/open feedback, and honest handoff explanation render and behave.
   - Verify: component tests and screenshots.

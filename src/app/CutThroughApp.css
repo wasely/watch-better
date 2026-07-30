@@ -370,7 +370,7 @@
   }
 }
 
-@media (max-width: 359px) {
+@container cutthrough (max-width: 359px) {
   .ct-tab {
     gap: var(--ct-space-2);
     padding-inline: var(--ct-space-2);

@@ -23,6 +23,8 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  container-name: cutthrough;
+  container-type: inline-size;
   font-family: var(--ct-font);
   font-size: 13px;
   line-height: 1.46;

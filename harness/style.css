@@ -35,12 +35,12 @@ select {
 }
 
 .harness-controls {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
   display: flex;
   min-height: 58px;
   align-items: center;
+  flex-wrap: wrap;
   gap: 18px;
   padding: 9px 16px;
   color: #e7e7e9;
@@ -83,6 +83,11 @@ select {
   border-radius: 5px;
   font-size: 12px;
   text-transform: none;
+}
+
+.harness-controls input[type='range'] {
+  width: 120px;
+  accent-color: #8b7cf6;
 }
 
 .harness-controls .harness-check {

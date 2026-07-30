@@ -1,16 +1,46 @@
-import { StrictMode, useState } from 'react';
+import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { CutThroughApp, type ResolvedTheme } from '@/app/CutThroughApp';
+import type { TranscriptViewState } from '@/features/transcript/transcript-view-state';
 import {
-  CutThroughApp,
-  type PanelReadiness,
-  type ResolvedTheme,
-} from '@/app/CutThroughApp';
+  spanishTranscript,
+  transcriptFixtureStates,
+  type TranscriptFixtureId,
+} from '@/test/fixtures/transcripts';
 
 import './style.css';
 
 const widths = [320, 402, 480] as const;
 type HarnessWidth = (typeof widths)[number];
+type HarnessScenarioId = TranscriptFixtureId | 'search' | 'selected';
+
+const scenarioLabels: Record<HarnessScenarioId, string> = {
+  tutorial: '5-minute tutorial',
+  podcast: '2-hour podcast',
+  fragments: 'Short caption fragments',
+  technical: 'Long technical rows',
+  multilingual: 'Multiple languages',
+  search: 'Search results',
+  selected: 'Selected rows',
+  loading: 'Loading',
+  unavailable: 'No transcript',
+  disabled: 'Transcript disabled',
+  error: 'Extraction error',
+};
+
+const harnessParams = new URLSearchParams(location.search);
+const initialTheme: ResolvedTheme =
+  harnessParams.get('theme') === 'light' ? 'light' : 'dark';
+const requestedWidth = Number(harnessParams.get('width'));
+const initialWidth: HarnessWidth = widths.includes(requestedWidth as HarnessWidth)
+  ? (requestedWidth as HarnessWidth)
+  : 402;
+const requestedScenario = harnessParams.get('scenario');
+const initialScenario: HarnessScenarioId =
+  requestedScenario && requestedScenario in scenarioLabels
+    ? (requestedScenario as HarnessScenarioId)
+    : 'tutorial';
 
 function NeighborCard() {
   return (
@@ -26,16 +56,54 @@ function NeighborCard() {
   );
 }
 
+const baseFixtureId = (scenario: HarnessScenarioId): TranscriptFixtureId =>
+  scenario === 'search' || scenario === 'selected' ? 'tutorial' : scenario;
+
 function Harness() {
-  const [theme, setTheme] = useState<ResolvedTheme>('dark');
-  const [width, setWidth] = useState<HarnessWidth>(402);
-  const [readiness, setReadiness] = useState<PanelReadiness>('loading');
+  const [theme, setTheme] = useState<ResolvedTheme>(initialTheme);
+  const [width, setWidth] = useState<HarnessWidth>(initialWidth);
+  const [scenario, setScenario] = useState<HarnessScenarioId>(initialScenario);
+  const [selectedTrackId, setSelectedTrackId] = useState('en-human');
+  const [activeIndex, setActiveIndex] = useState(4);
   const [collapsed, setCollapsed] = useState(false);
   const [neighborFirst, setNeighborFirst] = useState(false);
   const [instance, setInstance] = useState(0);
 
+  const fixture = transcriptFixtureStates[baseFixtureId(scenario)];
+  const transcriptState = useMemo<TranscriptViewState>(() => {
+    if (fixture.kind !== 'ready') return fixture;
+
+    return {
+      ...fixture,
+      document: selectedTrackId === 'es-human' ? spanishTranscript : fixture.document,
+      selectedTrackId: fixture.tracks.some((track) => track.id === selectedTrackId)
+        ? selectedTrackId
+        : fixture.selectedTrackId,
+    };
+  }, [fixture, selectedTrackId]);
+
+  const activeSegment =
+    transcriptState.kind === 'ready'
+      ? (transcriptState.document.segments[activeIndex] ??
+        transcriptState.document.segments[0])
+      : undefined;
+  const selectedFixtureIds =
+    scenario === 'selected' && transcriptState.kind === 'ready'
+      ? transcriptState.document.segments.slice(2, 6).map((segment) => segment.id)
+      : undefined;
+
   const remount = (nextCollapsed: boolean) => {
     setCollapsed(nextCollapsed);
+    setInstance((value) => value + 1);
+  };
+
+  const changeScenario = (nextScenario: HarnessScenarioId) => {
+    const nextFixture = transcriptFixtureStates[baseFixtureId(nextScenario)];
+    setScenario(nextScenario);
+    setActiveIndex(4);
+    setSelectedTrackId(
+      nextFixture.kind === 'ready' ? nextFixture.selectedTrackId : 'en-human',
+    );
     setInstance((value) => value + 1);
   };
 
@@ -44,7 +112,7 @@ function Harness() {
       <aside aria-label="Harness controls" className="harness-controls">
         <div>
           <strong>CutThrough harness</strong>
-          <span>Foundation shell</span>
+          <span>Transcript vertical slice</span>
         </div>
 
         <label>
@@ -75,18 +143,36 @@ function Harness() {
         </label>
 
         <label>
-          Transcript state
+          Fixture
           <select
             onChange={(event) =>
-              setReadiness(event.currentTarget.value as PanelReadiness)
+              changeScenario(event.currentTarget.value as HarnessScenarioId)
             }
-            value={readiness}
+            value={scenario}
           >
-            <option value="loading">Loading</option>
-            <option value="ready">Ready</option>
-            <option value="unavailable">Unavailable</option>
+            {(Object.keys(scenarioLabels) as HarnessScenarioId[]).map((id) => (
+              <option key={id} value={id}>
+                {scenarioLabels[id]}
+              </option>
+            ))}
           </select>
         </label>
+
+        {transcriptState.kind === 'ready' ? (
+          <label>
+            Active row
+            <input
+              max={transcriptState.document.segments.length - 1}
+              min="0"
+              onChange={(event) => setActiveIndex(Number(event.currentTarget.value))}
+              type="range"
+              value={Math.min(
+                activeIndex,
+                transcriptState.document.segments.length - 1,
+              )}
+            />
+          </label>
+        ) : null}
 
         <label className="harness-check">
           <input
@@ -116,9 +202,29 @@ function Harness() {
           {neighborFirst ? <NeighborCard /> : null}
           <CutThroughApp
             initialCollapsed={collapsed}
-            key={instance}
-            readiness={readiness}
+            key={`${instance}-${scenario}`}
             theme={theme}
+            transcript={{
+              state: transcriptState,
+              activeSegmentId: activeSegment?.id ?? null,
+              initialQuery: scenario === 'search' ? 'evidence' : '',
+              ...(selectedFixtureIds
+                ? { initialSelectedSegmentIds: selectedFixtureIds }
+                : {}),
+              onAskSelection: () => undefined,
+              onCopy: () => Promise.resolve(),
+              onEnableTranscript: () => changeScenario('tutorial'),
+              onOpenSelectionInChatGPT: () => undefined,
+              onRetry: () => changeScenario('tutorial'),
+              onSeek: (segment) => {
+                if (transcriptState.kind !== 'ready') return;
+                const index = transcriptState.document.segments.findIndex(
+                  (candidate) => candidate.id === segment.id,
+                );
+                if (index >= 0) setActiveIndex(index);
+              },
+              onTrackChange: setSelectedTrackId,
+            }}
           />
           {!neighborFirst ? <NeighborCard /> : null}
         </aside>
