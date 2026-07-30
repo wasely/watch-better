@@ -22,6 +22,8 @@ export const resolveYouTubeMountTarget = (
       documentRef.querySelector('#primary-inner #below')
     );
   return (
+    documentRef.querySelector('ytd-watch-flexy #secondary') ??
+    documentRef.querySelector('#secondary') ??
     documentRef.querySelector('ytd-watch-flexy #secondary-inner') ??
     documentRef.querySelector('#secondary-inner') ??
     documentRef.querySelector('ytd-watch-flexy #below') ??

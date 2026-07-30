@@ -86,6 +86,10 @@ export const extractYouTubePlayerResponse = (source: string): JsonRecord | null 
   return null;
 };
 
+/** Reads YouTube's public Innertube key from its inline bootstrap configuration. */
+export const extractInnertubeApiKey = (source: string): string | null =>
+  source.match(/["']INNERTUBE_API_KEY["']\s*:\s*["']([^"']+)["']/)?.[1] ?? null;
+
 const cleanCaptionText = (value: string): string =>
   value
     .replace(/\u200b/g, '')
@@ -279,24 +283,23 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
         'The requested caption track is unavailable.',
       );
 
-    const url = new URL(caption.baseUrl);
-    url.searchParams.set('fmt', 'json3');
-    const response = await this.#fetch(url, {
-      credentials: 'include',
+    let segments = await this.#loadCaptionSegments(
+      caption.baseUrl,
+      caption.track.id,
       signal,
-    });
-    if (!response.ok)
-      throw new TranscriptProviderError(
-        'extraction-failed',
-        `YouTube returned caption error ${response.status}.`,
+    );
+    if (segments.length === 0) {
+      const androidCaption = await this.#loadAndroidCaption(
+        source.videoId,
+        caption,
+        signal,
       );
-    const body = await response.text();
-    let segments: readonly TranscriptSegment[];
-    try {
-      const payload: unknown = JSON.parse(body);
-      segments = parseJson3Transcript(payload, caption.track.id);
-    } catch {
-      segments = parseXmlTranscript(body, caption.track.id);
+      if (androidCaption)
+        segments = await this.#loadCaptionSegments(
+          androidCaption.baseUrl,
+          caption.track.id,
+          signal,
+        );
     }
     if (segments.length === 0)
       throw new TranscriptProviderError(
@@ -318,6 +321,83 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
   public clear(videoId?: string): void {
     if (videoId) this.#sources.delete(videoId);
     else this.#sources.clear();
+  }
+
+  async #loadCaptionSegments(
+    baseUrl: string,
+    trackId: string,
+    signal: AbortSignal,
+  ): Promise<readonly TranscriptSegment[]> {
+    const url = new URL(baseUrl);
+    url.searchParams.set('fmt', 'json3');
+    const response = await this.#fetch(url, { credentials: 'include', signal });
+    if (!response.ok) return [];
+    const body = await response.text();
+    if (!body.trim()) return [];
+    try {
+      const payload: unknown = JSON.parse(body);
+      return parseJson3Transcript(payload, trackId);
+    } catch {
+      return parseXmlTranscript(body, trackId);
+    }
+  }
+
+  async #loadAndroidCaption(
+    videoId: string,
+    requested: CaptionSource,
+    signal: AbortSignal,
+  ): Promise<CaptionSource | null> {
+    let innertubeConfig: string | null = null;
+    for (const script of this.documentRef.scripts) {
+      innertubeConfig = extractInnertubeApiKey(script.textContent ?? '');
+      if (innertubeConfig) break;
+    }
+    if (!innertubeConfig) {
+      const watchResponse = await this.#fetch(
+        `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
+        { credentials: 'include', signal },
+      );
+      if (watchResponse.ok)
+        innertubeConfig = extractInnertubeApiKey(await watchResponse.text());
+    }
+    if (!innertubeConfig) return null;
+
+    const playerResponse = await this.#fetch(
+      `https://www.youtube.com/youtubei/v1/player?key=${encodeURIComponent(innertubeConfig)}`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          context: {
+            client: {
+              clientName: 'ANDROID',
+              clientVersion: '20.10.38',
+              androidSdkVersion: 30,
+              userAgent:
+                'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+              hl: 'en',
+              gl: 'US',
+            },
+          },
+        }),
+        signal,
+      },
+    );
+    if (!playerResponse.ok) return null;
+    const payload: unknown = await playerResponse.json();
+    if (!isRecord(payload)) return null;
+    const source = sourceFromResponse(payload, videoId);
+    if (!source) return null;
+    return (
+      source.captions.find(({ track }) => track.id === requested.track.id) ??
+      source.captions.find(
+        ({ track }) => track.languageCode === requested.track.languageCode,
+      ) ??
+      source.captions[0] ??
+      null
+    );
   }
 
   async #loadSource(videoId: string, signal: AbortSignal): Promise<VideoSource> {

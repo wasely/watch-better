@@ -16,14 +16,14 @@ describe('YouTube mount selection', () => {
   it('prefers the right rail and preserves existing neighbors', () => {
     document.body.innerHTML = `
       <ytd-watch-flexy>
-        <div id="secondary-inner"><div id="vidiq">Neighbor</div></div>
+        <div id="secondary"><div id="secondary-inner"><div id="vidiq">Neighbor</div></div></div>
         <div id="below"></div>
       </ytd-watch-flexy>`;
     const target = resolveYouTubeMountTarget(
       document,
       'https://www.youtube.com/watch?v=abc',
     );
-    expect(target).toHaveAttribute('id', 'secondary-inner');
+    expect(target).toHaveAttribute('id', 'secondary');
     expect(document.querySelector('#vidiq')).toHaveTextContent('Neighbor');
   });
 
