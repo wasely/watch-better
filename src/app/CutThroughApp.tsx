@@ -2,7 +2,11 @@ import { useId, useState, type KeyboardEvent } from 'react';
 
 import { Icon, type IconName } from '@/components/Icon';
 import { AskPanel, type AskPanelProps } from '@/features/ask/AskPanel';
-import type { PanelTab } from '@/features/settings/settings';
+import {
+  DEFAULT_SKIP_CONFIGURATION,
+  type PanelTab,
+} from '@/features/settings/settings';
+import { SkipPanel, type SkipPanelProps } from '@/features/skip/SkipPanel';
 import {
   TranscriptPanel,
   type TranscriptPanelProps,
@@ -24,6 +28,7 @@ export interface CutThroughAppProps {
   readonly initialCollapsed?: boolean;
   readonly transcript?: TranscriptPanelProps;
   readonly ask?: AskPanelProps;
+  readonly skip?: SkipPanelProps;
   readonly onOpenSettings?: () => void;
 }
 
@@ -54,27 +59,13 @@ const transcriptStatus = (
   }
 };
 
-function PlaceholderContent() {
-  return (
-    <div className="ct-placeholder">
-      <div className="ct-placeholder__icon" aria-hidden="true">
-        <Icon name="speed" />
-      </div>
-      <strong>Pause compression is off</strong>
-      <p>Conservative controls will appear after transcript timing is ready.</p>
-      <button className="ct-button" type="button">
-        Review controls
-      </button>
-    </div>
-  );
-}
-
 export function CutThroughApp({
   theme = 'dark',
   initialTab = 'transcript',
   initialCollapsed = false,
   transcript,
   ask,
+  skip,
   onOpenSettings,
 }: CutThroughAppProps) {
   const [activeTab, setActiveTab] = useState<PanelTab>(initialTab);
@@ -86,6 +77,14 @@ export function CutThroughApp({
   const askProps: AskPanelProps = ask ?? {
     transcript:
       transcriptProps.state.kind === 'ready' ? transcriptProps.state.document : null,
+  };
+  const skipProps: SkipPanelProps = skip ?? {
+    configuration: DEFAULT_SKIP_CONFIGURATION,
+    snapshot: {
+      state: 'unsupported',
+      timeSavedSeconds: 0,
+      message: 'Pause compression is not connected to this player yet.',
+    },
   };
   const status = transcriptStatus(transcriptProps.state);
 
@@ -215,7 +214,7 @@ export function CutThroughApp({
           ) : activeTab === 'ask' ? (
             <AskPanel {...askProps} onCopy={askProps.onCopy ?? writeClipboardText} />
           ) : (
-            <PlaceholderContent />
+            <SkipPanel {...skipProps} />
           )}
         </div>
       </section>

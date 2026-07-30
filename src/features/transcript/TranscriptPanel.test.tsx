@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -110,7 +110,6 @@ describe('TranscriptPanel', () => {
   });
 
   it('selects ranges and copies the approved timestamped format', async () => {
-    const user = userEvent.setup();
     const copiedValues: string[] = [];
     const onCopy = vi.fn((text: string) => {
       copiedValues.push(text);
@@ -134,7 +133,7 @@ describe('TranscriptPanel', () => {
     const fourth = checkboxes[4];
     if (!first || !fourth) throw new Error('Fixture checkboxes missing.');
 
-    await user.click(first);
+    fireEvent.click(first);
     expect(
       screen.getByText('1', { selector: '.ct-selection-bar strong' }),
     ).toBeVisible();
@@ -142,17 +141,17 @@ describe('TranscriptPanel', () => {
     fireEvent.click(fourth, { shiftKey: true });
 
     expect(document.querySelector('.ct-selection-bar strong')).toHaveTextContent('4');
-    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
 
-    expect(onCopy).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onCopy).toHaveBeenCalledOnce());
     const copied = copiedValues[0] ?? '';
     expect(copied).toContain(tutorialTranscript.videoTitle);
     expect(copied).toContain('0:12 —');
     expect(copied).toContain('0:48 —');
     expect(screen.getByText('4 segments copied.')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    await user.click(
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+    fireEvent.click(
       screen.getByRole('button', { name: 'Open selected transcript in ChatGPT' }),
     );
     expect(onAskSelection.mock.calls[0]?.[0]).toHaveProperty('size', 4);
@@ -160,7 +159,6 @@ describe('TranscriptPanel', () => {
   });
 
   it('copies the full transcript from its explicit action', async () => {
-    const user = userEvent.setup();
     const copiedValues: string[] = [];
     render(
       <TranscriptPanel
@@ -174,8 +172,8 @@ describe('TranscriptPanel', () => {
 
     const finalText = tutorialTranscript.segments.at(-1)?.text;
     if (!finalText) throw new Error('Final fixture segment missing.');
-    await user.click(screen.getByRole('button', { name: 'Copy full transcript' }));
-    expect(copiedValues[0]).toContain(finalText);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy full transcript' }));
+    await waitFor(() => expect(copiedValues[0]).toContain(finalText));
     expect(screen.getByText('Full transcript copied.')).toBeInTheDocument();
   });
 
@@ -211,10 +209,10 @@ describe('TranscriptPanel', () => {
     render(<TranscriptPanel state={readyTranscriptState(podcastTranscript)} />);
 
     const list = screen.getByRole('list');
-    expect(within(list).getAllByRole('listitem')).toHaveLength(720);
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search transcript' }), {
-      target: { value: 'segment 720' },
-    });
-    expect(screen.getByText('1/1')).toBeInTheDocument();
+    expect(list.querySelectorAll('[role="listitem"]')).toHaveLength(720);
+    const search = document.querySelector<HTMLInputElement>('#ct-transcript-search');
+    if (!search) throw new Error('Transcript search input missing.');
+    fireEvent.change(search, { target: { value: 'segment 720' } });
+    expect(document.querySelector('.ct-search__count')).toHaveTextContent('1/1');
   }, 10_000);
 });

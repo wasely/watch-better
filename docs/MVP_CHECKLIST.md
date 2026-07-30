@@ -46,10 +46,10 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: contexts, suggestions, question composer, size disclosure, copy/open feedback, and honest handoff explanation render and behave.
   - Verify: component tests and screenshots.
   - Status: Verified 2026-07-29; all contexts/actions, bounded prompt disclosure, explicit copy/open and failure feedback, stale-copy protection, unavailable state, and repaired dark/light 320/402/480px screenshot matrix passed.
-- [ ] **MVP-022 · P0 · PRD-030–PRD-035 — Skip fixture UI**
+- [x] **MVP-022 · P0 · PRD-030–PRD-035 — Skip fixture UI**
   - Acceptance: disabled/enabled/presets/status/warning/time/advanced/reset states render and behave.
   - Verify: component tests and screenshots.
-  - Status: Pending.
+  - Status: Verified 2026-07-29; off/waiting/ready/active/aggressive/unsupported/error fixtures, explicit reversible switch, three presets, approximate savings, advanced controls, reset, safety warnings, responsive measurements, and repaired dark/light screenshot matrix passed.
 - [ ] **MVP-023 · P1 · PRD-004, PRD-042, PRD-050 — Shell, settings, popup states**
   - Acceptance: header/tabs/collapse/settings and constrained popup are complete in fixtures.
   - Verify: component tests and screenshots.

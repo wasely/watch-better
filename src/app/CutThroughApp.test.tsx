@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -7,8 +7,7 @@ import { readyTranscriptState } from '@/test/fixtures/transcripts';
 import { CutThroughApp } from './CutThroughApp';
 
 describe('CutThroughApp foundation shell', () => {
-  it('renders readiness and switches primary tabs', async () => {
-    const user = userEvent.setup();
+  it('renders readiness and switches primary tabs', () => {
     render(
       <CutThroughApp transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }} />,
     );
@@ -19,13 +18,21 @@ describe('CutThroughApp foundation shell', () => {
       'true',
     );
 
-    await user.click(screen.getByRole('tab', { name: 'Ask' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
 
     expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
     expect(screen.getByText('Suggested actions')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Skip' }));
+    expect(screen.getByRole('tab', { name: 'Skip' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByText('Pause compression')).toBeInTheDocument();
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
   });
 
   it('supports arrow-key navigation between tabs', async () => {

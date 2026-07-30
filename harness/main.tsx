@@ -3,7 +3,12 @@ import { createRoot } from 'react-dom/client';
 
 import { CutThroughApp, type ResolvedTheme } from '@/app/CutThroughApp';
 import type { PanelTab } from '@/features/settings/settings';
+import type {
+  SkipConfiguration,
+  SkipEngineSnapshot,
+} from '@/features/skip/skip-engine';
 import type { TranscriptViewState } from '@/features/transcript/transcript-view-state';
+import { skipFixtures, type SkipFixtureId } from '@/test/fixtures/skip';
 import {
   spanishTranscript,
   transcriptFixtureStates,
@@ -45,6 +50,13 @@ const initialScenario: HarnessScenarioId =
 const requestedTab = harnessParams.get('tab');
 const initialTab: PanelTab =
   requestedTab === 'ask' || requestedTab === 'skip' ? requestedTab : 'transcript';
+const requestedSkipFixture = harnessParams.get('skip');
+const initialSkipFixtureId: SkipFixtureId =
+  requestedSkipFixture && requestedSkipFixture in skipFixtures
+    ? (requestedSkipFixture as SkipFixtureId)
+    : 'off';
+const copyShouldFail = harnessParams.get('copy') === 'error';
+const openShouldFail = harnessParams.get('open') === 'error';
 
 function NeighborCard() {
   return (
@@ -68,6 +80,14 @@ function Harness() {
   const [width, setWidth] = useState<HarnessWidth>(initialWidth);
   const [scenario, setScenario] = useState<HarnessScenarioId>(initialScenario);
   const [panelTab, setPanelTab] = useState<PanelTab>(initialTab);
+  const [skipFixtureId, setSkipFixtureId] =
+    useState<SkipFixtureId>(initialSkipFixtureId);
+  const [skipConfiguration, setSkipConfiguration] = useState<SkipConfiguration>(
+    skipFixtures[initialSkipFixtureId].configuration,
+  );
+  const [skipSnapshot, setSkipSnapshot] = useState<SkipEngineSnapshot>(
+    skipFixtures[initialSkipFixtureId].snapshot,
+  );
   const [selectedTrackId, setSelectedTrackId] = useState('en-human');
   const [activeIndex, setActiveIndex] = useState(4);
   const [collapsed, setCollapsed] = useState(false);
@@ -131,12 +151,41 @@ function Harness() {
     setInstance((value) => value + 1);
   };
 
+  const changeSkipFixture = (nextId: SkipFixtureId) => {
+    const nextFixture = skipFixtures[nextId];
+    setSkipFixtureId(nextId);
+    setSkipConfiguration(nextFixture.configuration);
+    setSkipSnapshot(nextFixture.snapshot);
+    setInstance((value) => value + 1);
+  };
+
+  const updateSkipConfiguration = (next: SkipConfiguration) => {
+    setSkipConfiguration(next);
+    setSkipSnapshot((current) => {
+      if (!next.enabled) {
+        return {
+          state: 'disabled',
+          timeSavedSeconds: current.timeSavedSeconds,
+          message: 'Playback restored. No pause compression is active.',
+        };
+      }
+      if (current.state === 'disabled') {
+        return {
+          state: 'ready',
+          timeSavedSeconds: current.timeSavedSeconds,
+          message: 'Candidate gaps are ready for this fixture.',
+        };
+      }
+      return current;
+    });
+  };
+
   return (
     <main className={`harness-page harness-page--${theme}`}>
       <aside aria-label="Harness controls" className="harness-controls">
         <div>
           <strong>CutThrough harness</strong>
-          <span>Transcript vertical slice</span>
+          <span>MVP fixture suite</span>
         </div>
 
         <label>
@@ -164,6 +213,24 @@ function Harness() {
             <option value="skip">Skip</option>
           </select>
         </label>
+
+        {panelTab === 'skip' ? (
+          <label>
+            Skip state
+            <select
+              onChange={(event) =>
+                changeSkipFixture(event.currentTarget.value as SkipFixtureId)
+              }
+              value={skipFixtureId}
+            >
+              {(Object.keys(skipFixtures) as SkipFixtureId[]).map((fixtureId) => (
+                <option key={fixtureId} value={fixtureId}>
+                  {skipFixtures[fixtureId].label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <label>
           Column width
@@ -247,12 +314,26 @@ function Harness() {
               currentTimeSeconds: activeSegment?.startSeconds ?? null,
               initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
               initialQuestion: askInitialQuestion,
-              onCopy: () => Promise.resolve(),
-              onOpenChatGPT: () => Promise.resolve(),
+              onCopy: () =>
+                copyShouldFail
+                  ? Promise.reject(new Error('Fixture clipboard failure.'))
+                  : Promise.resolve(),
+              onOpenChatGPT: () =>
+                openShouldFail
+                  ? Promise.reject(new Error('Fixture tab failure.'))
+                  : Promise.resolve(),
             }}
             initialCollapsed={collapsed}
             initialTab={panelTab}
             key={`${instance}-${scenario}-${panelTab}`}
+            skip={{
+              configuration: skipConfiguration,
+              snapshot: skipSnapshot,
+              detectionLabel: 'Transcript-gap fixture candidate',
+              initialAdvancedOpen: skipFixtures[skipFixtureId].advancedOpen ?? false,
+              onConfigurationChange: updateSkipConfiguration,
+              onReset: () => changeSkipFixture('off'),
+            }}
             theme={theme}
             transcript={{
               state: transcriptState,
