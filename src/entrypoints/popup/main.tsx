@@ -134,7 +134,14 @@ function Popup() {
       if (!response.ok) {
         setMessage(response.message);
       } else {
-        setMessage(action === 'restore' ? 'Restore request sent.' : 'Settings opened.');
+        if (action === 'restore') {
+          setStatus((current) =>
+            current ? { ...current, panelMounted: true } : current,
+          );
+          setMessage('CutThrough panel restored.');
+        } else {
+          setMessage('Settings opened.');
+        }
       }
     } catch {
       setMessage(

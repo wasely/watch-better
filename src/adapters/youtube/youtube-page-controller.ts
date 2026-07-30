@@ -13,3 +13,99 @@ export interface YouTubePageController {
   subscribe(listener: (snapshot: YouTubePageSnapshot) => void): () => void;
   dispose(): void;
 }
+
+const readPage = (url: string, generation: number): YouTubePageSnapshot => {
+  try {
+    const parsed = new URL(url);
+    const videoId = parsed.pathname === '/watch' ? parsed.searchParams.get('v') : null;
+    return {
+      kind: videoId ? 'watch' : 'unsupported',
+      url,
+      videoId,
+      generation,
+    };
+  } catch {
+    return { kind: 'unsupported', url, videoId: null, generation };
+  }
+};
+
+/** Owns YouTube SPA URL observation without polling or page-owned state. */
+export class BrowserYouTubePageController implements YouTubePageController {
+  #snapshot: YouTubePageSnapshot;
+  readonly #listeners = new Set<(snapshot: YouTubePageSnapshot) => void>();
+  #observer: MutationObserver | null = null;
+  #started = false;
+  #scheduled = false;
+
+  public constructor(private readonly windowRef: Window = window) {
+    this.#snapshot = readPage(this.windowRef.location.href, 0);
+  }
+
+  public get snapshot(): YouTubePageSnapshot {
+    return this.#snapshot;
+  }
+
+  readonly #onPageSignal = () => this.#scheduleRefresh();
+
+  public start(): void {
+    if (this.#started) return;
+    this.#started = true;
+    this.windowRef.addEventListener('popstate', this.#onPageSignal);
+    this.windowRef.document.addEventListener('yt-navigate-finish', this.#onPageSignal);
+    this.windowRef.document.addEventListener(
+      'yt-page-data-updated',
+      this.#onPageSignal,
+    );
+    this.#observer = new MutationObserver(this.#onPageSignal);
+    this.#observer.observe(this.windowRef.document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+    this.#refresh();
+  }
+
+  public subscribe(listener: (snapshot: YouTubePageSnapshot) => void): () => void {
+    this.#listeners.add(listener);
+    listener(this.#snapshot);
+    return () => this.#listeners.delete(listener);
+  }
+
+  public dispose(): void {
+    if (!this.#started) return;
+    this.#started = false;
+    this.windowRef.removeEventListener('popstate', this.#onPageSignal);
+    this.windowRef.document.removeEventListener(
+      'yt-navigate-finish',
+      this.#onPageSignal,
+    );
+    this.windowRef.document.removeEventListener(
+      'yt-page-data-updated',
+      this.#onPageSignal,
+    );
+    this.#observer?.disconnect();
+    this.#observer = null;
+    this.#listeners.clear();
+  }
+
+  #scheduleRefresh(): void {
+    if (!this.#started || this.#scheduled) return;
+    this.#scheduled = true;
+    queueMicrotask(() => {
+      this.#scheduled = false;
+      this.#refresh();
+    });
+  }
+
+  #refresh(): void {
+    const next = readPage(this.windowRef.location.href, this.#snapshot.generation);
+    if (
+      next.kind === this.#snapshot.kind &&
+      next.url === this.#snapshot.url &&
+      next.videoId === this.#snapshot.videoId
+    )
+      return;
+
+    this.#snapshot = { ...next, generation: this.#snapshot.generation + 1 };
+    for (const listener of this.#listeners) listener(this.#snapshot);
+  }
+}

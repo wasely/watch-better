@@ -89,6 +89,16 @@
     opacity var(--ct-motion-fast) ease;
 }
 
+.cutthrough-root[data-transcript-font-size='compact'] .ct-row-text {
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.cutthrough-root[data-transcript-font-size='large'] .ct-row-text {
+  font-size: 15px;
+  line-height: 22px;
+}
+
 .ct-mini-button {
   display: inline-grid;
   width: 30px;

@@ -61,37 +61,37 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 
 ## Phase 3 — YouTube lifecycle
 
-- [ ] **MVP-030 · P0 · PRD-001, PRD-003 — Right-column Shadow DOM mount**
+- [~] **MVP-030 · P0 · PRD-001, PRD-003 — Right-column Shadow DOM mount**
   - Acceptance: exactly one normal-flow host mounts above existing secondary content without deleting or covering it.
   - Verify: integration fixture plus live YouTube manual check.
-  - Status: Pending.
-- [ ] **MVP-031 · P0 · PRD-002 — Typed page lifecycle controller**
+  - Status: Automated mount/coexistence/no-duplicate tests pass; live YouTube check pending.
+- [~] **MVP-031 · P0 · PRD-002 — Typed page lifecycle controller**
   - Acceptance: enter/change/leave, abort, cleanup, reload recovery, and no-duplicate behavior pass.
   - Verify: integration tests and multi-video live navigation.
-  - Status: Pending.
-- [ ] **MVP-032 · P0 · PRD-002, PRD-012 — Replacement-safe playback controller**
+  - Status: Enter/change/leave, generation, stale-result abort, and cleanup tests pass; live multi-video navigation pending.
+- [~] **MVP-032 · P0 · PRD-002, PRD-012 — Replacement-safe playback controller**
   - Acceptance: seek/time/rate subscriptions reconnect after video replacement and dispose fully.
   - Verify: integration tests and live replacement/navigation check.
-  - Status: Pending.
-- [ ] **MVP-033 · P1 · PRD-003, PRD-004 — Responsive/theater/fullscreen/collapse behavior**
+  - Status: Replacement, seek, rate, subscription, and dispose tests pass; live player replacement pending.
+- [~] **MVP-033 · P1 · PRD-003, PRD-004 — Responsive/theater/fullscreen/collapse behavior**
   - Acceptance: approved placement states work without layout damage and persist appropriately.
   - Verify: responsive fixture plus live mode checks.
-  - Status: Pending.
+  - Status: Selector and harness states pass; live theater/fullscreen check pending.
 
 ## Phase 4 — real transcript
 
-- [ ] **MVP-040 · P0 · PRD-010, PRD-011, PRD-016 — Caption-track provider**
+- [~] **MVP-040 · P0 · PRD-010, PRD-011, PRD-016 — Caption-track provider**
   - Acceptance: available tracks load and normalize behind the provider; aborts/stale requests cannot update UI.
   - Verify: provider/unit/integration tests and representative live videos.
-  - Status: Pending.
-- [ ] **MVP-041 · P0 · PRD-012–PRD-015 — Playback/search/selection/copy integration**
+  - Status: Bootstrap/watch-HTML fallback, JSON3/XML, preference, unavailable, and abort tests pass; representative live captions pending.
+- [~] **MVP-041 · P0 · PRD-012–PRD-015 — Playback/search/selection/copy integration**
   - Acceptance: seek, active row, follow suspension, literal search, selection, and required clipboard format work with real normalized data.
   - Verify: component/integration tests and live check.
-  - Status: Pending.
-- [ ] **MVP-042 · P1 · PRD-017–PRD-019 — Transcript resilience and accessibility**
+  - Status: Runtime/provider/component integration passes; live seek and clipboard checks pending.
+- [~] **MVP-042 · P1 · PRD-017–PRD-019 — Transcript resilience and accessibility**
   - Acceptance: all failures are honest; long transcripts stay responsive; keyboard/screen-reader behavior meets spec.
   - Verify: stress fixtures, accessibility tests, live unavailable video.
-  - Status: Pending.
+  - Status: Long, unavailable, error, keyboard, Axe, and 200% zoom fixtures pass; live unavailable-video check pending.
 
 ## Phase 5 — ChatGPT handoff
 
@@ -99,49 +99,49 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: each context/suggestion builds bounded, timestamp-preserving prompts without network calls.
   - Verify: unit snapshot/behavior tests including huge transcripts.
   - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded and Ask feature code has no network/browser API calls.
-- [ ] **MVP-051 · P0 · PRD-022, PRD-023, PRD-025 — Explicit copy/open actions**
+- [~] **MVP-051 · P0 · PRD-022, PRD-023, PRD-025 — Explicit copy/open actions**
   - Acceptance: separate user actions copy prompt and open ChatGPT; no automation/hidden transmission/fake response exists.
   - Verify: service/component tests, manifest audit, manual tab check.
-  - Status: Pending.
+  - Status: Runtime/message/component and production-source audits pass; manual ChatGPT tab check pending.
 
 ## Phase 6 — pause compression
 
-- [ ] **MVP-060 · P0 · PRD-031 — Pause-detection feasibility spike**
+- [x] **MVP-060 · P0 · PRD-031 — Pause-detection feasibility spike**
   - Acceptance: four candidate methods are tested/researched and documented with permissions, reliability, and decision evidence.
   - Verify: spike tests/notes in architecture/decisions/risks.
-  - Status: Pending.
-- [ ] **MVP-061 · P0 · PRD-030, PRD-032, PRD-033, PRD-035 — Safe skip engine**
+  - Status: Verified 2026-07-30; four approaches documented with official platform evidence, and padded transcript gaps selected without new permissions.
+- [x] **MVP-061 · P0 · PRD-030, PRD-032, PRD-033, PRD-035 — Safe skip engine**
   - Acceptance: selected engine is off by default, validates timing, avoids ads/repeats, reverses immediately, and restores rate on all exits.
   - Verify: deterministic engine/controller integration tests.
-  - Status: Pending.
-- [ ] **MVP-062 · P1 · PRD-034 — Skip controls and measurement**
+  - Status: Verified 2026-07-30; deterministic tests cover gap planning, ads, malformed timing, repeated jumps, rate changes, disable, and dispose restoration.
+- [x] **MVP-062 · P1 · PRD-034 — Skip controls and measurement**
   - Acceptance: presets/advanced/reset/status/warnings/time-saved connect to engine and persist correctly.
   - Verify: component/integration tests and controlled playback fixture.
-  - Status: Pending.
+  - Status: Verified 2026-07-30; persisted configuration drives the real engine and the panel reports approximate savings and honest detector state.
 
 ## Phase 7–8 — hardening and delivery
 
-- [ ] **MVP-070 · P0 · PRD-005, PRD-040, PRD-041 — Settings/privacy integration**
+- [~] **MVP-070 · P0 · PRD-005, PRD-040, PRD-041 — Settings/privacy integration**
   - Acceptance: settings survive navigation/reload; content retention defaults to memory-only; migrations handle unknown data safely.
   - Verify: storage/integration tests and reload check.
-  - Status: Pending.
-- [ ] **MVP-071 · P0 · PRD-002, PRD-043, PRD-044 — Lifecycle/privacy/permission audit**
+  - Status: Storage and runtime integration pass; live extension reload check pending.
+- [~] **MVP-071 · P0 · PRD-002, PRD-043, PRD-044 — Lifecycle/privacy/permission audit**
   - Acceptance: no leaks, duplicate roots, hidden requests, excess permissions, secrets, tracking, or production fixture imports.
   - Verify: tests, built-manifest/source audit, browser console/memory review.
-  - Status: Pending.
-- [ ] **MVP-072 · P1 · PRD-019, PRD-051 — Accessibility/performance review**
+  - Status: Source, manifest, message, stale-load, and duplicate-root audits pass; live console review pending.
+- [x] **MVP-072 · P1 · PRD-019, PRD-051 — Accessibility/performance review**
   - Acceptance: keyboard, focus, screen readers, zoom, reduced motion, long content, and interaction performance meet documented thresholds.
   - Verify: automated checks, profiler/stress fixtures, manual review.
-  - Status: Pending.
-- [ ] **MVP-073 · P0 · PRD-053 — Full canonical validation**
+  - Status: Verified 2026-07-30; Axe, keyboard/focus, reduced motion, high DPI, 200% zoom, long transcript, and overflow matrices pass.
+- [x] **MVP-073 · P0 · PRD-053 — Full canonical validation**
   - Acceptance: clean install plus format/lint/type/tests/build/zip all pass with no critical/high defects.
   - Verify: exact commands and results in `STATUS.md`.
-  - Status: Pending.
-- [ ] **MVP-074 · P0 · PRD-001–PRD-053 — Production extension smoke test**
+  - Status: Verified 2026-07-30; clean `npm ci`, format, lint, strict typecheck, 86 tests, coverage, build, and zip pass with no high automated defect.
+- [~] **MVP-074 · P0 · PRD-001–PRD-053 — Production extension smoke test**
   - Acceptance: unpacked production build satisfies live YouTube Definition of Done checks; any unavailable manual verification is explicitly blocked, never implied.
   - Verify: Chrome unpacked/manual matrix and captured evidence.
-  - Status: Pending.
-- [ ] **MVP-075 · P1 · PRD-053 — Documentation and package delivery**
+  - Status: Built unpacked extension awaits manual loading because connected browser automation cannot control `chrome://extensions`.
+- [~] **MVP-075 · P1 · PRD-053 — Documentation and package delivery**
   - Acceptance: README/docs match implementation; zip exists; no unchecked P0/P1 item remains.
   - Verify: doc review, archive inspection, checklist audit.
-  - Status: Pending.
+  - Status: README/docs and zip are current; closes after the live gate removes remaining in-progress P0/P1 items.

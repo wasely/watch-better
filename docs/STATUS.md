@@ -2,66 +2,54 @@
 
 Updated: 2026-07-30
 
-## Last completed task
+## Current state
 
-**MVP-024 — Completed visual and accessibility fixture review.** Final panel, popup, and options fixtures now preserve state and focus, expose valid accessible structure, synchronize themes, meet contrast checks, and reflow without horizontal overflow at narrow 200% zoom widths.
+**Production release candidate.** The production runtime, automated hardening, clean install, build, and package pass. Loading the unpacked build in Chrome and completing the live YouTube matrix is the only remaining release gate.
 
-## Current task
+## Implemented
 
-**MVP-030 — Right-column Shadow DOM mount.**
+- One normal-flow WXT Shadow Root host with right-rail, below-video, theater, fullscreen, collapse, popup restore, and no-duplicate lifecycle handling.
+- Typed YouTube SPA generations, stale-load aborts, cleanup, and replacement-safe HTML video control.
+- Real caption discovery from matching player bootstrap or credentialed watch HTML; JSON3/XML timed-text normalization, track choice, search, selection, active row, and seek.
+- Deterministic bounded ChatGPT prompt creation; explicit copy and content-free open actions only.
+- Conservative padded transcript-gap compression with ad/timing guards, one-jump protection, approximate savings, and rate restoration. Disabled by default.
+- Persisted validated settings; three-entry bounded transcript cache, memory-only by default and session-only by explicit opt-in.
+- Strict message allowlists, no production fixtures, no analytics/backend/secrets, and no hidden transcript/prompt transmission.
 
 ## Validation results
 
-- Prettier, ESLint, strict TypeScript, full Vitest suite, coverage, production WXT build, and zip passed.
-- Full suite: 12 files, 67 tests passed.
-- Coverage: 49.39% statements / 51.82% lines overall; shell 90.90% statements / 93.87% lines; storage 95.00% statements / 94.73% lines; Skip 88.33% statements / 89.28% lines.
-- Production build: `.output/chrome-mv3/`, 492.27 kB total. Development package: `.output/cutthrough-0.1.0-chrome.zip`, 150.91 kB.
-- Real-browser Axe and horizontal-overflow audit passed 28 dark/light panel, popup, and options cases, including all popup states; zero violations, escaping elements, console errors, or page errors.
-- 200% zoom audit passed 18 dark/light × 320/402/480px × Transcript/Ask/Skip cases. Nested panel container queries and extreme-width Ask/Skip stacking repaired verified handoff and Skip overflow.
-- Keyboard checks passed tab arrows, Ask tab order, collapse/expand focus restoration, popup switch operation, and options editing. Reduced-motion checks passed four representative surfaces; high-DPI checks passed panel, popup, and options fixtures.
-- Inspected final screenshots show visible focus, readable narrow zoom reflow, no clipping, and honest busy feedback:
-  - `artifacts/ui/a11y-focus-options-light-narrow.png`
-  - `artifacts/ui/a11y-focus-panel-dark-320-ask.png`
-  - `artifacts/ui/a11y-popup-dark-busy.png`
-  - `artifacts/ui/a11y-zoom200-panel-dark-320-ask.png`
-  - `artifacts/ui/a11y-zoom200-panel-light-480-skip.png`
-- Built manifest remains limited to `storage` plus the YouTube host. Production bundle audit found no fixture markers.
-- Production extension was not loaded manually in Chrome and no live YouTube claim is made.
+- `npm ci`: 382 packages installed from lockfile; 0 vulnerabilities.
+- Canonical validation: Prettier, ESLint, strict TypeScript, 21 Vitest files / 86 tests, and WXT production build passed.
+- Coverage: 68.03% statements / 71.29% lines overall; YouTube adapters 79.66% statements / 86.71% lines; transcript 87.30% statements / 91.01% lines.
+- Build: `.output/chrome-mv3/`, 515.61 kB.
+- Package: `.output/cutthrough-0.1.0-chrome.zip`, 157.99 kB.
+- Built manifest: only `storage` and `https://www.youtube.com/*`.
+- Production audit: no fixture imports/markers, no prompt-bearing ChatGPT-open message, no Ask-network call, no excess permission.
+- Browser harness: inspected dark 320px Transcript and Ask states; both fit at 319px client/scroll width with no horizontal overflow.
+- Existing full visual/accessibility matrix remains passing: Axe, keyboard/focus, reduced motion, high DPI, 200% zoom, dark/light, narrow/wide, popup, and options.
 
-## Known defects
+## Remaining release gate
 
-- Skip controls remain fixture UI only. No detection method or playback-changing engine has been selected; MVP-060/MVP-061 remain pending.
-- Transcript components still consume fixtures/default loading only; real YouTube caption acquisition and playback wiring are not implemented.
-- Production Ask UI does not yet connect transcript selection state or the background ChatGPT tab-opening message; MVP-051 remains pending.
-- Popup Restore Panel intentionally returns a not-connected error until lifecycle integration.
-- Background status cannot yet prove `panelMounted`; it reports false.
-- Content script still mounts only when initially injected on a watch page; full YouTube SPA lifecycle is not implemented.
-- Production extension has not been loaded manually in Chrome or tested on live YouTube.
-- Real-world transcript performance still needs representative live payload profiling before closing the virtualization decision.
+- Manually load `.output/chrome-mv3/` in `chrome://extensions`, then verify live YouTube mount, caption fetch, seek, SPA navigation/video replacement, theater/fullscreen, ad suspension, popup restore, ChatGPT tab opening, and console cleanliness.
+- Chrome internal pages cannot be automated by the connected browser session. No live-production claim is made until this is completed.
 
-## Blockers
+## Known product limits
 
-None.
+- YouTube's internal caption endpoints and DOM can change; failures stay explicit and retryable.
+- Caption gaps approximate silence and can miss/clip content despite padding. Feature remains experimental and off by default.
+- Videos without usable YouTube captions show an unavailable state; no speech-to-text fallback.
+- No Shorts, live streams, mobile, semantic skipping, ChatGPT automation, backend, account, sync, or analytics.
 
-## Next recommended task
-
-Complete MVP-030: mount one normal-flow Shadow DOM host above existing YouTube secondary content without deleting or covering neighboring content, with fixture integration coverage before any live claim.
-
-## Exact commands last run
+## Exact commands
 
 ```bash
-npm --prefix /c/code/watch-better run format
-npm --prefix /c/code/watch-better run format:check
-npm --prefix /c/code/watch-better run lint
-npm --prefix /c/code/watch-better run typecheck
-npm --prefix /c/code/watch-better run test
-npm --prefix /c/code/watch-better run test:coverage
-npm --prefix /c/code/watch-better run build
-npm --prefix /c/code/watch-better run zip
-# Python 3.12 Playwright drove Axe, overflow, 200% zoom, keyboard/focus,
-# reduced-motion, high-DPI, screenshot, and console/page-error checks.
+npm run format
+npm run validate
+npm run test:coverage
+npm run zip
+npm ci
 ```
 
 ## Commit status
 
-MVP-024 implementation starts at `72b5f75`; final verification documentation and the coverage-safe Axe timeout are committed with this status update. No push is part of this validation pass.
+This release candidate ships on branch `feat/cutthrough-mvp` with its validation evidence and package instructions.

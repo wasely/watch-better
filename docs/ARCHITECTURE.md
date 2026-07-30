@@ -56,6 +56,8 @@ WXT may generate `.wxt/` and `.output/`; both are build artifacts.
 
 No transcript fixture import is reachable from production entrypoints.
 
+The production composition root instantiates the page controller, replacement-safe HTML video controller, caption provider, bounded transcript cache, and transcript-gap skip engine. Video generations abort stale caption work and reset video-scoped selection state.
+
 ## YouTube lifecycle
 
 Use a single controller with an `AbortController` per video generation. Observe URL/video ID and relevant container replacement, also listen for YouTube navigation events where available. Every generation:
@@ -86,6 +88,7 @@ Discriminated-union messages with request and response schemas. Initial messages
 - `panel:restore`
 - `settings:open`
 - `chatgpt:open`
+- `panel:get-status`
 
 No message carries transcript content for `chatgpt:open`; opening and copying are separate explicit UI actions.
 
@@ -96,7 +99,20 @@ Planned minimum:
 - `storage` — persistent typed settings.
 - Host match `https://www.youtube.com/*` — run the content script on supported pages.
 
-Opening a normal `https://chatgpt.com/` tab from an explicit click uses `chrome.tabs.create` when background handling is implemented; add `tabs` only if proven necessary. No ChatGPT host permission because V1 does not automate the page. No `tabCapture`, `scripting`, broad web host, clipboard, or network permission unless an implemented and documented requirement proves it necessary.
+Opening a normal `https://chatgpt.com/` tab from an explicit click uses `chrome.tabs.create`. No ChatGPT host permission is present because V1 does not automate the page. No `tabCapture`, `scripting`, broad web host, clipboard, or network permission is used.
+
+The built Chromium manifest proves `tabs` is unnecessary for `tabs.create`: it contains only `storage` and the YouTube host match.
+
+## Pause-detection feasibility result
+
+| Candidate               | Permissions / mechanics                                                             | Reliability and privacy                                                    | V1 decision |
+| ----------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------- |
+| Padded transcript gaps  | Existing caption timing; no new permission                                          | Deterministic and local, but gaps approximate silence                      | Selected    |
+| Media-element Web Audio | Re-routes YouTube's media element through an `AudioContext`                         | Cross-origin and host-player behavior increase playback risk               | Rejected    |
+| `chrome.tabCapture`     | `tabCapture` permission, explicit extension invocation, capture and audio re-output | Exact audio is available but capture changes the trust and failure surface | Rejected    |
+| Hybrid captions + audio | Both caption and capture pipelines                                                  | Most complex lifecycle and inherits capture costs                          | Rejected    |
+
+Evidence: [Chrome tabCapture reference](https://developer.chrome.com/docs/extensions/reference/api/tabCapture), [Chrome content-script isolated worlds](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts), and [MDN media-element audio source](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createMediaElementSource).
 
 ## Testing layers
 

@@ -5,6 +5,7 @@ import { AskPanel, type AskPanelProps } from '@/features/ask/AskPanel';
 import {
   DEFAULT_SKIP_CONFIGURATION,
   type PanelTab,
+  type TranscriptFontSize,
 } from '@/features/settings/settings';
 import { SkipPanel, type SkipPanelProps } from '@/features/skip/SkipPanel';
 import {
@@ -34,6 +35,7 @@ export interface CutThroughAppProps {
   readonly onTabChange?: (tab: PanelTab) => void;
   readonly onCollapsedChange?: (collapsed: boolean) => void;
   readonly onOpenSettings?: () => void;
+  readonly transcriptFontSize?: TranscriptFontSize;
 }
 
 const tabs: readonly {
@@ -75,6 +77,7 @@ export function CutThroughApp({
   onTabChange,
   onCollapsedChange,
   onOpenSettings,
+  transcriptFontSize = 'standard',
 }: CutThroughAppProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<PanelTab>(initialTab);
   const [internalCollapsed, setInternalCollapsed] = useState(initialCollapsed);
@@ -146,7 +149,12 @@ export function CutThroughApp({
   };
 
   return (
-    <div className="cutthrough-root" data-theme={theme} ref={rootRef}>
+    <div
+      className="cutthrough-root"
+      data-theme={theme}
+      data-transcript-font-size={transcriptFontSize}
+      ref={rootRef}
+    >
       {collapsed ? (
         <button
           aria-label={`Expand CutThrough. ${status.label}.`}
@@ -250,6 +258,11 @@ export function CutThroughApp({
         >
           <TranscriptPanel
             {...transcriptProps}
+            key={
+              transcriptProps.state.kind === 'ready'
+                ? `${transcriptProps.state.document.videoId}:${transcriptProps.state.selectedTrackId}`
+                : transcriptProps.state.kind
+            }
             onCopy={transcriptProps.onCopy ?? writeClipboardText}
           />
         </div>
@@ -261,7 +274,11 @@ export function CutThroughApp({
           role="tabpanel"
           tabIndex={activeTab === 'ask' ? 0 : -1}
         >
-          <AskPanel {...askProps} onCopy={askProps.onCopy ?? writeClipboardText} />
+          <AskPanel
+            {...askProps}
+            key={askProps.transcript?.videoId ?? 'no-transcript'}
+            onCopy={askProps.onCopy ?? writeClipboardText}
+          />
         </div>
         <div
           aria-labelledby={`${id}-skip-tab`}

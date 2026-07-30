@@ -2,7 +2,7 @@
 
 CutThrough is a compact Chrome extension companion for desktop YouTube watch pages. It mounts beside the video and combines transcript navigation, transcript-aware ChatGPT handoff, and conservative pause compression.
 
-> MVP implementation is in progress. See [`docs/STATUS.md`](docs/STATUS.md) for verified capabilities.
+> Production release candidate. Automated validation passes; live unpacked-Chrome verification is the remaining release gate. See [`docs/STATUS.md`](docs/STATUS.md).
 
 ## MVP boundaries
 
@@ -56,6 +56,8 @@ npm run build
 4. Click **Load unpacked**.
 5. Choose `.output/chrome-mv3/` in this repository.
 6. Open a normal desktop `youtube.com/watch?v=…` page.
+
+The panel loads available YouTube captions automatically. Click a transcript row to seek, select rows to build a grounded prompt, use **Copy prompt** and **Open ChatGPT** as separate actions, or explicitly enable conservative pause compression under **Skip**. The extension never sends transcript text to ChatGPT.
 
 Development output from `npm run dev` is under `.output/chrome-mv3-dev/` when WXT uses its normal Chromium convention.
 
