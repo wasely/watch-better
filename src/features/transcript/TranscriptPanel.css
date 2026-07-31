@@ -89,12 +89,12 @@
     opacity var(--ct-motion-fast) ease;
 }
 
-.cutthrough-root[data-transcript-font-size='compact'] .ct-row-text {
+.watchbetter-root[data-transcript-font-size='compact'] .ct-row-text {
   font-size: 11px;
   line-height: 16px;
 }
 
-.cutthrough-root[data-transcript-font-size='large'] .ct-row-text {
+.watchbetter-root[data-transcript-font-size='large'] .ct-row-text {
   font-size: 15px;
   line-height: 22px;
 }
@@ -445,7 +445,7 @@
   }
 }
 
-@container cutthrough (max-width: 359px) {
+@container watchbetter (max-width: 359px) {
   .ct-transcript__tools {
     padding: var(--ct-space-3);
   }

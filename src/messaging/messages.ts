@@ -1,6 +1,10 @@
-import type { CutThroughSettings } from '@/features/settings/settings';
-import type { ChatConfigStatus } from '@/storage/chat-config';
-import { MAX_CHAT_MESSAGE_CHARACTERS } from '@/services/openai-chat';
+import type { WatchBetterSettings } from '@/features/settings/settings';
+import {
+  isWebChatProviderId,
+  MAX_WEB_CHAT_MESSAGE_CHARACTERS,
+  type WebChatProviderId,
+  type WebChatProviderStatus,
+} from '@/services/web-chat';
 
 export type RuntimeStatus = {
   readonly enabled: boolean;
@@ -14,18 +18,18 @@ export type ExtensionRequest =
   | { readonly type: 'runtime:set-enabled'; readonly enabled: boolean }
   | {
       readonly type: 'settings:update';
-      readonly changes: Partial<CutThroughSettings>;
+      readonly changes: Partial<WatchBetterSettings>;
     }
   | { readonly type: 'panel:get-status' }
   | { readonly type: 'panel:restore' }
   | { readonly type: 'settings:open' }
-  | { readonly type: 'chatgpt:open' }
-  | { readonly type: 'chatgpt:get-status' }
-  | { readonly type: 'chatgpt:configure'; readonly apiKey: string }
+  | { readonly type: 'webchat:open'; readonly provider: WebChatProviderId }
+  | { readonly type: 'webchat:get-status'; readonly provider: WebChatProviderId }
   | {
-      readonly type: 'chatgpt:send';
+      readonly type: 'webchat:send';
+      readonly provider: WebChatProviderId;
       readonly message: string;
-      readonly previousResponseId: string | null;
+      readonly newConversation: boolean;
     };
 
 export type ExtensionResponse =
@@ -37,16 +41,16 @@ export type ExtensionResponse =
   | {
       readonly ok: true;
       readonly type: 'settings:updated';
-      readonly settings: CutThroughSettings;
+      readonly settings: WatchBetterSettings;
     }
   | { readonly ok: true; readonly type: 'panel:status'; readonly mounted: boolean }
-  | ({ readonly ok: true; readonly type: 'chatgpt:status' } & ChatConfigStatus)
+  | ({ readonly ok: true; readonly type: 'webchat:status' } & WebChatProviderStatus)
   | {
       readonly ok: true;
-      readonly type: 'chatgpt:response';
+      readonly type: 'webchat:response';
+      readonly provider: WebChatProviderId;
       readonly text: string;
       readonly responseId: string;
-      readonly model: string;
     }
   | { readonly ok: true; readonly type: 'acknowledged' }
   | { readonly ok: false; readonly type: 'error'; readonly message: string };
@@ -61,7 +65,6 @@ const SETTINGS_KEYS = new Set([
   'theme',
   'panelCollapsed',
   'pause',
-  'chatgptHandoff',
   'transcriptCachePolicy',
 ]);
 const PAUSE_KEYS = new Set([
@@ -97,9 +100,9 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     readonly type?: unknown;
     readonly enabled?: unknown;
     readonly changes?: unknown;
-    readonly apiKey?: unknown;
+    readonly provider?: unknown;
     readonly message?: unknown;
-    readonly previousResponseId?: unknown;
+    readonly newConversation?: unknown;
   };
   const hasOnlyKeys = (...allowed: readonly string[]) =>
     Object.keys(candidate).every((key) => allowed.includes(key));
@@ -108,29 +111,22 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     case 'panel:get-status':
     case 'panel:restore':
     case 'settings:open':
-    case 'chatgpt:open':
-    case 'chatgpt:get-status':
       return hasOnlyKeys('type');
     case 'runtime:set-enabled':
       return typeof candidate.enabled === 'boolean' && hasOnlyKeys('type', 'enabled');
     case 'settings:update':
       return isSettingsPatch(candidate.changes) && hasOnlyKeys('type', 'changes');
-    case 'chatgpt:configure':
+    case 'webchat:open':
+    case 'webchat:get-status':
+      return isWebChatProviderId(candidate.provider) && hasOnlyKeys('type', 'provider');
+    case 'webchat:send':
       return (
-        typeof candidate.apiKey === 'string' &&
-        candidate.apiKey.length <= 1_024 &&
-        hasOnlyKeys('type', 'apiKey')
-      );
-    case 'chatgpt:send':
-      return (
+        isWebChatProviderId(candidate.provider) &&
         typeof candidate.message === 'string' &&
         candidate.message.trim().length > 0 &&
-        candidate.message.length <= MAX_CHAT_MESSAGE_CHARACTERS &&
-        (candidate.previousResponseId === null ||
-          (typeof candidate.previousResponseId === 'string' &&
-            candidate.previousResponseId.length <= 256 &&
-            candidate.previousResponseId.startsWith('resp_'))) &&
-        hasOnlyKeys('type', 'message', 'previousResponseId')
+        candidate.message.length <= MAX_WEB_CHAT_MESSAGE_CHARACTERS &&
+        typeof candidate.newConversation === 'boolean' &&
+        hasOnlyKeys('type', 'provider', 'message', 'newConversation')
       );
     default:
       return false;

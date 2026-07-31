@@ -9,7 +9,7 @@ interface CacheValue {
   readonly cachedAt: number;
 }
 
-const PREFIX = 'cutthrough:transcript-cache:';
+const PREFIX = 'watchbetter:transcript-cache:';
 const MAX_ENTRIES = 3;
 const MAX_SERIALIZED_CHARACTERS = 2_000_000;
 

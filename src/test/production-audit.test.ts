@@ -11,47 +11,51 @@ describe('production privacy and permission audit', () => {
     for (const path of [
       'src/entrypoints/youtube.content.tsx',
       'src/entrypoints/background.ts',
-      'src/app/CutThroughRuntime.tsx',
-    ]) {
+      'src/app/WatchBetterRuntime.tsx',
+    ])
       expect(read(path)).not.toMatch(/@\/test|src\/test|fixtures\//);
-    }
   });
 
-  it('keeps external ChatGPT handoff explicit and content-free', () => {
+  it('limits web chat to explicit typed provider actions', () => {
     const messages = read('src/messaging/messages.ts');
     const background = read('src/entrypoints/background.ts');
-    expect(messages).toContain("{ readonly type: 'chatgpt:open' }");
-    expect(background).toContain(
-      "browser.tabs.create({ url: 'https://chatgpt.com/' })",
-    );
-    expect(background).not.toMatch(/chatgpt.*prompt|prompt.*chatgpt/is);
+    expect(messages).toContain("readonly type: 'webchat:send'");
+    expect(messages).toContain('readonly newConversation: boolean');
+    expect(background).toContain("case 'webchat:send'");
+    expect(background).toContain('sendToProviderPage');
   });
 
-  it('requests only storage plus YouTube and OpenAI API hosts', () => {
+  it('requests storage plus only supported first-party web hosts', () => {
     const config = read('wxt.config.ts');
     expect(config).toContain("permissions: ['storage']");
     expect(config).toContain("'https://www.youtube.com/*'");
-    expect(config).toContain("'https://api.openai.com/*'");
+    expect(config).toContain("'https://chatgpt.com/*'");
+    expect(config).toContain("'https://gemini.google.com/*'");
+    expect(config).not.toContain('api.openai.com');
     expect(config).not.toMatch(
       /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|declarativeNetRequest/,
     );
   });
 
-  it('has no network call in Ask feature code', () => {
-    for (const path of [
+  it('has no direct provider API or credential handling', () => {
+    const production = [
+      'src/entrypoints/background.ts',
+      'src/entrypoints/web-chat.content.ts',
       'src/features/ask/AskPanel.tsx',
-      'src/features/ask/chatgpt-handoff-provider.ts',
-    ])
-      expect(read(path)).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket/);
+      'src/services/web-chat.ts',
+    ]
+      .map(read)
+      .join('\n');
+    expect(production).not.toMatch(
+      /api\.openai\.com|generativelanguage\.googleapis|Authorization\s*:|Bearer\s|apiKey|credential|chrome\.cookies/,
+    );
   });
 
-  it('keeps the API key in extension storage and OpenAI calls in background', () => {
-    const background = read('src/entrypoints/background.ts');
-    const service = read('src/services/openai-chat.ts');
-    const storage = read('src/storage/chat-config.ts');
-    expect(background).toContain("case 'chatgpt:send'");
-    expect(service).toContain("'https://api.openai.com/v1/responses'");
-    expect(service).toContain('Authorization: `Bearer ${request.credential}`');
-    expect(storage).toContain('configured: Boolean(config.credential)');
+  it('keeps transcript prompt construction free of network calls', () => {
+    for (const path of [
+      'src/features/ask/AskPanel.tsx',
+      'src/features/ask/transcript-prompt-provider.ts',
+    ])
+      expect(read(path)).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket/);
   });
 });

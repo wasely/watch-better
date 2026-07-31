@@ -1,6 +1,6 @@
-# CutThrough Design System
+# WatchBetter Design System
 
-This project-specific master overrides the generator's landing-page suggestions. CutThrough is a compact embedded utility—not a hero page or dashboard.
+This project-specific master overrides the generator's landing-page suggestions. WatchBetter is a compact embedded utility—not a hero page or dashboard.
 
 ## Direction
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { ChatGPTHandoffProvider } from '@/features/ask/chatgpt-handoff-provider';
+import { TranscriptPromptProvider } from '@/features/ask/transcript-prompt-provider';
 import { podcastTranscript, tutorialTranscript } from '@/test/fixtures/transcripts';
 
-const provider = new ChatGPTHandoffProvider();
+const provider = new TranscriptPromptProvider();
 
-describe('ChatGPTHandoffProvider', () => {
+describe('TranscriptPromptProvider', () => {
   it('builds a complete timestamped prompt for a short video', () => {
     const result = provider.buildPrompt({
       transcript: tutorialTranscript,
@@ -85,7 +85,7 @@ describe('ChatGPTHandoffProvider', () => {
   });
 
   it('samples an oversized full transcript and discloses omissions', () => {
-    const constrained = new ChatGPTHandoffProvider(4_000);
+    const constrained = new TranscriptPromptProvider(4_000);
     const result = constrained.buildPrompt({
       transcript: podcastTranscript,
       scope: 'entire-video',
@@ -103,7 +103,7 @@ describe('ChatGPTHandoffProvider', () => {
   });
 
   it('prefers topic-relevant rows when the question provides useful terms', () => {
-    const constrained = new ChatGPTHandoffProvider(4_000);
+    const constrained = new TranscriptPromptProvider(4_000);
     const result = constrained.buildPrompt({
       transcript: podcastTranscript,
       scope: 'entire-video',

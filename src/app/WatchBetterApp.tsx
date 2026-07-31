@@ -18,12 +18,12 @@ import {
 } from '@/features/transcript/transcript-view-state';
 import { writeClipboardText } from '@/services/clipboard';
 
-import './CutThroughApp.css';
+import './WatchBetterApp.css';
 
 export type ResolvedTheme = 'dark' | 'light';
 export type PanelReadiness = 'loading' | 'ready' | 'unavailable';
 
-export interface CutThroughAppProps {
+export interface WatchBetterAppProps {
   readonly theme?: ResolvedTheme;
   readonly initialTab?: PanelTab;
   readonly activeTab?: PanelTab;
@@ -65,7 +65,7 @@ const transcriptStatus = (
   }
 };
 
-export function CutThroughApp({
+export function WatchBetterApp({
   theme = 'dark',
   initialTab = 'transcript',
   activeTab: controlledActiveTab,
@@ -78,7 +78,7 @@ export function CutThroughApp({
   onCollapsedChange,
   onOpenSettings,
   transcriptFontSize = 'standard',
-}: CutThroughAppProps) {
+}: WatchBetterAppProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<PanelTab>(initialTab);
   const [internalCollapsed, setInternalCollapsed] = useState(initialCollapsed);
   const activeTab = controlledActiveTab ?? internalActiveTab;
@@ -150,17 +150,17 @@ export function CutThroughApp({
 
   return (
     <div
-      className="cutthrough-root"
+      className="watchbetter-root"
       data-theme={theme}
       data-transcript-font-size={transcriptFontSize}
       ref={rootRef}
     >
       {collapsed ? (
         <button
-          aria-label={`Expand CutThrough. ${status.label}.`}
+          aria-label={`Expand WatchBetter. ${status.label}.`}
           className="ct-launcher"
           onClick={() => setPanelCollapsed(false)}
-          title={`Expand CutThrough — ${status.label}`}
+          title={`Expand WatchBetter — ${status.label}`}
           type="button"
         >
           <span className="ct-brand-mark" aria-hidden="true">
@@ -180,7 +180,7 @@ export function CutThroughApp({
       ) : null}
 
       <section
-        aria-label="CutThrough video companion"
+        aria-label="WatchBetter video companion"
         className="ct-panel"
         hidden={collapsed}
       >
@@ -190,7 +190,7 @@ export function CutThroughApp({
               <Icon name="spark" />
             </span>
             <div className="ct-identity__copy">
-              <strong>CutThrough</strong>
+              <strong>WatchBetter</strong>
               <span className={`ct-status ct-status--${status.readiness}`}>
                 <i aria-hidden="true" />
                 {status.label}
@@ -199,7 +199,7 @@ export function CutThroughApp({
           </div>
           <div className="ct-header__actions">
             <button
-              aria-label="Open CutThrough settings"
+              aria-label="Open WatchBetter settings"
               className="ct-icon-button"
               disabled={!onOpenSettings}
               onClick={onOpenSettings}
@@ -209,7 +209,7 @@ export function CutThroughApp({
               <Icon name="settings" />
             </button>
             <button
-              aria-label="Collapse CutThrough"
+              aria-label="Collapse WatchBetter"
               className="ct-icon-button"
               onClick={() => setPanelCollapsed(true)}
               title="Collapse"
@@ -221,7 +221,7 @@ export function CutThroughApp({
         </header>
 
         <nav
-          aria-label="CutThrough sections"
+          aria-label="WatchBetter sections"
           className="ct-tabs"
           onKeyDown={handleTabKeyDown}
           role="tablist"

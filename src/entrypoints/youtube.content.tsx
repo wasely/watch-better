@@ -12,9 +12,9 @@ import {
 import { BrowserYouTubePageController } from '@/adapters/youtube/youtube-page-controller';
 import { YouTubeTranscriptProvider } from '@/adapters/youtube/youtube-transcript-provider';
 import {
-  CutThroughRuntime,
-  type CutThroughRuntimeControls,
-} from '@/app/CutThroughRuntime';
+  WatchBetterRuntime,
+  type WatchBetterRuntimeControls,
+} from '@/app/WatchBetterRuntime';
 import { isExtensionRequest, type ExtensionResponse } from '@/messaging/messages';
 
 const currentMountTarget = (): Element | null =>
@@ -33,7 +33,7 @@ export default defineContentScript({
   matches: ['https://www.youtube.com/*'],
   cssInjectionMode: 'ui',
   async main(ctx) {
-    let controls: CutThroughRuntimeControls | null = null;
+    let controls: WatchBetterRuntimeControls | null = null;
     let runtimeVisible = false;
     let mounted: MountedRuntime | null = null;
     let scheduled = false;
@@ -43,7 +43,7 @@ export default defineContentScript({
       if (!mounted) return;
       mounted.root.render(
         <StrictMode>
-          <CutThroughRuntime
+          <WatchBetterRuntime
             onControls={(next) => {
               controls = next;
             }}
@@ -66,13 +66,13 @@ export default defineContentScript({
     };
 
     const ui = await createShadowRootUi<MountedRuntime>(ctx, {
-      name: 'cutthrough-panel',
+      name: 'watchbetter-panel',
       position: 'inline',
       anchor: currentMountTarget,
       append: 'first',
       isolateEvents: true,
       onMount(container, _shadow, host) {
-        host.dataset.cutthroughRoot = 'true';
+        host.dataset.watchbetterRoot = 'true';
         host.style.width = '100%';
         host.style.marginBottom = '12px';
         const runtime: MountedRuntime = {
@@ -148,7 +148,7 @@ export default defineContentScript({
           return {
             ok: false,
             type: 'error',
-            message: 'CutThrough is still loading on this page.',
+            message: 'WatchBetter is still loading on this page.',
           };
         try {
           await controls.restore();

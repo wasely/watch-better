@@ -116,12 +116,10 @@ describe('TranscriptPanel', () => {
       return Promise.resolve();
     });
     const onAskSelection = vi.fn();
-    const onOpenSelectionInChatGPT = vi.fn();
     const { container } = render(
       <TranscriptPanel
         onAskSelection={onAskSelection}
         onCopy={onCopy}
-        onOpenSelectionInChatGPT={onOpenSelectionInChatGPT}
         state={readyTranscriptState()}
       />,
     );
@@ -145,8 +143,7 @@ describe('TranscriptPanel', () => {
     );
     const copy = actions[0];
     const ask = actions[1];
-    const open = actions[2];
-    if (!copy || !ask || !open) throw new Error('Selection actions missing.');
+    if (!copy || !ask) throw new Error('Selection actions missing.');
     fireEvent.click(copy);
 
     expect(onCopy).toHaveBeenCalledOnce();
@@ -161,9 +158,7 @@ describe('TranscriptPanel', () => {
     );
 
     fireEvent.click(ask);
-    fireEvent.click(open);
     expect(onAskSelection.mock.calls[0]?.[0]).toHaveProperty('size', 4);
-    expect(onOpenSelectionInChatGPT.mock.calls[0]?.[0]).toHaveProperty('size', 4);
   });
 
   it('copies the full transcript from its explicit action', async () => {

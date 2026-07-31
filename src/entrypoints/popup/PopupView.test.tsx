@@ -77,7 +77,7 @@ describe('PopupView', () => {
       <PopupView {...baseProps} status={{ ...readyStatus, enabled: false }} />,
     );
 
-    expect(screen.getByText('CutThrough is disabled')).toBeInTheDocument();
+    expect(screen.getByText('WatchBetter is disabled')).toBeInTheDocument();
     expect(screen.getByText('Extension disabled')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Extension disabled' })).toHaveAttribute(
       'aria-checked',
@@ -94,7 +94,7 @@ describe('PopupView', () => {
       <PopupView
         {...baseProps}
         error
-        message="Could not read CutThrough status. Try again."
+        message="Could not read WatchBetter status. Try again."
         status={null}
       />,
     );

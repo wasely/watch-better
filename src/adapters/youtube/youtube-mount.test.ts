@@ -40,7 +40,7 @@ describe('YouTube mount selection', () => {
 
   it('reclaims the first slot after another extension inserts ahead of it', () => {
     const target = document.createElement('div');
-    const panel = document.createElement('cutthrough-panel');
+    const panel = document.createElement('watchbetter-panel');
     const vidiq = document.createElement('div');
     target.append(panel);
     target.prepend(vidiq);

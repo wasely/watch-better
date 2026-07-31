@@ -144,31 +144,11 @@
   border-radius: 6px;
 }
 
-.ct-options-row--credential {
-  align-items: start;
-}
-
-.ct-options-credential {
+.ct-options-actions {
   display: flex;
-  width: min(100%, 420px);
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.ct-options-credential input {
-  min-width: 0;
-  height: 36px;
-  flex: 1 1 180px;
-  padding: 0 10px;
-  color: var(--options-text);
-  background: var(--options-input);
-  border: 1px solid var(--options-border);
-  border-radius: 6px;
-}
-
-.ct-options-credential .ct-button {
-  flex: 0 0 auto;
 }
 
 .ct-options-row input[type='checkbox'] {
@@ -230,7 +210,7 @@
     align-self: flex-start;
   }
 
-  .ct-options-credential {
+  .ct-options-actions {
     width: 100%;
     justify-content: stretch;
     flex-wrap: wrap;

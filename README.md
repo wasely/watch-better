@@ -1,92 +1,100 @@
-# CutThrough
+# WatchBetter
 
-CutThrough is a compact Chrome extension companion for desktop YouTube watch pages. It stays first beside the video and combines transcript navigation, embedded transcript-grounded ChatGPT, and a conservative jump cutter.
+WatchBetter is a Chrome extension for desktop YouTube watch pages. It adds a
+compact transcript navigator, transcript-grounded Ask panel, and optional
+caption-gap jump cutter beside the video.
 
-> Production release candidate. Automated validation passes; live unpacked-Chrome verification is the remaining release gate. See [`docs/STATUS.md`](docs/STATUS.md).
+## Features
 
-## MVP boundaries
+- Search, select, copy, and seek through available YouTube captions.
+- Ask ChatGPT or Google Gemini about bounded timestamped transcript context.
+- Use the AI provider account already signed in through the browser—no API key.
+- Keep multi-turn answers in WatchBetter while the matching provider tab performs
+  the request.
+- Speed through or jump long caption gaps with conservative controls that are off
+  by default.
+- Light/dark themes, keyboard navigation, responsive panel layouts, and a compact
+  collapsed launcher.
 
-- Available YouTube caption tracks only; no invented transcript or no-caption speech-to-text.
-- Embedded ChatGPT sends bounded transcript context to OpenAI only after **Ask** or **Send**; external ChatGPT opening remains separate and content-free.
-- The transcript-gap jump cutter is experimental, conservative, and disabled by default.
-- No CutThrough backend, account, tracking, analytics, semantic skipping, Shorts, live streams, or mobile support.
+## How Ask works
+
+1. In WatchBetter's **Ask** tab, choose ChatGPT or Gemini.
+2. Select **Open ChatGPT** or **Open Gemini** and sign in on the official site.
+3. Return to YouTube. WatchBetter detects the ready web session.
+4. Send a question. The first turn includes bounded timestamped transcript
+   context; later turns continue in the same provider chat.
+5. WatchBetter reads the rendered answer from that provider tab and displays it in
+   the Ask panel.
+
+WatchBetter never reads browser cookies or tokens, stores an API key, calls a model
+API, strips iframe security headers, or sends analytics. Provider websites can
+change their interface without notice, so their DOM adapters may occasionally need
+updates.
 
 ## Requirements
 
-- Chrome desktop
-- Node.js 22+ (Node 24 is used during development)
-- npm 11+
+- Desktop Chrome or another Chromium browser supporting Manifest V3
+- Node.js 22+
+- npm 10+
+- A ChatGPT and/or Google account for signed-in provider use
 
-## Install dependencies
+## Install for development
 
 ```bash
 npm ci
-```
-
-Use `npm install` only when intentionally changing dependencies.
-
-## Develop
-
-```bash
-npm run dev
-```
-
-WXT prints the development output/browser instructions. For the isolated UI harness:
-
-```bash
-npm run dev:harness
-```
-
-## Validate
-
-```bash
-npm run format:check
-npm run lint
-npm run typecheck
-npm run test
-npm run test:coverage
 npm run build
 ```
 
-## Load the unpacked extension
+Then open `chrome://extensions`, enable **Developer mode**, choose **Load
+unpacked**, and select `.output/chrome-mv3/`.
 
-1. Run `npm run build`.
-2. Open `chrome://extensions`.
-3. Enable **Developer mode**.
-4. Click **Load unpacked**.
-5. Choose `.output/chrome-mv3/` in this repository.
-6. Open a normal desktop `youtube.com/watch?v=…` page.
+Open a normal `youtube.com/watch?v=…` page. WatchBetter uses captions exposed by
+that video; it does not invent a transcript when captions are unavailable.
 
-The panel loads available YouTube captions automatically. Click a row to seek, then click the transcript **Ask** button to prime the embedded chat with bounded timestamped context. Add your OpenAI API key in CutThrough settings before chatting. **Open ChatGPT** opens a normal external tab without transferring content. Enable the experimental caption-gap cutter under **Jump Cut** only when wanted.
-
-Development output from `npm run dev` is under `.output/chrome-mv3-dev/` when WXT uses its normal Chromium convention.
-
-## Package
+## Development
 
 ```bash
+npm run dev
+npm run dev:harness
+npm run validate
 npm run zip
 ```
 
-The archive is generated under `.output/`. This project does not publish or push automatically.
+`npm run validate` checks formatting, lint, types, tests, and the production build.
+Generated browser output and archives are under `.output/`.
 
-## Repository map
+## Permissions
 
-- `src/entrypoints/` — WXT content/background/popup/options composition roots
-- `src/` — product domain, features, adapters, services, storage, messaging, styles, tests
-- `docs/` — product, architecture, decisions, checklist, test matrix, status, risks
-- `references/` — supplied visual references
-- `artifacts/ui/` — useful inspected harness screenshots
+| Permission or host  | Purpose                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `storage`           | Save user settings and an optional session-only transcript cache.                      |
+| `youtube.com`       | Mount the panel and read captions exposed on the current watch page.                   |
+| `chatgpt.com`       | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
+| `gemini.google.com` | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
 
-## Documentation
-
-Start with:
-
-1. [`docs/STATUS.md`](docs/STATUS.md)
-2. [`docs/MVP_CHECKLIST.md`](docs/MVP_CHECKLIST.md)
-3. [`docs/DECISIONS.md`](docs/DECISIONS.md)
-4. [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
-5. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+No broad host match, cookie permission, scripting permission, header-rewrite rule,
+or remote executable code is included.
 
 ## Privacy
 
-CutThrough does not persist transcripts or conversations locally. The OpenAI API key stays in local extension storage. CutThrough sends no analytics and has no backend. Bounded transcript context reaches OpenAI only after explicit **Ask** or **Send** actions. Multi-turn response state uses `store: true`; OpenAI documents at least 30 days of Responses API application-state retention by default. API usage can incur charges on the key's account. See [OpenAI API data controls](https://platform.openai.com/docs/models/default-usage-policies-by-endpoint).
+Transcripts and conversations are not persisted by default. The optional browser
+session cache is bounded and cleared with the browser session. Transcript context
+is sent only after an explicit Ask action, to the provider selected by the user.
+ChatGPT and Gemini then apply their own account, retention, and usage policies.
+
+## Project map
+
+- `src/entrypoints/` — YouTube, background, popup, options, and provider-tab roots
+- `src/features/` — transcript, Ask, settings, and jump-cutter UI/domain code
+- `src/services/web-chat*.ts` — provider allowlist and DOM-session adapter
+- `docs/` — product requirements, architecture, decisions, status, risks, tests
+- `harness/` — isolated UI scenarios
+- `design-system/watchbetter/` — project UI source of truth
+
+## Current limits
+
+- Desktop YouTube watch pages only; no Shorts, live streams, or mobile support.
+- Available caption tracks only; no speech-to-text fallback.
+- ChatGPT/Gemini web UI automation can require maintenance after provider changes.
+- The provider tab must remain open during a request.
+- Jump Cut is experimental and disabled by default.

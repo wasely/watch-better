@@ -26,9 +26,9 @@ const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
 const statusMessage = (status: RuntimeStatus): string => {
   if (!status.enabled) return 'Enable the extension to show its YouTube panel.';
   if (!status.supportedPage)
-    return 'Open a desktop YouTube watch page to use CutThrough.';
+    return 'Open a desktop YouTube watch page to use WatchBetter.';
   return status.panelMounted
-    ? 'CutThrough is mounted on this video.'
+    ? 'WatchBetter is mounted on this video.'
     : 'Watch page detected. Restore the panel if it is hidden.';
 };
 
@@ -62,7 +62,7 @@ function Popup() {
       .catch(() => {
         if (!disposed) {
           setHasError(true);
-          setMessage('Could not read CutThrough status. Try again.');
+          setMessage('Could not read WatchBetter status. Try again.');
         }
       });
 
@@ -111,14 +111,14 @@ function Popup() {
           enabled
             ? updatedStatus
               ? statusMessage(updatedStatus)
-              : 'CutThrough enabled.'
-            : 'CutThrough disabled. Existing playback remains unchanged.',
+              : 'WatchBetter enabled.'
+            : 'WatchBetter disabled. Existing playback remains unchanged.',
         );
       } else if (!response.ok) {
         setMessage(response.message);
       }
     } catch {
-      setMessage('Could not update CutThrough. Try again.');
+      setMessage('Could not update WatchBetter. Try again.');
     } finally {
       setBusyAction(null);
     }
@@ -138,7 +138,7 @@ function Popup() {
           setStatus((current) =>
             current ? { ...current, panelMounted: true } : current,
           );
-          setMessage('CutThrough panel restored.');
+          setMessage('WatchBetter panel restored.');
         } else {
           setMessage('Settings opened.');
         }

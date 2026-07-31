@@ -4,12 +4,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { readyTranscriptState } from '@/test/fixtures/transcripts';
 
-import { CutThroughApp } from './CutThroughApp';
+import { WatchBetterApp } from './WatchBetterApp';
 
-describe('CutThroughApp foundation shell', () => {
+describe('WatchBetterApp foundation shell', () => {
   it('renders readiness and switches primary tabs', () => {
     render(
-      <CutThroughApp transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }} />,
+      <WatchBetterApp
+        transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }}
+      />,
     );
 
     expect(screen.getByText('Transcript ready')).toBeInTheDocument();
@@ -24,7 +26,7 @@ describe('CutThroughApp foundation shell', () => {
       'aria-selected',
       'true',
     );
-    expect(screen.getByText('Embedded ChatGPT')).toBeInTheDocument();
+    expect(screen.getByText('ChatGPT web session')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Jump Cut' }));
     expect(screen.getByRole('tab', { name: 'Jump Cut' })).toHaveAttribute(
@@ -37,7 +39,7 @@ describe('CutThroughApp foundation shell', () => {
 
   it('supports arrow-key navigation between tabs', async () => {
     const user = userEvent.setup();
-    render(<CutThroughApp transcript={{ state: readyTranscriptState() }} />);
+    render(<WatchBetterApp transcript={{ state: readyTranscriptState() }} />);
 
     const transcriptTab = screen.getByRole('tab', { name: 'Transcript' });
     transcriptTab.focus();
@@ -50,7 +52,9 @@ describe('CutThroughApp foundation shell', () => {
 
   it('keeps tab targets mounted and preserves transcript state', () => {
     render(
-      <CutThroughApp transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }} />,
+      <WatchBetterApp
+        transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }}
+      />,
     );
 
     for (const name of ['Transcript', 'Ask', 'Jump Cut']) {
@@ -66,8 +70,8 @@ describe('CutThroughApp foundation shell', () => {
     fireEvent.change(search, { target: { value: 'evidence' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse CutThrough' }));
-    fireEvent.click(screen.getByRole('button', { name: /Expand CutThrough/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse WatchBetter' }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand WatchBetter/ }));
 
     expect(screen.getByPlaceholderText('Search transcript')).toHaveValue('evidence');
   });
@@ -75,7 +79,7 @@ describe('CutThroughApp foundation shell', () => {
   it('supports controlled tab state and reports requested changes', () => {
     const onTabChange = vi.fn();
     const { rerender } = render(
-      <CutThroughApp activeTab="ask" onTabChange={onTabChange} />,
+      <WatchBetterApp activeTab="ask" onTabChange={onTabChange} />,
     );
 
     fireEvent.click(screen.getByRole('tab', { name: 'Jump Cut' }));
@@ -85,7 +89,7 @@ describe('CutThroughApp foundation shell', () => {
       'true',
     );
 
-    rerender(<CutThroughApp activeTab="skip" onTabChange={onTabChange} />);
+    rerender(<WatchBetterApp activeTab="skip" onTabChange={onTabChange} />);
     expect(screen.getByRole('tab', { name: 'Jump Cut' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -95,24 +99,26 @@ describe('CutThroughApp foundation shell', () => {
   it('supports controlled collapse state and reports expansion', () => {
     const onCollapsedChange = vi.fn();
     const { rerender } = render(
-      <CutThroughApp collapsed onCollapsedChange={onCollapsedChange} />,
+      <WatchBetterApp collapsed onCollapsedChange={onCollapsedChange} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Expand CutThrough/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand WatchBetter/ }));
     expect(onCollapsedChange).toHaveBeenCalledWith(false);
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
 
-    rerender(<CutThroughApp collapsed={false} onCollapsedChange={onCollapsedChange} />);
+    rerender(
+      <WatchBetterApp collapsed={false} onCollapsedChange={onCollapsedChange} />,
+    );
     expect(screen.getByRole('tablist')).toBeInTheDocument();
   });
 
   it('collapses to and restores from the icon launcher', async () => {
     const user = userEvent.setup();
-    render(<CutThroughApp />);
+    render(<WatchBetterApp />);
 
-    await user.click(screen.getByRole('button', { name: 'Collapse CutThrough' }));
+    await user.click(screen.getByRole('button', { name: 'Collapse WatchBetter' }));
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    const launcher = screen.getByRole('button', { name: /Expand CutThrough/ });
+    const launcher = screen.getByRole('button', { name: /Expand WatchBetter/ });
     await waitFor(() => expect(launcher).toHaveFocus());
 
     await user.click(launcher);
@@ -125,9 +131,9 @@ describe('CutThroughApp foundation shell', () => {
   it('routes settings through the provided callback', async () => {
     const user = userEvent.setup();
     const onOpenSettings = vi.fn();
-    render(<CutThroughApp onOpenSettings={onOpenSettings} />);
+    render(<WatchBetterApp onOpenSettings={onOpenSettings} />);
 
-    await user.click(screen.getByRole('button', { name: 'Open CutThrough settings' }));
+    await user.click(screen.getByRole('button', { name: 'Open WatchBetter settings' }));
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 });

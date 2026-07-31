@@ -1,9 +1,9 @@
 {
-  "name": "cutthrough",
+  "name": "watchbetter",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A compact YouTube transcript, embedded ChatGPT, and jump-cutter companion.",
+  "description": "A compact YouTube transcript, signed-in AI Ask, and jump-cutter companion.",
   "scripts": {
     "dev": "wxt",
     "dev:harness": "vite --config harness/vite.config.ts",

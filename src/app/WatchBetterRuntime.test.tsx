@@ -66,7 +66,7 @@ vi.mock('wxt/browser', () => ({
   },
 }));
 
-import { CutThroughRuntime } from './CutThroughRuntime';
+import { WatchBetterRuntime } from './WatchBetterRuntime';
 
 class FakePageController implements YouTubePageController {
   public snapshot: YouTubePageSnapshot = {
@@ -145,37 +145,37 @@ const documentFor = (videoId: string): TranscriptDocument => ({
   ],
 });
 
-describe('CutThroughRuntime integration', () => {
+describe('WatchBetterRuntime integration', () => {
   beforeEach(() => {
     for (const key of Object.keys(browserState.storage))
       delete browserState.storage[key];
-    browserState.storage['cutthrough:settings'] = DEFAULT_SETTINGS;
+    browserState.storage['watchbetter:settings:v2'] = DEFAULT_SETTINGS;
     browserState.sendMessage.mockReset();
     browserState.sendMessage.mockImplementation(
-      (request: { type: string; changes?: object }) => {
+      (request: { type: string; changes?: object; provider?: string }) => {
         if (request.type === 'settings:update') {
           const settings = {
-            ...(browserState.storage['cutthrough:settings'] as object),
+            ...(browserState.storage['watchbetter:settings:v2'] as object),
             ...request.changes,
           };
-          browserState.storage['cutthrough:settings'] = settings;
+          browserState.storage['watchbetter:settings:v2'] = settings;
           return Promise.resolve({ ok: true, type: 'settings:updated', settings });
         }
-        if (request.type === 'chatgpt:get-status') {
+        if (request.type === 'webchat:get-status') {
           return Promise.resolve({
             ok: true,
-            type: 'chatgpt:status',
-            configured: true,
-            model: 'gpt-5.6',
+            type: 'webchat:status',
+            provider: request.provider,
+            state: 'ready',
           });
         }
-        if (request.type === 'chatgpt:send') {
+        if (request.type === 'webchat:send') {
           return Promise.resolve({
             ok: true,
-            type: 'chatgpt:response',
+            type: 'webchat:response',
+            provider: 'chatgpt',
             text: 'Ready for questions.',
-            responseId: 'resp_test',
-            model: 'gpt-5.6',
+            responseId: 'web_chatgpt_test',
           });
         }
         return Promise.resolve({ ok: true, type: 'acknowledged' });
@@ -183,7 +183,7 @@ describe('CutThroughRuntime integration', () => {
     );
   });
 
-  it('loads data, seeks playback, and primes embedded ChatGPT from Transcript Ask', async () => {
+  it('loads data, seeks playback, and primes signed-in ChatGPT from Transcript Ask', async () => {
     const pageController = new FakePageController();
     const playback = new FakePlayback();
     const provider: TranscriptProvider = {
@@ -193,7 +193,7 @@ describe('CutThroughRuntime integration', () => {
       ),
     };
     render(
-      <CutThroughRuntime
+      <WatchBetterRuntime
         pageController={pageController}
         playback={playback}
         transcriptProvider={provider}
@@ -208,8 +208,9 @@ describe('CutThroughRuntime integration', () => {
     await waitFor(() =>
       expect(browserState.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'chatgpt:send',
-          previousResponseId: null,
+          type: 'webchat:send',
+          provider: 'chatgpt',
+          newConversation: true,
         }),
       ),
     );
@@ -224,7 +225,10 @@ describe('CutThroughRuntime integration', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Open ChatGPT/ }));
     await waitFor(() =>
-      expect(browserState.sendMessage).toHaveBeenCalledWith({ type: 'chatgpt:open' }),
+      expect(browserState.sendMessage).toHaveBeenCalledWith({
+        type: 'webchat:open',
+        provider: 'chatgpt',
+      }),
     );
   });
 
@@ -244,7 +248,7 @@ describe('CutThroughRuntime integration', () => {
       load,
     };
     render(
-      <CutThroughRuntime
+      <WatchBetterRuntime
         pageController={pageController}
         playback={playback}
         transcriptProvider={provider}

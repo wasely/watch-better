@@ -3,11 +3,10 @@ import type { SkipConfiguration, SkipPresetId } from '@/features/skip/skip-engin
 export type PanelTab = 'transcript' | 'ask' | 'skip';
 export type ThemePreference = 'system' | 'dark' | 'light';
 export type TranscriptFontSize = 'compact' | 'standard' | 'large';
-export type ChatGPTHandoffBehavior = 'copy-only' | 'open-only' | 'copy-and-open';
 export type TranscriptCachePolicy = 'memory-only' | 'session';
 
-export interface CutThroughSettings {
-  readonly schemaVersion: 1;
+export interface WatchBetterSettings {
+  readonly schemaVersion: 2;
   readonly extensionEnabled: boolean;
   readonly defaultTab: PanelTab;
   readonly autoLoadTranscript: boolean;
@@ -16,7 +15,6 @@ export interface CutThroughSettings {
   readonly theme: ThemePreference;
   readonly panelCollapsed: boolean;
   readonly pause: SkipConfiguration;
-  readonly chatgptHandoff: ChatGPTHandoffBehavior;
   readonly transcriptCachePolicy: TranscriptCachePolicy;
 }
 
@@ -32,8 +30,8 @@ export const DEFAULT_SKIP_CONFIGURATION: SkipConfiguration = Object.freeze({
   jumpThresholdSeconds: 8,
 });
 
-export const DEFAULT_SETTINGS: CutThroughSettings = Object.freeze({
-  schemaVersion: 1,
+export const DEFAULT_SETTINGS: WatchBetterSettings = Object.freeze({
+  schemaVersion: 2,
   extensionEnabled: true,
   defaultTab: 'transcript',
   autoLoadTranscript: true,
@@ -42,7 +40,6 @@ export const DEFAULT_SETTINGS: CutThroughSettings = Object.freeze({
   theme: 'system',
   panelCollapsed: false,
   pause: DEFAULT_SKIP_CONFIGURATION,
-  chatgptHandoff: 'copy-and-open',
   transcriptCachePolicy: 'memory-only',
 });
 
@@ -120,11 +117,11 @@ const normalizePauseSettings = (value: unknown): SkipConfiguration => {
   };
 };
 
-export const normalizeSettings = (value: unknown): CutThroughSettings => {
+export const normalizeSettings = (value: unknown): WatchBetterSettings => {
   const source = isRecord(value) ? value : {};
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     extensionEnabled: booleanOr(
       source.extensionEnabled,
       DEFAULT_SETTINGS.extensionEnabled,
@@ -154,11 +151,6 @@ export const normalizeSettings = (value: unknown): CutThroughSettings => {
     ),
     panelCollapsed: booleanOr(source.panelCollapsed, DEFAULT_SETTINGS.panelCollapsed),
     pause: normalizePauseSettings(source.pause),
-    chatgptHandoff: oneOf<ChatGPTHandoffBehavior>(
-      source.chatgptHandoff,
-      ['copy-only', 'open-only', 'copy-and-open'],
-      DEFAULT_SETTINGS.chatgptHandoff,
-    ),
     transcriptCachePolicy: oneOf<TranscriptCachePolicy>(
       source.transcriptCachePolicy,
       ['memory-only', 'session'],

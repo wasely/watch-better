@@ -1,45 +1,58 @@
 # Status
 
-Updated: 2026-07-30
+Updated: 2026-07-31
 
 ## Current state
 
-**Production release candidate.** The transcript receiver, first-position mount, native embedded chat, Transcript Ask flow, and built-in Jump Cut UI are implemented. Automated hardening, build, and package pass. Reloading the unpacked extension and completing the updated live YouTube/API smoke test is the remaining release gate.
+**Automated release candidate.** WatchBetter's transcript, Ask, and Jump Cut flows
+are implemented. Ask now uses the user's signed-in ChatGPT or Gemini web session;
+it does not use a model API or collect provider credentials. A live unpacked-extension
+smoke test remains the release gate.
 
 ## Implemented
 
-- One normal-flow WXT Shadow Root host with right-rail, below-video, theater, fullscreen, collapse, popup restore, and no-duplicate lifecycle handling.
-- Typed YouTube SPA generations, stale-load aborts, cleanup, and replacement-safe HTML video control.
-- Real caption discovery from matching player bootstrap or credentialed watch HTML; JSON3/XML timed-text normalization, track choice, search, selection, active row, and seek.
-- Bound transcript-grounded ChatGPT through OpenAI's Responses API, multi-turn response chaining, explicit Transcript Ask priming, local key configuration, and content-free external open.
-- Conservative built-in transcript-gap jump cutting with ad/timing guards, one-jump protection, approximate savings, and rate restoration. Disabled by default.
-- Persisted validated settings; three-entry bounded transcript cache, memory-only by default and session-only by explicit opt-in.
-- Strict message allowlists, service-worker-only API credentials, no production fixtures/analytics/backend, explicit bounded transcript sends, and no ChatGPT page automation.
+- Renamed the product, package, UI, storage keys, docs, and build archive to
+  WatchBetter.
+- Added ChatGPT/Gemini selection, provider readiness states, new-chat/follow-up
+  handling, and rendered-answer return to the YouTube panel.
+- Reuses or opens the provider's official browser tab. Provider login remains in the
+  browser; WatchBetter does not read cookies, tokens, passwords, or API keys.
+- Sends a bounded transcript prompt only after the user submits an Ask request.
+- Retains transcript navigation, search, selection, seek, SPA lifecycle handling,
+  and conservative transcript-gap Jump Cut.
+- Keeps memory-only transcript handling by default, with bounded session caching as
+  an explicit opt-in.
 
 ## Validation results
 
-- `npm ci`: 382 packages installed from lockfile; 0 vulnerabilities.
-- Canonical validation: Prettier, ESLint, strict TypeScript, 23 Vitest files / 93 tests, and WXT production build passed.
-- Coverage: 67.74% statements / 71.06% lines overall; YouTube adapters 80.00% statements / 86.92% lines; Ask 89.73% statements / 95.93% lines.
-- Build: `.output/chrome-mv3/`, 540.81 kB.
-- Package: `.output/cutthrough-0.1.0-chrome.zip`, 167.04 kB.
-- Built manifest: only `storage`, `https://www.youtube.com/*`, and `https://api.openai.com/*`.
-- Production audit: no fixture imports/markers, prompt-bearing external-open message, iframe/security bypass, hidden send, or excess permission.
-- Browser harness: inspected dark 320px Transcript and Ask states; both fit at 319px client/scroll width with no horizontal overflow.
-- Existing full visual/accessibility matrix remains passing: Axe, keyboard/focus, reduced motion, high DPI, 200% zoom, dark/light, narrow/wide, popup, and options.
+- Canonical validation passed: Prettier, ESLint, strict TypeScript, 23 Vitest files /
+  97 tests, and WXT production build.
+- Coverage: 63.60% statements / 66.68% lines overall; YouTube adapters 82.12%
+  statements / 90.10% lines; Ask 89.83% statements / 96.15% lines.
+- Build: `.output/chrome-mv3/`, 531.06 kB.
+- Package: `.output/watchbetter-0.1.0-chrome.zip`, 164.11 kB.
+- Built manifest: only `storage` plus exact YouTube, ChatGPT, and Gemini hosts.
+- Browser harness: dark Ask connected/disconnected states inspected at 402px and
+  320px; no horizontal overflow or console errors.
+- Production audit tests reject provider API endpoints, cookie access, credential
+  handling, broad host access, and excess permissions.
 
 ## Remaining release gate
 
-- Reload `.output/chrome-mv3/` in `chrome://extensions`, then verify first-position mount, caption fetch, Transcript Ask priming, configured API answer/follow-up, Jump Cut, seek, SPA navigation/video replacement, theater/fullscreen, ad suspension, popup restore, external ChatGPT opening, and console cleanliness.
-- Chrome internal pages cannot be automated by the connected browser session. No live-production claim is made until this is completed.
+- Reload `.output/chrome-mv3/` in `chrome://extensions`.
+- Sign in at ChatGPT and Gemini, then verify first Ask, follow-up, provider switch,
+  and new-chat behavior against their live sites.
+- Verify caption fetch, selection Ask, seek, Jump Cut, SPA navigation, theater/fullscreen,
+  popup restore, and console cleanliness on live YouTube.
+- Provider DOM can change; failures remain explicit and retryable.
 
 ## Known product limits
 
-- YouTube's internal caption endpoints and DOM can change; failures stay explicit and retryable.
-- Caption gaps approximate silence and can miss/clip content despite padding. Feature remains experimental and off by default.
-- Videos without usable YouTube captions show an unavailable state; no speech-to-text fallback.
-- Embedded chat requires a user-supplied OpenAI API key; explicit chats follow the user's OpenAI API data controls.
-- No Shorts, live streams, mobile, semantic skipping, ChatGPT page automation, CutThrough backend, account, sync, or analytics.
+- Requires usable YouTube captions; no speech-to-text fallback.
+- ChatGPT/Gemini automation depends on their rendered web UI and active user session.
+- Caption gaps approximate silence and can miss or clip content; Jump Cut remains
+  experimental and disabled by default.
+- No Shorts, live streams, mobile, backend, account, sync, analytics, or model API.
 
 ## Exact commands
 
@@ -48,9 +61,8 @@ npm run format
 npm run validate
 npm run test:coverage
 npm run zip
-npm ci
 ```
 
 ## Commit status
 
-This release candidate ships on branch `feat/cutthrough-mvp` with its validation evidence and package instructions.
+Prepared for branch `feat/watchbetter-web-chat`.

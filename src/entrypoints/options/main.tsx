@@ -5,14 +5,13 @@ import { browser } from 'wxt/browser';
 import { OptionsView, type OptionsTheme } from '@/entrypoints/options/OptionsView';
 import {
   DEFAULT_SETTINGS,
-  type CutThroughSettings,
+  type WatchBetterSettings,
 } from '@/features/settings/settings';
 import type { ExtensionRequest, ExtensionResponse } from '@/messaging/messages';
 import {
   SETTINGS_STORAGE_KEY,
   SettingsRepository,
 } from '@/storage/settings-repository';
-import type { ChatConfigStatus } from '@/storage/chat-config';
 
 import './style.css';
 
@@ -22,14 +21,10 @@ const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
   browser.runtime.sendMessage(request);
 
 function Options() {
-  const [settings, setSettings] = useState<CutThroughSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<WatchBetterSettings>(DEFAULT_SETTINGS);
   const [status, setStatus] = useState('Loading settings…');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [chatStatus, setChatStatus] = useState<ChatConfigStatus>({
-    configured: false,
-    model: 'gpt-5.6',
-  });
   const [systemTheme, setSystemTheme] = useState<OptionsTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
@@ -70,20 +65,13 @@ function Options() {
   }, []);
 
   useEffect(() => {
-    void send({ type: 'chatgpt:get-status' }).then((response) => {
-      if (response.ok && response.type === 'chatgpt:status')
-        setChatStatus({ configured: response.configured, model: response.model });
-    });
-  }, []);
-
-  useEffect(() => {
     const query = matchMedia('(prefers-color-scheme: dark)');
     const updateTheme = () => setSystemTheme(query.matches ? 'dark' : 'light');
     query.addEventListener('change', updateTheme);
     return () => query.removeEventListener('change', updateTheme);
   }, []);
 
-  const save = async (changes: Partial<CutThroughSettings>) => {
+  const save = async (changes: Partial<WatchBetterSettings>) => {
     setSettings((current) => ({ ...current, ...changes }));
     setSaving(true);
     setStatus('Saving…');
@@ -117,32 +105,11 @@ function Options() {
     };
   }, [resolvedTheme]);
 
-  const configureChatGPT = async (apiKey: string) => {
-    setSaving(true);
-    setStatus(apiKey ? 'Saving OpenAI key…' : 'Clearing OpenAI key…');
-    try {
-      const response = await send({ type: 'chatgpt:configure', apiKey });
-      if (!response.ok) throw new Error(response.message);
-      if (response.type !== 'chatgpt:status')
-        throw new Error('Unexpected ChatGPT status response.');
-      setChatStatus({ configured: response.configured, model: response.model });
-      setStatus(
-        response.configured ? 'Embedded ChatGPT connected' : 'OpenAI key cleared',
-      );
-    } catch {
-      setStatus('Could not save the OpenAI key. Try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <OptionsView
-      chatConfigured={chatStatus.configured}
-      chatModel={chatStatus.model}
       disabled={!loaded || saving}
       onChange={(next) => void save(next)}
-      onConfigureChatGPT={(apiKey) => void configureChatGPT(apiKey)}
+      onOpenWebChat={(provider) => void send({ type: 'webchat:open', provider })}
       settings={settings}
       status={status}
       theme={resolvedTheme}

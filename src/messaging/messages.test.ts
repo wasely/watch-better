@@ -22,33 +22,38 @@ describe('extension message validation', () => {
     expect(isExtensionRequest({ type: 'runtime:set-enabled', enabled: 'yes' })).toBe(
       false,
     );
-    expect(isExtensionRequest({ type: 'chatgpt:open', prompt: 'hidden data' })).toBe(
-      false,
-    );
-    expect(isExtensionRequest({ type: 'chatgpt:get-status' })).toBe(true);
-    expect(isExtensionRequest({ type: 'chatgpt:configure', apiKey: 'sk-test' })).toBe(
-      true,
-    );
-    expect(isExtensionRequest({ type: 'chatgpt:configure', apiKey: '' })).toBe(true);
     expect(
       isExtensionRequest({
-        type: 'chatgpt:send',
+        type: 'webchat:open',
+        provider: 'chatgpt',
+        prompt: 'hidden data',
+      }),
+    ).toBe(false);
+    expect(isExtensionRequest({ type: 'webchat:get-status', provider: 'gemini' })).toBe(
+      true,
+    );
+    expect(
+      isExtensionRequest({
+        type: 'webchat:send',
+        provider: 'chatgpt',
         message: 'Use the transcript.',
-        previousResponseId: null,
+        newConversation: true,
       }),
     ).toBe(true);
     expect(
       isExtensionRequest({
-        type: 'chatgpt:send',
+        type: 'webchat:send',
+        provider: 'chatgpt',
         message: '',
-        previousResponseId: null,
+        newConversation: true,
       }),
     ).toBe(false);
     expect(
       isExtensionRequest({
-        type: 'chatgpt:send',
+        type: 'webchat:send',
+        provider: 'unsupported',
         message: 'Continue',
-        previousResponseId: 'wrong-prefix',
+        newConversation: false,
       }),
     ).toBe(false);
   });

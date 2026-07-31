@@ -93,16 +93,16 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Verify: stress fixtures, accessibility tests, live unavailable video.
   - Status: Long, unavailable, error, keyboard, Axe, and 200% zoom fixtures pass; live unavailable-video check pending.
 
-## Phase 5 — embedded ChatGPT
+## Phase 5 — signed-in AI Ask
 
 - [x] **MVP-050 · P0 · PRD-020, PRD-021, PRD-024 — Deterministic prompt provider**
   - Acceptance: each context/suggestion builds bounded, timestamp-preserving prompts without network calls.
   - Verify: unit snapshot/behavior tests including huge transcripts.
   - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded.
-- [~] **MVP-051 · P0 · PRD-022, PRD-023, PRD-025 — Embedded transcript chat**
-  - Acceptance: Transcript Ask primes native chat; follow-ups chain responses; keys stay extension-only; transmission is explicit and bounded; external open carries no content.
-  - Verify: service/component/runtime/message/storage tests, manifest/source audit, live API check.
-  - Status: Automated API, chaining, priming, key-storage, permission, and external-open audits pass; live configured API check pending.
+- [~] **MVP-051 · P0 — ChatGPT/Gemini web-session bridge**
+  - Acceptance: Transcript Ask primes the selected provider; follow-ups continue; no API key/cookie/token access; transmission is explicit and bounded; rendered answers return to WatchBetter.
+  - Verify: service/DOM/component/runtime/message tests, manifest/source audit, live signed-in provider checks.
+  - Status: Automated contract, DOM, chaining, priming, permission, and no-credential audits pass; live ChatGPT/Gemini checks pending.
 
 ## Phase 6 — jump cutter
 

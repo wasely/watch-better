@@ -19,7 +19,7 @@ import type { TranscriptViewState } from '@/features/transcript/transcript-view-
 import { findActiveSegmentIndex } from '@/features/transcript/transcript-utils';
 import {
   DEFAULT_SETTINGS,
-  type CutThroughSettings,
+  type WatchBetterSettings,
   type PanelTab,
 } from '@/features/settings/settings';
 import {
@@ -32,9 +32,9 @@ import {
   SETTINGS_STORAGE_KEY,
 } from '@/storage/settings-repository';
 import { TranscriptCache } from '@/storage/transcript-cache';
-import { CHAT_CONFIG_STORAGE_KEY, type ChatConfigStatus } from '@/storage/chat-config';
+import type { WebChatProviderId, WebChatProviderStatus } from '@/services/web-chat';
 
-import { CutThroughApp, type ResolvedTheme } from './CutThroughApp';
+import { WatchBetterApp, type ResolvedTheme } from './WatchBetterApp';
 
 const EMPTY_PLAYBACK: PlaybackSnapshot = {
   currentTimeSeconds: 0,
@@ -54,17 +54,17 @@ const EMPTY_SKIP: SkipEngineSnapshot = {
 const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
   browser.runtime.sendMessage(request);
 
-export interface CutThroughRuntimeControls {
+export interface WatchBetterRuntimeControls {
   restore(): Promise<void>;
   isMounted(): boolean;
 }
 
-export interface CutThroughRuntimeProps {
+export interface WatchBetterRuntimeProps {
   readonly pageController: YouTubePageController;
   readonly playback: PlaybackController;
   readonly transcriptProvider: TranscriptProvider;
   readonly theaterMode?: boolean;
-  readonly onControls?: (controls: CutThroughRuntimeControls | null) => void;
+  readonly onControls?: (controls: WatchBetterRuntimeControls | null) => void;
   readonly onVisibilityChange?: (visible: boolean) => void;
 }
 
@@ -80,17 +80,17 @@ const errorState = (error: unknown): TranscriptViewState => {
   };
 };
 
-export function CutThroughRuntime({
+export function WatchBetterRuntime({
   pageController,
   playback,
   transcriptProvider,
   theaterMode = false,
   onControls,
   onVisibilityChange,
-}: CutThroughRuntimeProps) {
+}: WatchBetterRuntimeProps) {
   const repository = useMemo(() => new SettingsRepository(), []);
   const cache = useMemo(() => new TranscriptCache(), []);
-  const [settings, setSettings] = useState<CutThroughSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<WatchBetterSettings>(DEFAULT_SETTINGS);
   const settingsRef = useRef(settings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [page, setPage] = useState<YouTubePageSnapshot>(pageController.snapshot);
@@ -105,10 +105,9 @@ export function CutThroughRuntime({
     ReadonlySet<TranscriptSegmentId>
   >(new Set());
   const [skipSnapshot, setSkipSnapshot] = useState<SkipEngineSnapshot>(EMPTY_SKIP);
-  const [chatStatus, setChatStatus] = useState<ChatConfigStatus>({
-    configured: false,
-    model: 'gpt-5.6',
-  });
+  const [providerStatuses, setProviderStatuses] = useState<
+    Partial<Record<WebChatProviderId, WebChatProviderStatus>>
+  >({});
   const [primeRequestId, setPrimeRequestId] = useState(0);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
@@ -181,26 +180,29 @@ export function CutThroughRuntime({
   useEffect(() => {
     let disposed = false;
     const refresh = () => {
-      void send({ type: 'chatgpt:get-status' }).then((response) => {
-        if (disposed || !response.ok || response.type !== 'chatgpt:status') return;
-        setChatStatus({ configured: response.configured, model: response.model });
-      });
+      for (const provider of ['chatgpt', 'gemini'] as const)
+        void send({ type: 'webchat:get-status', provider }).then((response) => {
+          if (disposed || !response.ok || response.type !== 'webchat:status') return;
+          setProviderStatuses((current) => ({
+            ...current,
+            [provider]: { provider, state: response.state },
+          }));
+        });
     };
-    const onStorageChange = (
-      changes: Record<string, { readonly newValue?: unknown }>,
-      areaName: string,
-    ) => {
-      if (areaName === 'local' && CHAT_CONFIG_STORAGE_KEY in changes) refresh();
+    const onVisibilityChange = () => {
+      if (!document.hidden) refresh();
     };
-    browser.storage.onChanged.addListener(onStorageChange);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     refresh();
     return () => {
       disposed = true;
-      browser.storage.onChanged.removeListener(onStorageChange);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 
-  const patchSettings = useCallback(async (changes: Partial<CutThroughSettings>) => {
+  const patchSettings = useCallback(async (changes: Partial<WatchBetterSettings>) => {
     setSettings((current) => ({ ...current, ...changes }));
     const response = await send({ type: 'settings:update', changes });
     if (!response.ok) throw new Error(response.message);
@@ -324,11 +326,11 @@ export function CutThroughRuntime({
   }, [onVisibilityChange, visible]);
 
   useEffect(() => {
-    const controls: CutThroughRuntimeControls = {
+    const controls: WatchBetterRuntimeControls = {
       isMounted: () => visible,
       restore: async () => {
         if (!settingsRef.current.extensionEnabled)
-          throw new Error('Enable CutThrough before restoring the panel.');
+          throw new Error('Enable WatchBetter before restoring the panel.');
         await patchSettings({ panelCollapsed: false });
       },
     };
@@ -347,7 +349,7 @@ export function CutThroughRuntime({
   if (!visible) return null;
 
   return (
-    <CutThroughApp
+    <WatchBetterApp
       activeTab={activeTab}
       collapsed={settings.panelCollapsed || theaterMode}
       onCollapsedChange={(panelCollapsed) =>
@@ -375,11 +377,6 @@ export function CutThroughRuntime({
           setActiveTab('ask');
           setPrimeRequestId((current) => current + 1);
         },
-        onOpenSelectionInChatGPT: (segmentIds) => {
-          setSelectedSegmentIds(new Set(segmentIds));
-          setActiveTab('ask');
-          void send({ type: 'chatgpt:open' });
-        },
         onEnableTranscript: () =>
           void patchSettings({ autoLoadTranscript: true }).catch(() => undefined),
         onRetry: () => {
@@ -390,23 +387,21 @@ export function CutThroughRuntime({
         transcript: transcriptDocument,
         selectedSegmentIds,
         currentTimeSeconds: playbackState.currentTimeSeconds,
-        chatConfigured: chatStatus.configured,
-        chatModel: chatStatus.model,
+        providerStatuses,
         primeRequestId,
-        onConfigureChatGPT: () => void send({ type: 'settings:open' }),
-        onSendChatGPT: async (request) => {
-          const response = await send({ type: 'chatgpt:send', ...request });
+        onSendWebChat: async (request) => {
+          const response = await send({ type: 'webchat:send', ...request });
           if (!response.ok) throw new Error(response.message);
-          if (response.type !== 'chatgpt:response')
-            throw new Error('Unexpected ChatGPT response.');
+          if (response.type !== 'webchat:response')
+            throw new Error('Unexpected AI response.');
           return {
             text: response.text,
             responseId: response.responseId,
-            model: response.model,
+            provider: response.provider,
           };
         },
-        onOpenChatGPT: async () => {
-          const response = await send({ type: 'chatgpt:open' });
+        onOpenWebChat: async (provider) => {
+          const response = await send({ type: 'webchat:open', provider });
           if (!response.ok) throw new Error(response.message);
         },
       }}

@@ -5,7 +5,7 @@
   width: 100%;
   min-width: 0;
   color: var(--ct-text);
-  container-name: cutthrough;
+  container-name: watchbetter;
   container-type: inline-size;
   background: var(--ct-surface);
   border: 1px solid var(--ct-border);
@@ -388,7 +388,7 @@
   }
 }
 
-@container cutthrough (max-width: 359px) {
+@container watchbetter (max-width: 359px) {
   .ct-tab {
     gap: var(--ct-space-2);
     padding-inline: var(--ct-space-2);
@@ -405,7 +405,7 @@
   }
 }
 
-@container cutthrough (max-width: 207px) {
+@container watchbetter (max-width: 207px) {
   .ct-header {
     gap: var(--ct-space-2);
     padding-inline: var(--ct-space-4);

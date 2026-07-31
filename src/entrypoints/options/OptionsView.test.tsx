@@ -20,10 +20,10 @@ describe('OptionsView', () => {
     expect(screen.getByRole('heading', { name: 'Transcript' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Jump cutter' })).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: 'Handoff and privacy' }),
+      screen.getByRole('heading', { name: 'AI sessions and privacy' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/stores no analytics, transcripts, or conversations/),
+      screen.getByText(/stores no API keys, cookies, analytics/),
     ).toBeInTheDocument();
     expect(screen.getByText('Settings loaded')).toBeInTheDocument();
   });
@@ -47,7 +47,7 @@ describe('OptionsView', () => {
     expect(onChange).toHaveBeenLastCalledWith({ autoFollowTranscript: false });
   });
 
-  it('applies complete pause presets and explicit handoff behavior', () => {
+  it('applies complete pause presets', () => {
     const onChange = vi.fn();
     render(
       <OptionsView
@@ -63,11 +63,6 @@ describe('OptionsView', () => {
     expect(onChange).toHaveBeenLastCalledWith({
       pause: configurationForSkipPreset('aggressive', false),
     });
-
-    fireEvent.change(screen.getByRole('combobox', { name: /^ChatGPT actions/ }), {
-      target: { value: 'copy-only' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith({ chatgptHandoff: 'copy-only' });
   });
 
   it('disables controls while settings are loading', () => {
@@ -92,22 +87,21 @@ describe('OptionsView', () => {
     ).toBe(true);
   });
 
-  it('saves an OpenAI API key through the background-only handler', () => {
-    const onConfigureChatGPT = vi.fn(() => Promise.resolve());
+  it('opens official AI web sessions without collecting API keys', () => {
+    const onOpenWebChat = vi.fn();
     render(
       <OptionsView
         onChange={() => undefined}
-        onConfigureChatGPT={onConfigureChatGPT}
+        onOpenWebChat={onOpenWebChat}
         settings={DEFAULT_SETTINGS}
         status="Settings loaded"
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('OpenAI API key'), {
-      target: { value: 'sk-test-key' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Save key' }));
-
-    expect(onConfigureChatGPT).toHaveBeenCalledWith('sk-test-key');
+    expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open ChatGPT' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Gemini' }));
+    expect(onOpenWebChat).toHaveBeenNthCalledWith(1, 'chatgpt');
+    expect(onOpenWebChat).toHaveBeenNthCalledWith(2, 'gemini');
   });
 });

@@ -3,10 +3,10 @@ import { browser } from 'wxt/browser';
 import {
   DEFAULT_SETTINGS,
   normalizeSettings,
-  type CutThroughSettings,
+  type WatchBetterSettings,
 } from '@/features/settings/settings';
 
-export const SETTINGS_STORAGE_KEY = 'cutthrough:settings';
+export const SETTINGS_STORAGE_KEY = 'watchbetter:settings:v2';
 
 export interface KeyValueStorageArea {
   get(key: string): Promise<Record<string, unknown>>;
@@ -21,18 +21,18 @@ export class SettingsRepository {
     this.#area = area;
   }
 
-  public async load(): Promise<CutThroughSettings> {
+  public async load(): Promise<WatchBetterSettings> {
     const stored = await this.#area.get(SETTINGS_STORAGE_KEY);
     return normalizeSettings(stored[SETTINGS_STORAGE_KEY]);
   }
 
-  public async save(settings: CutThroughSettings): Promise<CutThroughSettings> {
+  public async save(settings: WatchBetterSettings): Promise<WatchBetterSettings> {
     const normalized = normalizeSettings(settings);
     await this.#area.set({ [SETTINGS_STORAGE_KEY]: normalized });
     return normalized;
   }
 
-  public async reset(): Promise<CutThroughSettings> {
+  public async reset(): Promise<WatchBetterSettings> {
     await this.#area.remove(SETTINGS_STORAGE_KEY);
     return normalizeSettings(DEFAULT_SETTINGS);
   }
@@ -46,11 +46,11 @@ export class SettingsWriteCoordinator {
     this.#repository = repository;
   }
 
-  public load(): Promise<CutThroughSettings> {
+  public load(): Promise<WatchBetterSettings> {
     return this.#queue.then(() => this.#repository.load());
   }
 
-  public patch(changes: Partial<CutThroughSettings>): Promise<CutThroughSettings> {
+  public patch(changes: Partial<WatchBetterSettings>): Promise<WatchBetterSettings> {
     const operation = this.#queue.then(async () => {
       const current = await this.#repository.load();
       return this.#repository.save({ ...current, ...changes });

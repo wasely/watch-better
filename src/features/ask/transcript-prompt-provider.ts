@@ -242,7 +242,7 @@ const scopeLabel = (scope: AIContextRequest['scope']): string => {
   }
 };
 
-export class ChatGPTHandoffProvider implements AIProvider {
+export class TranscriptPromptProvider implements AIProvider {
   public readonly id = 'chatgpt-handoff';
   public readonly displayName = 'ChatGPT handoff';
   readonly #contextCharacterLimit: number;
@@ -257,7 +257,7 @@ export class ChatGPTHandoffProvider implements AIProvider {
       request.transcript.videoId,
     )}`;
     const limitation = context.truncated
-      ? '\nCONTEXT LIMITATION\nCutThrough omitted some transcript content to keep this handoff bounded. Do not imply that missing context was checked. Ask for more context when needed.\n'
+      ? '\nCONTEXT LIMITATION\nWatchBetter omitted some transcript content to keep this handoff bounded. Do not imply that missing context was checked. Ask for more context when needed.\n'
       : '';
     const text = [
       'You are helping a creator or researcher analyze a YouTube video.',

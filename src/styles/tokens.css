@@ -5,7 +5,7 @@
   contain: layout style;
 }
 
-.cutthrough-root {
+.watchbetter-root {
   --ct-space-1: 2px;
   --ct-space-2: 4px;
   --ct-space-3: 6px;
@@ -23,7 +23,7 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  container-name: cutthrough;
+  container-name: watchbetter;
   container-type: inline-size;
   font-family: var(--ct-font);
   font-size: 13px;
@@ -31,14 +31,14 @@
   -webkit-font-smoothing: antialiased;
 }
 
-.cutthrough-root,
-.cutthrough-root *,
-.cutthrough-root *::before,
-.cutthrough-root *::after {
+.watchbetter-root,
+.watchbetter-root *,
+.watchbetter-root *::before,
+.watchbetter-root *::after {
   box-sizing: border-box;
 }
 
-.cutthrough-root[data-theme='dark'] {
+.watchbetter-root[data-theme='dark'] {
   --ct-surface: #111216;
   --ct-surface-raised: #181a20;
   --ct-surface-hover: #20232b;
@@ -56,7 +56,7 @@
   --ct-shadow: 0 5px 18px rgb(0 0 0 / 20%);
 }
 
-.cutthrough-root[data-theme='light'] {
+.watchbetter-root[data-theme='light'] {
   --ct-surface: #fff;
   --ct-surface-raised: #f7f7f9;
   --ct-surface-hover: #f0f1f5;
@@ -74,31 +74,31 @@
   --ct-shadow: 0 4px 16px rgb(28 31 40 / 10%);
 }
 
-.cutthrough-root button,
-.cutthrough-root input,
-.cutthrough-root select,
-.cutthrough-root textarea {
+.watchbetter-root button,
+.watchbetter-root input,
+.watchbetter-root select,
+.watchbetter-root textarea {
   font: inherit;
 }
 
-.cutthrough-root button {
+.watchbetter-root button {
   touch-action: manipulation;
 }
 
-.cutthrough-root :focus-visible {
+.watchbetter-root :focus-visible {
   outline: none;
   box-shadow: var(--ct-focus);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cutthrough-root {
+  .watchbetter-root {
     --ct-motion-fast: 0ms;
     scroll-behavior: auto;
   }
 
-  .cutthrough-root *,
-  .cutthrough-root *::before,
-  .cutthrough-root *::after {
+  .watchbetter-root *,
+  .watchbetter-root *::before,
+  .watchbetter-root *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

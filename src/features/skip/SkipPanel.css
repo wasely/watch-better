@@ -479,7 +479,7 @@
   outline-offset: 2px;
 }
 
-@container cutthrough (max-width: 359px) {
+@container watchbetter (max-width: 359px) {
   .ct-skip {
     padding: var(--ct-space-4);
   }
@@ -513,7 +513,7 @@
   }
 }
 
-@container cutthrough (max-width: 239px) {
+@container watchbetter (max-width: 239px) {
   .ct-skip-intro__heading {
     align-items: stretch;
     flex-direction: column;

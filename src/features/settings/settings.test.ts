@@ -28,7 +28,6 @@ describe('normalizeSettings', () => {
         jumpLongGaps: true,
         jumpThresholdSeconds: 900,
       },
-      chatgptHandoff: 'copy-only',
       transcriptCachePolicy: 'session',
     });
 
@@ -38,7 +37,6 @@ describe('normalizeSettings', () => {
       transcriptFontSize: 'large',
       theme: 'light',
       panelCollapsed: true,
-      chatgptHandoff: 'copy-only',
       transcriptCachePolicy: 'session',
       pause: {
         enabled: true,

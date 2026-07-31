@@ -1,12 +1,12 @@
 import { StrictMode, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { CutThroughApp, type ResolvedTheme } from '@/app/CutThroughApp';
+import { WatchBetterApp, type ResolvedTheme } from '@/app/WatchBetterApp';
 import { OptionsView } from '@/entrypoints/options/OptionsView';
 import { PopupView, type PopupAction } from '@/entrypoints/popup/PopupView';
 import {
   DEFAULT_SETTINGS,
-  type CutThroughSettings,
+  type WatchBetterSettings,
   type PanelTab,
 } from '@/features/settings/settings';
 import type {
@@ -65,7 +65,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: true,
       version: '0.1.0',
     },
-    message: 'CutThrough is mounted on this video.',
+    message: 'WatchBetter is mounted on this video.',
     error: false,
   },
   unsupported: {
@@ -76,7 +76,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: false,
       version: '0.1.0',
     },
-    message: 'Open a desktop YouTube watch page to use CutThrough.',
+    message: 'Open a desktop YouTube watch page to use WatchBetter.',
     error: false,
   },
   disabled: {
@@ -105,7 +105,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
   error: {
     label: 'Status error',
     status: null,
-    message: 'Could not read CutThrough status. Try again.',
+    message: 'Could not read WatchBetter status. Try again.',
     error: true,
   },
 };
@@ -186,7 +186,7 @@ function Harness() {
     popupFixtures[initialPopupFixtureId].message,
   );
   const [optionsSettings, setOptionsSettings] =
-    useState<CutThroughSettings>(DEFAULT_SETTINGS);
+    useState<WatchBetterSettings>(DEFAULT_SETTINGS);
   const [optionsStatus, setOptionsStatus] = useState('Settings loaded');
   const [width, setWidth] = useState<HarnessWidth>(initialWidth);
   const [scenario, setScenario] = useState<HarnessScenarioId>(initialScenario);
@@ -300,7 +300,7 @@ function Harness() {
 
   const updatePopupEnabled = (enabled: boolean) => {
     setPopupStatus((current) => (current ? { ...current, enabled } : current));
-    setPopupMessage(enabled ? 'CutThrough enabled.' : 'CutThrough disabled.');
+    setPopupMessage(enabled ? 'WatchBetter enabled.' : 'WatchBetter disabled.');
   };
 
   const restorePopupPanel = () => {
@@ -310,7 +310,7 @@ function Harness() {
     setPopupMessage('Panel restore simulated in the fixture.');
   };
 
-  const updateOptions = (changes: Partial<CutThroughSettings>) => {
+  const updateOptions = (changes: Partial<WatchBetterSettings>) => {
     setOptionsSettings((current) => ({ ...current, ...changes }));
     setOptionsStatus('Saved');
   };
@@ -319,7 +319,7 @@ function Harness() {
     <div className={`harness-page harness-page--${theme}`}>
       <aside aria-label="Harness controls" className="harness-controls">
         <div>
-          <strong>CutThrough harness</strong>
+          <strong>WatchBetter harness</strong>
           <span>MVP fixture suite</span>
         </div>
 
@@ -480,7 +480,7 @@ function Harness() {
           </div>
           <aside className="harness-column" style={{ width }}>
             {neighborFirst ? <NeighborCard /> : null}
-            <CutThroughApp
+            <WatchBetterApp
               ask={{
                 transcript:
                   transcriptState.kind === 'ready' ? transcriptState.document : null,
@@ -488,7 +488,20 @@ function Harness() {
                 currentTimeSeconds: activeSegment?.startSeconds ?? null,
                 initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
                 initialQuestion: askInitialQuestion,
-                onOpenChatGPT: () =>
+                providerStatuses: {
+                  chatgpt: {
+                    provider: 'chatgpt',
+                    state: openShouldFail ? 'sign-in-required' : 'ready',
+                  },
+                  gemini: { provider: 'gemini', state: 'ready' },
+                },
+                onSendWebChat: ({ provider }) =>
+                  Promise.resolve({
+                    provider,
+                    responseId: `web_${provider}_fixture`,
+                    text: 'The video supports this point at [00:08] and adds context at [00:24].',
+                  }),
+                onOpenWebChat: () =>
                   openShouldFail
                     ? Promise.reject(new Error('Fixture tab failure.'))
                     : Promise.resolve(),
@@ -518,7 +531,6 @@ function Harness() {
                 onAskSelection: () => undefined,
                 onCopy: () => Promise.resolve(),
                 onEnableTranscript: () => changeScenario('tutorial'),
-                onOpenSelectionInChatGPT: () => undefined,
                 onRetry: () => changeScenario('tutorial'),
                 onSeek: (segment) => {
                   if (transcriptState.kind !== 'ready') return;

@@ -32,9 +32,6 @@ export interface TranscriptPanelProps {
   readonly onCopy?: (text: string) => void | Promise<void>;
   readonly onAskTranscript?: () => void;
   readonly onAskSelection?: (segmentIds: ReadonlySet<TranscriptSegmentId>) => void;
-  readonly onOpenSelectionInChatGPT?: (
-    segmentIds: ReadonlySet<TranscriptSegmentId>,
-  ) => void;
   readonly onRetry?: () => void;
   readonly onEnableTranscript?: () => void;
   readonly onFollowChange?: (following: boolean) => void;
@@ -136,7 +133,6 @@ function TranscriptReadyView({
   onCopy,
   onAskTranscript,
   onAskSelection,
-  onOpenSelectionInChatGPT,
   onFollowChange,
 }: TranscriptPanelProps & {
   readonly state: Extract<TranscriptViewState, { readonly kind: 'ready' }>;
@@ -453,24 +449,13 @@ function TranscriptReadyView({
               Copy
             </button>
             <button
-              className="ct-selection-action"
+              className="ct-selection-action ct-selection-action--primary"
               disabled={!onAskSelection}
               onClick={() => onAskSelection?.(selectedIds)}
               type="button"
             >
               <Icon name="message" />
               Ask
-            </button>
-            <button
-              aria-label="Open selected transcript in ChatGPT"
-              className="ct-selection-action ct-selection-action--primary"
-              disabled={!onOpenSelectionInChatGPT}
-              onClick={() => onOpenSelectionInChatGPT?.(selectedIds)}
-              title="Open in ChatGPT"
-              type="button"
-            >
-              <Icon name="external" />
-              <span>ChatGPT</span>
             </button>
           </div>
         </div>
@@ -500,7 +485,7 @@ export function TranscriptPanel(props: TranscriptPanelProps) {
     case 'unavailable':
       return (
         <TranscriptStateMessage
-          description="This video does not expose a caption track to the viewer. CutThrough will not invent transcript text."
+          description="This video does not expose a caption track to the viewer. WatchBetter will not invent transcript text."
           icon="captions"
           title="No transcript available"
         />

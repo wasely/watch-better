@@ -1,9 +1,6 @@
-import { useState } from 'react';
-
 import { Icon } from '@/components/Icon';
 import type {
-  ChatGPTHandoffBehavior,
-  CutThroughSettings,
+  WatchBetterSettings,
   PanelTab,
   ThemePreference,
   TranscriptCachePolicy,
@@ -11,20 +8,19 @@ import type {
 } from '@/features/settings/settings';
 import type { SkipPresetId } from '@/features/skip/skip-engine';
 import { configurationForSkipPreset } from '@/features/skip/skip-presets';
+import type { WebChatProviderId } from '@/services/web-chat';
 
 import './OptionsView.css';
 
 export type OptionsTheme = 'dark' | 'light';
 
 export interface OptionsViewProps {
-  readonly settings: CutThroughSettings;
+  readonly settings: WatchBetterSettings;
   readonly status: string;
   readonly theme?: OptionsTheme;
   readonly disabled?: boolean;
-  readonly onChange: (changes: Partial<CutThroughSettings>) => void;
-  readonly chatConfigured?: boolean;
-  readonly chatModel?: string;
-  readonly onConfigureChatGPT?: (apiKey: string) => void;
+  readonly onChange: (changes: Partial<WatchBetterSettings>) => void;
+  readonly onOpenWebChat?: (provider: WebChatProviderId) => void;
 }
 
 export function OptionsView({
@@ -33,12 +29,9 @@ export function OptionsView({
   theme = 'light',
   disabled = false,
   onChange,
-  chatConfigured = false,
-  chatModel = 'gpt-5.6',
-  onConfigureChatGPT,
+  onOpenWebChat,
 }: OptionsViewProps) {
-  const [apiKey, setApiKey] = useState('');
-  const update = (changes: Partial<CutThroughSettings>) => {
+  const update = (changes: Partial<WatchBetterSettings>) => {
     onChange(changes);
   };
 
@@ -49,7 +42,7 @@ export function OptionsView({
           <Icon name="spark" />
         </span>
         <div>
-          <h1>CutThrough settings</h1>
+          <h1>WatchBetter settings</h1>
           <p>Configure the YouTube companion without storing transcript content.</p>
         </div>
       </header>
@@ -59,7 +52,7 @@ export function OptionsView({
         <label className="ct-options-row">
           <span>
             <strong>Extension enabled</strong>
-            <small>Show CutThrough on supported YouTube videos.</small>
+            <small>Show WatchBetter on supported YouTube videos.</small>
           </span>
           <input
             checked={settings.extensionEnabled}
@@ -73,7 +66,7 @@ export function OptionsView({
         <label className="ct-options-row">
           <span>
             <strong>Default tab</strong>
-            <small>Shown when CutThrough mounts on a video.</small>
+            <small>Shown when WatchBetter mounts on a video.</small>
           </span>
           <select
             disabled={disabled}
@@ -214,68 +207,34 @@ export function OptionsView({
       </section>
 
       <section aria-labelledby="handoff-title" className="ct-options-card">
-        <h2 id="handoff-title">Handoff and privacy</h2>
-        <div className="ct-options-row ct-options-row--credential">
+        <h2 id="handoff-title">AI sessions and privacy</h2>
+        <div className="ct-options-row">
           <span>
-            <strong>Embedded ChatGPT</strong>
+            <strong>ChatGPT and Gemini</strong>
             <small>
-              {chatConfigured
-                ? `Connected with ${chatModel}. Enter a new key to replace it.`
-                : 'Add your OpenAI API key to chat with the video inside CutThrough.'}
+              Sign in on each official site. WatchBetter uses the matching browser tab
+              for grounded questions.
             </small>
           </span>
-          <div className="ct-options-credential">
-            <input
-              aria-label="OpenAI API key"
-              autoComplete="off"
-              disabled={disabled || !onConfigureChatGPT}
-              onChange={(event) => setApiKey(event.currentTarget.value)}
-              placeholder={chatConfigured ? 'API key saved' : 'sk-…'}
-              type="password"
-              value={apiKey}
-            />
+          <div className="ct-options-actions">
             <button
               className="ct-button"
-              disabled={disabled || !onConfigureChatGPT || !apiKey.trim()}
-              onClick={() => {
-                onConfigureChatGPT?.(apiKey);
-                setApiKey('');
-              }}
+              disabled={disabled || !onOpenWebChat}
+              onClick={() => onOpenWebChat?.('chatgpt')}
               type="button"
             >
-              {chatConfigured ? 'Replace key' : 'Save key'}
+              Open ChatGPT
             </button>
-            {chatConfigured ? (
-              <button
-                className="ct-button"
-                disabled={disabled || !onConfigureChatGPT}
-                onClick={() => onConfigureChatGPT?.('')}
-                type="button"
-              >
-                Clear
-              </button>
-            ) : null}
+            <button
+              className="ct-button"
+              disabled={disabled || !onOpenWebChat}
+              onClick={() => onOpenWebChat?.('gemini')}
+              type="button"
+            >
+              Open Gemini
+            </button>
           </div>
         </div>
-        <label className="ct-options-row">
-          <span>
-            <strong>ChatGPT actions</strong>
-            <small>Both actions remain separate and explicit.</small>
-          </span>
-          <select
-            disabled={disabled}
-            onChange={(event) =>
-              update({
-                chatgptHandoff: event.currentTarget.value as ChatGPTHandoffBehavior,
-              })
-            }
-            value={settings.chatgptHandoff}
-          >
-            <option value="copy-only">Copy only</option>
-            <option value="open-only">Open only</option>
-            <option value="copy-and-open">Copy and open</option>
-          </select>
-        </label>
         <label className="ct-options-row">
           <span>
             <strong>Transcript cache</strong>
@@ -296,12 +255,10 @@ export function OptionsView({
           </select>
         </label>
         <p className="ct-options-privacy">
-          CutThrough stores no analytics, transcripts, or conversations permanently.
-          Chat sends bounded transcript context to OpenAI only after an explicit Ask or
-          Send action, subject to your OpenAI API data controls. The API key stays in
-          local extension storage and is never returned to the page. OpenAI retains
-          Responses API state for at least 30 days by default; API usage can incur
-          charges.
+          WatchBetter stores no API keys, cookies, analytics, transcripts, or
+          conversations permanently. Ask sends bounded transcript context only after an
+          explicit action, through the signed-in ChatGPT or Gemini website. Each
+          provider applies its own account, retention, and usage policies.
         </p>
       </section>
 

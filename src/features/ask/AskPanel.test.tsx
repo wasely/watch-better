@@ -6,31 +6,45 @@ import { tutorialTranscript } from '@/test/fixtures/transcripts';
 
 import { AskPanel, type ChatTurnRequest, type ChatTurnResult } from './AskPanel';
 
+const readyStatuses = {
+  chatgpt: { provider: 'chatgpt' as const, state: 'ready' as const },
+  gemini: { provider: 'gemini' as const, state: 'ready' as const },
+};
+
 describe('AskPanel', () => {
   it('shows an honest unavailable state without transcript context', () => {
     render(<AskPanel transcript={null} />);
     expect(screen.getByText('Transcript context is required')).toBeInTheDocument();
   });
 
-  it('requires explicit local API configuration', async () => {
+  it('connects through the selected provider website', async () => {
     const user = userEvent.setup();
-    const onConfigure = vi.fn();
+    const onOpenWebChat = vi.fn();
+    render(<AskPanel onOpenWebChat={onOpenWebChat} transcript={tutorialTranscript} />);
+
+    expect(screen.getByText('Connect ChatGPT')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Open ChatGPT' }));
+    expect(onOpenWebChat).toHaveBeenCalledWith('chatgpt');
+  });
+
+  it('switches between ChatGPT and Gemini sessions', async () => {
+    const user = userEvent.setup();
     render(
-      <AskPanel onConfigureChatGPT={onConfigure} transcript={tutorialTranscript} />,
+      <AskPanel providerStatuses={readyStatuses} transcript={tutorialTranscript} />,
     );
 
-    expect(screen.getByText('Connect OpenAI to chat here')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Open settings' }));
-    expect(onConfigure).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole('button', { name: /Gemini/ }));
+    expect(screen.getByText('Gemini web session')).toBeInTheDocument();
+    expect(screen.getByLabelText('Gemini conversation')).toBeInTheDocument();
   });
 
   it('applies suggested questions and context', async () => {
     const user = userEvent.setup();
     render(
       <AskPanel
-        chatConfigured
         currentTimeSeconds={144}
+        providerStatuses={readyStatuses}
         transcript={tutorialTranscript}
       />,
     );
@@ -49,18 +63,18 @@ describe('AskPanel', () => {
       .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
       .mockResolvedValueOnce({
         text: 'First answer [00:12]',
-        responseId: 'resp_first',
-        model: 'gpt-5.6-sol',
+        responseId: 'web_chatgpt_first',
+        provider: 'chatgpt',
       })
       .mockResolvedValueOnce({
         text: 'Second answer',
-        responseId: 'resp_second',
-        model: 'gpt-5.6-sol',
+        responseId: 'web_chatgpt_second',
+        provider: 'chatgpt',
       });
     render(
       <AskPanel
-        chatConfigured
-        onSendChatGPT={onSend}
+        onSendWebChat={onSend}
+        providerStatuses={readyStatuses}
         transcript={tutorialTranscript}
       />,
     );
@@ -71,31 +85,35 @@ describe('AskPanel', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await screen.findByText('First answer [00:12]');
-    expect(onSend.mock.calls[0]?.[0]).toMatchObject({ previousResponseId: null });
+    expect(onSend.mock.calls[0]?.[0]).toMatchObject({
+      provider: 'chatgpt',
+      newConversation: true,
+    });
     expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
 
     await user.type(screen.getByLabelText('Ask about this video'), 'What evidence?');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await screen.findByText('Second answer');
     expect(onSend.mock.calls[1]?.[0]).toEqual({
+      provider: 'chatgpt',
       message: 'What evidence?',
-      previousResponseId: 'resp_first',
+      newConversation: false,
     });
   });
 
-  it('primes ChatGPT from the transcript Ask action', async () => {
+  it('primes the selected provider from the transcript Ask action', async () => {
     const onSend = vi
       .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
       .mockResolvedValue({
         text: 'Transcript loaded. Ask away.',
-        responseId: 'resp_prime',
-        model: 'gpt-5.6-sol',
+        responseId: 'web_chatgpt_prime',
+        provider: 'chatgpt',
       });
     render(
       <AskPanel
-        chatConfigured
-        onSendChatGPT={onSend}
+        onSendWebChat={onSend}
         primeRequestId={1}
+        providerStatuses={readyStatuses}
         transcript={tutorialTranscript}
       />,
     );
@@ -116,7 +134,7 @@ describe('AskPanel', () => {
     ]);
     render(
       <AskPanel
-        chatConfigured
+        providerStatuses={readyStatuses}
         selectedSegmentIds={selected}
         transcript={tutorialTranscript}
       />,
@@ -126,19 +144,19 @@ describe('AskPanel', () => {
     expect(screen.getByText('2 selected rows')).toBeInTheDocument();
   });
 
-  it('shows API failures in the conversation', async () => {
+  it('shows provider failures in the conversation', async () => {
     const user = userEvent.setup();
     render(
       <AskPanel
-        chatConfigured
-        onSendChatGPT={() => Promise.reject(new Error('Invalid API key.'))}
+        onSendWebChat={() => Promise.reject(new Error('ChatGPT sign-in required.'))}
+        providerStatuses={readyStatuses}
         transcript={tutorialTranscript}
       />,
     );
 
     await user.type(screen.getByLabelText('Ask about this video'), 'Summarize.');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    expect(await screen.findByText('Invalid API key.')).toBeVisible();
+    expect(await screen.findByText('ChatGPT sign-in required.')).toBeVisible();
     expect(screen.getByText('Message failed')).toBeVisible();
   });
 });

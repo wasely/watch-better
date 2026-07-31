@@ -3,7 +3,7 @@ import axe from 'axe-core';
 import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CutThroughApp } from '@/app/CutThroughApp';
+import { WatchBetterApp } from '@/app/WatchBetterApp';
 import { OptionsView } from '@/entrypoints/options/OptionsView';
 import { PopupView } from '@/entrypoints/popup/PopupView';
 import { DEFAULT_SETTINGS } from '@/features/settings/settings';
@@ -34,13 +34,13 @@ describe('fixture accessibility', () => {
     'audits the expanded and collapsed panel shell',
     async () => {
       await audit(
-        <CutThroughApp
+        <WatchBetterApp
           onOpenSettings={vi.fn()}
           transcript={{ state: readyTranscriptState() }}
         />,
       );
       await audit(
-        <CutThroughApp collapsed transcript={{ state: readyTranscriptState() }} />,
+        <WatchBetterApp collapsed transcript={{ state: readyTranscriptState() }} />,
       );
     },
     AXE_TEST_TIMEOUT_MS,

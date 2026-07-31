@@ -1,16 +1,16 @@
-# CutThrough
+# WatchBetter
 
 Read `docs/STATUS.md`, `docs/MVP_CHECKLIST.md`, and `docs/DECISIONS.md` before selecting work.
 
 ## Objective
 
-Build a polished Manifest V3 Chrome extension that mounts a transcript, ChatGPT handoff, and conservative pause-compression panel in the right column of desktop YouTube watch pages.
+Build a polished Manifest V3 Chrome extension that mounts transcript navigation, signed-in ChatGPT/Gemini Ask, and conservative pause-compression controls in the right column of desktop YouTube watch pages.
 
 ## MVP boundaries
 
-Included: YouTube watch pages, available caption tracks, transcript navigation/search/selection/copy, explicit ChatGPT prompt copy/open, transcript-gap pause compression, persistent settings, popup status/settings, fixture harness.
+Included: YouTube watch pages, available caption tracks, transcript navigation/search/selection/copy, explicit ChatGPT/Gemini web-session Ask, transcript-gap pause compression, persistent settings, popup status/settings, fixture harness.
 
-Excluded: semantic skipping, sponsor detection, Shorts/live/mobile/other sites, backend/accounts/payments/analytics, embedded AI, ChatGPT page automation, bundled secrets, video downloading, cloud sync, no-caption speech-to-text.
+Excluded: semantic skipping, sponsor detection, Shorts/live/mobile/other sites, backend/accounts/payments/analytics, model APIs, provider credential/cookie/token access, bundled secrets, video downloading, cloud sync, no-caption speech-to-text.
 
 ## Canonical commands
 
@@ -51,7 +51,7 @@ Run formatting, lint, typecheck, relevant tests, and production build after mean
 
 ## Prohibited
 
-Do not push, publish, deploy, use destructive commands, modify outside this repository, automate ChatGPT, add undocumented permissions, send transcript data without explicit action, hide failing tests, or expand MVP into semantic skipping.
+Do not publish/deploy, use destructive commands, modify outside this repository, access provider credentials/cookies/tokens, add undocumented permissions, send transcript data without explicit action, hide failing tests, or expand MVP into semantic skipping. Push only when explicitly requested.
 
 ## Definition of done
 
