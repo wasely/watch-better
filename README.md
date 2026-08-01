@@ -11,6 +11,8 @@ caption-gap jump cutter beside the video.
 - Ask ChatGPT or Google Gemini about bounded timestamped transcript context.
 - Use ChatGPT or Gemini as a live embedded webpage inside WatchBetter—no API key.
 - Use each provider's own composer, conversation history, and new-chat controls.
+- Keep loaded provider frames alive across panel tabs, collapse, and YouTube video
+  changes so returning to ChatGPT or Gemini is instant.
 - Speed through or jump long caption gaps with conservative controls that are off
   by default.
 - Light/dark themes, keyboard navigation, responsive panel layouts, and a compact

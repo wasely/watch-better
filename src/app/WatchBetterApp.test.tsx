@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { readyTranscriptState } from '@/test/fixtures/transcripts';
+import { podcastTranscript, readyTranscriptState } from '@/test/fixtures/transcripts';
 
 import { WatchBetterApp } from './WatchBetterApp';
 
@@ -74,6 +74,28 @@ describe('WatchBetterApp foundation shell', () => {
     fireEvent.click(screen.getByRole('button', { name: /Expand WatchBetter/ }));
 
     expect(screen.getByPlaceholderText('Search transcript')).toHaveValue('evidence');
+  });
+
+  it('keeps the AI frame mounted when the YouTube video changes', () => {
+    const { rerender } = render(
+      <WatchBetterApp
+        activeTab="ask"
+        transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }}
+      />,
+    );
+    const frame = screen.getByTitle('ChatGPT embedded chat');
+
+    rerender(
+      <WatchBetterApp
+        activeTab="ask"
+        transcript={{
+          state: readyTranscriptState(podcastTranscript),
+          onCopy: vi.fn(),
+        }}
+      />,
+    );
+
+    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(frame);
   });
 
   it('supports controlled tab state and reports requested changes', () => {

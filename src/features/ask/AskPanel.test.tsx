@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { tutorialTranscript } from '@/test/fixtures/transcripts';
 
-import { AskPanel, type ChatTurnRequest, type ChatTurnResult } from './AskPanel';
+import {
+  AskPanel,
+  type AskPanelProps,
+  type ChatTurnRequest,
+  type ChatTurnResult,
+} from './AskPanel';
 
 const readyStatuses = {
   chatgpt: { provider: 'chatgpt' as const, state: 'ready' as const },
@@ -55,7 +60,9 @@ describe('AskPanel', () => {
 
   it('switches provider frames and binds each prepared session', async () => {
     const user = userEvent.setup();
-    const onPrepareWebChat = vi.fn(() => Promise.resolve());
+    const onPrepareWebChat = vi.fn<NonNullable<AskPanelProps['onPrepareWebChat']>>(() =>
+      Promise.resolve(),
+    );
     render(
       <AskPanel
         onPrepareWebChat={onPrepareWebChat}
@@ -90,6 +97,12 @@ describe('AskPanel', () => {
     await waitFor(() =>
       expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
     );
+
+    await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
+    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(chatGptFrame);
+    expect(
+      onPrepareWebChat.mock.calls.filter(([provider]) => provider === 'chatgpt'),
+    ).toHaveLength(1);
   });
 
   it('primes the provider frame with transcript context once', async () => {

@@ -274,10 +274,7 @@ export function WatchBetterApp({
           role="tabpanel"
           tabIndex={activeTab === 'ask' ? 0 : -1}
         >
-          <AskPanel
-            {...askProps}
-            key={askProps.transcript?.videoId ?? 'no-transcript'}
-          />
+          <AskPanel {...askProps} />
         </div>
         <div
           aria-labelledby={`${id}-skip-tab`}

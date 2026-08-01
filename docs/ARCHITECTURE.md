@@ -31,7 +31,8 @@ User follow-ups -> provider's own composer -> conversation stays in frame
 
 The transcript Ask action starts a clean provider conversation with bounded context.
 Follow-ups and new chats use the provider's own controls inside that frame. Switching
-providers loads that provider's separate frame session.
+providers lazily loads its separate frame once; both provider frames then stay mounted
+across panel tabs, collapse, and YouTube video changes.
 
 No provider credential, cookie, token, or API key crosses this flow. No direct model
 API is called.

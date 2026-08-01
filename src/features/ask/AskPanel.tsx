@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Icon } from '@/components/Icon';
 import type { AIContextScope, AIProvider } from '@/features/ask/ai-provider';
@@ -17,6 +17,7 @@ import './AskPanel.css';
 
 const DEFAULT_PROMPT_PROVIDER = new TranscriptPromptProvider();
 const EMPTY_SELECTION = new Set<TranscriptSegmentId>();
+const PROVIDER_IDS = ['chatgpt', 'gemini'] as const;
 const PRIME_QUESTION =
   'Use this transcript as the source of truth. Get ready to answer my questions about this video, cite useful timestamps, and say when the transcript does not establish an answer.';
 
@@ -54,6 +55,13 @@ type PrimeState =
   | { readonly kind: 'sent' }
   | { readonly kind: 'error'; readonly message: string };
 
+interface ProviderFrameProps {
+  readonly active: boolean;
+  readonly provider: WebChatProviderId;
+  readonly status: WebChatProviderStatus['state'];
+  readonly onPrepareWebChat?: AskPanelProps['onPrepareWebChat'];
+}
+
 const createFrameSessionId = (): string =>
   typeof globalThis.crypto?.randomUUID === 'function'
     ? globalThis.crypto.randomUUID()
@@ -70,6 +78,116 @@ const resolvePrimeScope = (
   return 'entire-video';
 };
 
+function ProviderFrame({
+  active,
+  provider,
+  status,
+  onPrepareWebChat,
+}: ProviderFrameProps) {
+  const definition = WEB_CHAT_PROVIDERS[provider];
+  const [sessionId] = useState(() => `${provider}:${createFrameSessionId()}`);
+  const [prepared, setPrepared] = useState(!onPrepareWebChat);
+  const [timedOut, setTimedOut] = useState(false);
+  const [preparationError, setPreparationError] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const bindingTimersRef = useRef<readonly number[]>([]);
+  const prepareRef = useRef(onPrepareWebChat);
+
+  useEffect(() => {
+    prepareRef.current = onPrepareWebChat;
+  }, [onPrepareWebChat]);
+
+  useEffect(() => {
+    const prepare = prepareRef.current;
+    if (!prepare) return;
+    let disposed = false;
+    void Promise.resolve(prepare(provider, sessionId))
+      .then(() => {
+        if (!disposed) setPrepared(true);
+      })
+      .catch((error: unknown) => {
+        if (disposed) return;
+        setPreparationError(
+          error instanceof Error ? error.message : 'Could not prepare the AI frame.',
+        );
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [provider, sessionId]);
+
+  useEffect(() => {
+    if (status === 'ready' || status === 'sign-in-required') return;
+    const timer = window.setTimeout(() => setTimedOut(true), 20_000);
+    return () => window.clearTimeout(timer);
+  }, [status]);
+
+  useEffect(
+    () => () => {
+      for (const timer of bindingTimersRef.current) window.clearTimeout(timer);
+    },
+    [],
+  );
+
+  const bindFrame = useCallback(() => {
+    for (const timer of bindingTimersRef.current) window.clearTimeout(timer);
+    const postBinding = () => {
+      iframeRef.current?.contentWindow?.postMessage(
+        {
+          type: 'watchbetter:webchat-frame-binding',
+          provider,
+          sessionId,
+        },
+        new URL(definition.url).origin,
+      );
+    };
+    postBinding();
+    bindingTimersRef.current = [100, 500, 1_500].map((delay) =>
+      window.setTimeout(postBinding, delay),
+    );
+  }, [definition.url, provider, sessionId]);
+
+  const ready = status === 'ready' || status === 'sign-in-required';
+  const loading = !preparationError && !timedOut && (!prepared || !ready);
+  const issue = preparationError
+    ? preparationError
+    : timedOut && !ready
+      ? `${definition.displayName} is taking longer than expected. Open it in a full tab if sign-in is required.`
+      : '';
+
+  return (
+    <div
+      aria-hidden={!active}
+      className={`ct-provider-frame ct-provider-frame--${status}`}
+      data-provider={provider}
+      hidden={!active}
+    >
+      {prepared ? (
+        <iframe
+          allow="autoplay; camera; clipboard-read; clipboard-write; microphone"
+          onLoad={bindFrame}
+          ref={iframeRef}
+          referrerPolicy="no-referrer"
+          src={definition.url}
+          title={`${definition.displayName} embedded chat`}
+        />
+      ) : null}
+
+      {issue || loading ? (
+        <div className="ct-provider-frame__state" role={issue ? 'alert' : 'status'}>
+          {issue ? null : <span aria-hidden="true" />}
+          <strong>
+            {issue
+              ? `${definition.displayName} frame unavailable`
+              : `Loading ${definition.displayName}…`}
+          </strong>
+          {issue ? <p>{issue}</p> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function AskPanel({
   transcript,
   selectedSegmentIds = EMPTY_SELECTION,
@@ -84,89 +202,16 @@ export function AskPanel({
 }: AskPanelProps) {
   const [selectedProvider, setSelectedProvider] =
     useState<WebChatProviderId>('chatgpt');
-  const [framePrepared, setFramePrepared] = useState(!onPrepareWebChat);
-  const [frameTimedOut, setFrameTimedOut] = useState(false);
-  const [framePreparationError, setFramePreparationError] = useState('');
+  const [mountedProviders, setMountedProviders] = useState<
+    ReadonlySet<WebChatProviderId>
+  >(() => new Set(['chatgpt']));
   const [primeState, setPrimeState] = useState<PrimeState>({ kind: 'idle' });
-  const providerFrameRef = useRef<HTMLIFrameElement>(null);
-  const bindingTimersRef = useRef<readonly number[]>([]);
-  const prepareWebChatRef = useRef(onPrepareWebChat);
   const primeSeenRef = useRef(0);
 
   const providerDefinition = WEB_CHAT_PROVIDERS[selectedProvider];
   const providerStatus = providerStatuses[selectedProvider]?.state ?? 'not-open';
   const providerReady = providerStatus === 'ready';
   const primeSending = primeState.kind === 'sending';
-  const frameSessionId = useMemo(
-    () => `${selectedProvider}:${createFrameSessionId()}`,
-    [selectedProvider],
-  );
-
-  useEffect(() => {
-    prepareWebChatRef.current = onPrepareWebChat;
-  }, [onPrepareWebChat]);
-
-  useEffect(() => {
-    if (!prepareWebChatRef.current) {
-      setFramePrepared(true);
-      setFrameTimedOut(false);
-      setFramePreparationError('');
-      return;
-    }
-    let disposed = false;
-    setFramePrepared(false);
-    setFrameTimedOut(false);
-    setFramePreparationError('');
-    void Promise.resolve(prepareWebChatRef.current(selectedProvider, frameSessionId))
-      .then(() => {
-        if (!disposed) setFramePrepared(true);
-      })
-      .catch((error: unknown) => {
-        if (disposed) return;
-        setFramePreparationError(
-          error instanceof Error ? error.message : 'Could not prepare the AI frame.',
-        );
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [frameSessionId, selectedProvider]);
-
-  useEffect(() => {
-    if (
-      !framePrepared ||
-      providerStatus === 'ready' ||
-      providerStatus === 'sign-in-required'
-    )
-      return;
-    const timer = window.setTimeout(() => setFrameTimedOut(true), 20_000);
-    return () => window.clearTimeout(timer);
-  }, [framePrepared, providerStatus]);
-
-  useEffect(
-    () => () => {
-      for (const timer of bindingTimersRef.current) window.clearTimeout(timer);
-    },
-    [frameSessionId],
-  );
-
-  const bindProviderFrame = useCallback(() => {
-    for (const timer of bindingTimersRef.current) window.clearTimeout(timer);
-    const postBinding = () => {
-      providerFrameRef.current?.contentWindow?.postMessage(
-        {
-          type: 'watchbetter:webchat-frame-binding',
-          provider: selectedProvider,
-          sessionId: frameSessionId,
-        },
-        new URL(providerDefinition.url).origin,
-      );
-    };
-    postBinding();
-    bindingTimersRef.current = [100, 500, 1_500].map((delay) =>
-      window.setTimeout(postBinding, delay),
-    );
-  }, [frameSessionId, providerDefinition.url, selectedProvider]);
 
   const buildTranscriptPrompt = useCallback((): string | null => {
     if (!transcript) return null;
@@ -230,6 +275,12 @@ export function AskPanel({
 
   const selectProvider = (providerId: WebChatProviderId) => {
     if (providerId === selectedProvider || primeSending) return;
+    setMountedProviders((current) => {
+      if (current.has(providerId)) return current;
+      const next = new Set(current);
+      next.add(providerId);
+      return next;
+    });
     setPrimeState({ kind: 'idle' });
     setSelectedProvider(providerId);
   };
@@ -247,16 +298,16 @@ export function AskPanel({
     });
   };
 
-  const frameLoading =
-    !frameTimedOut &&
-    (!framePrepared ||
-      (providerStatus !== 'ready' && providerStatus !== 'sign-in-required'));
-
   return (
     <div className="ct-ask">
       <div className="ct-provider-toolbar">
-        <div aria-label="AI provider" className="ct-provider-picker" role="group">
-          {(['chatgpt', 'gemini'] as const).map((providerId) => (
+        <div
+          aria-label="AI provider"
+          className="ct-provider-picker"
+          data-provider={selectedProvider}
+          role="group"
+        >
+          {PROVIDER_IDS.map((providerId) => (
             <button
               aria-pressed={selectedProvider === providerId}
               disabled={primeSending}
@@ -284,33 +335,18 @@ export function AskPanel({
         </button>
       </div>
 
-      <div
-        className={`ct-provider-frame ct-provider-frame--${providerStatus}`}
-        data-testid="provider-frame"
-      >
-        {framePrepared ? (
-          <iframe
-            allow="autoplay; camera; clipboard-read; clipboard-write; microphone"
-            key={frameSessionId}
-            onLoad={bindProviderFrame}
-            ref={providerFrameRef}
-            referrerPolicy="no-referrer"
-            src={providerDefinition.url}
-            title={`${providerDefinition.displayName} embedded chat`}
-          />
-        ) : null}
-
-        {framePreparationError || frameLoading ? (
-          <div className="ct-provider-frame__loading" role="status">
-            {framePreparationError ? null : <span aria-hidden="true" />}
-            <strong>
-              {framePreparationError
-                ? `${providerDefinition.displayName} frame unavailable`
-                : `Loading ${providerDefinition.displayName}…`}
-            </strong>
-            {framePreparationError ? <p>{framePreparationError}</p> : null}
-          </div>
-        ) : null}
+      <div className="ct-provider-stage" data-testid="provider-frame">
+        {PROVIDER_IDS.filter((providerId) => mountedProviders.has(providerId)).map(
+          (providerId) => (
+            <ProviderFrame
+              active={selectedProvider === providerId}
+              key={providerId}
+              onPrepareWebChat={onPrepareWebChat}
+              provider={providerId}
+              status={providerStatuses[providerId]?.state ?? 'not-open'}
+            />
+          ),
+        )}
 
         {primeState.kind === 'sending' ? (
           <div className="ct-provider-frame__notice" role="status">
