@@ -6,10 +6,11 @@ caption-gap jump cutter beside the video.
 
 ## Features
 
-- Search, select, copy, and seek through available YouTube captions.
+- Instantly copy every available YouTube caption with **Get Captions**—no speech-to-text wait.
+- Search, select, copy, and seek through timestamped caption rows.
 - Ask ChatGPT or Google Gemini about bounded timestamped transcript context.
 - Use ChatGPT or Gemini as a live embedded webpage inside WatchBetter—no API key.
-- Keep multi-turn answers visible in both the provider window and WatchBetter.
+- Use each provider's own composer, conversation history, and new-chat controls.
 - Speed through or jump long caption gaps with conservative controls that are off
   by default.
 - Light/dark themes, keyboard navigation, responsive panel layouts, and a compact
@@ -19,12 +20,12 @@ caption-gap jump cutter beside the video.
 
 1. In WatchBetter's **Ask** tab, choose ChatGPT or Gemini.
 2. WatchBetter loads the provider's real website directly inside the Ask tab.
-3. If embedded sign-in is refused, use **Open sign-in tab**, sign in normally, and
-   return to YouTube.
-4. Send a question. The first turn includes bounded timestamped transcript
-   context; later turns continue in the same provider chat.
-5. WatchBetter reads the rendered answer from that exact embedded frame and also
-   displays it in its compact transcript log.
+3. If embedded sign-in is refused, use the external-tab button, sign in normally,
+   and return to YouTube.
+4. Clicking **Ask** from the transcript primes that exact embedded frame with
+   bounded timestamped context.
+5. Ask follow-up questions with the provider's own composer. Its normal
+   conversation and new-chat controls stay inside WatchBetter.
 
 WatchBetter never reads browser cookies or tokens, stores an API key, calls a model
 API, or sends analytics. To show the two official sites inside YouTube, one static

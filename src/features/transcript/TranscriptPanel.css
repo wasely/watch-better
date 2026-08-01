@@ -168,6 +168,52 @@
   opacity: 0.82;
 }
 
+.ct-transcript__caption-action {
+  padding: 0 var(--ct-space-4) var(--ct-space-4);
+  background: var(--ct-surface);
+  border-bottom: 1px solid var(--ct-border);
+}
+
+.ct-get-captions-button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ct-space-2);
+  padding: 0 var(--ct-space-4);
+  color: #fff;
+  background: var(--ct-accent);
+  border: 1px solid var(--ct-accent);
+  border-radius: var(--ct-radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    background-color var(--ct-motion-fast) ease,
+    border-color var(--ct-motion-fast) ease,
+    transform var(--ct-motion-fast) ease;
+}
+
+.ct-get-captions-button:hover {
+  background: color-mix(in srgb, var(--ct-accent) 88%, #000);
+  border-color: color-mix(in srgb, var(--ct-accent) 88%, #000);
+}
+
+.ct-get-captions-button:active {
+  transform: translateY(1px);
+}
+
+.ct-get-captions-button:focus-visible {
+  outline: 2px solid var(--ct-text-strong);
+  outline-offset: 2px;
+}
+
+.ct-get-captions-button svg {
+  width: 15px;
+  height: 15px;
+}
+
 .ct-follow-button {
   display: inline-flex;
   min-width: 30px;
@@ -448,6 +494,10 @@
 @container watchbetter (max-width: 359px) {
   .ct-transcript__tools {
     padding: var(--ct-space-3);
+  }
+
+  .ct-transcript__caption-action {
+    padding: 0 var(--ct-space-3) var(--ct-space-3);
   }
 
   .ct-transcript__meta {

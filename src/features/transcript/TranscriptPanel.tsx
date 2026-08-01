@@ -343,17 +343,21 @@ function TranscriptReadyView({
             <Icon name="follow" />
             <span>{following ? 'Following' : 'Resume follow'}</span>
           </button>
-          <button
-            aria-label="Copy full transcript"
-            className="ct-mini-button ct-mini-button--labeled"
-            onClick={() => void copyTranscript(undefined, 'Full transcript copied.')}
-            title="Copy full transcript"
-            type="button"
-          >
-            <Icon name="copy" />
-            <span>Copy all</span>
-          </button>
         </div>
+      </div>
+
+      <div className="ct-transcript__caption-action">
+        <button
+          className="ct-get-captions-button"
+          onClick={() =>
+            void copyTranscript(undefined, 'Captions copied to clipboard.')
+          }
+          title="Copy all available captions"
+          type="button"
+        >
+          <Icon name="copy" />
+          <span>Get Captions</span>
+        </button>
       </div>
 
       <div

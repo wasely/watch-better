@@ -161,7 +161,7 @@ describe('TranscriptPanel', () => {
     expect(onAskSelection.mock.calls[0]?.[0]).toHaveProperty('size', 4);
   });
 
-  it('copies the full transcript from its explicit action', async () => {
+  it('copies every available caption from the Get Captions action', async () => {
     const copiedValues: string[] = [];
     render(
       <TranscriptPanel
@@ -173,11 +173,20 @@ describe('TranscriptPanel', () => {
       />,
     );
 
+    const firstText = tutorialTranscript.segments[0]?.text;
     const finalText = tutorialTranscript.segments.at(-1)?.text;
-    if (!finalText) throw new Error('Final fixture segment missing.');
-    fireEvent.click(screen.getByRole('button', { name: 'Copy full transcript' }));
-    await waitFor(() => expect(copiedValues[0]).toContain(finalText));
-    expect(screen.getByText('Full transcript copied.')).toBeInTheDocument();
+    if (!firstText || !finalText) throw new Error('Caption fixture is incomplete.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Get Captions' }));
+
+    await waitFor(() => expect(copiedValues).toHaveLength(1));
+    expect(copiedValues[0]).toContain(tutorialTranscript.videoTitle);
+    expect(copiedValues[0]).toContain(
+      `https://www.youtube.com/watch?v=${tutorialTranscript.videoId}`,
+    );
+    expect(copiedValues[0]).toContain(firstText);
+    expect(copiedValues[0]).toContain(finalText);
+    expect(screen.getByText('Captions copied to clipboard.')).toBeInTheDocument();
   });
 
   it('starts a full-transcript chat from the visible Ask button', async () => {
