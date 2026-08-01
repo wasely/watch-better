@@ -1,4 +1,5 @@
 import { Icon } from '@/components/Icon';
+import { BrandLogo } from '@/components/BrandLogo';
 import type { RuntimeStatus } from '@/messaging/messages';
 
 import './PopupView.css';
@@ -65,9 +66,7 @@ export function PopupView({
   return (
     <main className="ct-popup" data-theme={theme}>
       <header className="ct-popup__header">
-        <span aria-hidden="true" className="ct-popup__logo">
-          <Icon name="spark" />
-        </span>
+        <BrandLogo aria-hidden="true" className="ct-popup__logo" />
         <div>
           <strong>WatchBetter</strong>
           <span>v{status?.version ?? '0.1.0'}</span>
@@ -114,11 +113,13 @@ export function PopupView({
         </button>
       </div>
 
-      <footer>
-        <span aria-live="polite" role="status">
-          {busyAction ? 'Working…' : 'No transcript or prompt content is stored here.'}
-        </span>
-      </footer>
+      {busyAction ? (
+        <footer>
+          <span aria-live="polite" role="status">
+            Working…
+          </span>
+        </footer>
+      ) : null}
     </main>
   );
 }

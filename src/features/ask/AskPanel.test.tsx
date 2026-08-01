@@ -17,12 +17,29 @@ const readyStatuses = {
 };
 
 describe('AskPanel', () => {
+  it('never sends when opened or when providers switch', async () => {
+    const user = userEvent.setup();
+    const onSend = vi.fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>();
+    render(
+      <AskPanel
+        onSendWebChat={onSend}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    expect(onSend).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /Gemini/ }));
+    await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it('shows the provider site without duplicating its composer', () => {
     render(<AskPanel providerStatuses={readyStatuses} transcript={null} />);
 
     expect(screen.getByTitle('ChatGPT embedded chat')).toHaveAttribute(
       'src',
-      'https://chatgpt.com/',
+      expect.stringMatching(/^https:\/\/chatgpt\.com\/#watchbetter-frame=chatgpt%3A/),
     );
     expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
@@ -92,7 +109,9 @@ describe('AskPanel', () => {
     await user.click(screen.getByRole('button', { name: /Gemini/ }));
     expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
       'src',
-      'https://gemini.google.com/app',
+      expect.stringMatching(
+        /^https:\/\/gemini\.google\.com\/app#watchbetter-frame=gemini%3A/,
+      ),
     );
     await waitFor(() =>
       expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
@@ -105,7 +124,7 @@ describe('AskPanel', () => {
     ).toHaveLength(1);
   });
 
-  it('primes the provider frame with transcript context once', async () => {
+  it('sends the provider frame transcript context exactly once per request', async () => {
     const onSend = vi
       .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
       .mockResolvedValue({
@@ -116,7 +135,7 @@ describe('AskPanel', () => {
     render(
       <AskPanel
         onSendWebChat={onSend}
-        primeRequestId={1}
+        sendRequestId={1}
         providerStatuses={readyStatuses}
         transcript={tutorialTranscript}
       />,
@@ -128,10 +147,11 @@ describe('AskPanel', () => {
       newConversation: true,
     });
     expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
+    expect(screen.getByText('Transcript sent to ChatGPT.')).toBeVisible();
     expect(screen.queryByText('Transcript loaded.')).not.toBeInTheDocument();
   });
 
-  it('uses selected transcript rows when priming', async () => {
+  it('uses selected transcript rows when explicitly sent', async () => {
     const selected = new Set([
       tutorialTranscript.segments[2]?.id ?? '',
       tutorialTranscript.segments[3]?.id ?? '',
@@ -146,7 +166,7 @@ describe('AskPanel', () => {
     render(
       <AskPanel
         onSendWebChat={onSend}
-        primeRequestId={1}
+        sendRequestId={1}
         providerStatuses={readyStatuses}
         selectedSegmentIds={selected}
         transcript={tutorialTranscript}
@@ -157,7 +177,7 @@ describe('AskPanel', () => {
     expect(onSend.mock.calls[0]?.[0].message).toContain('Selected transcript rows');
   });
 
-  it('waits for the exact provider frame before priming', async () => {
+  it('shows waiting and sends only after the exact provider frame is ready', async () => {
     const onSend = vi
       .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
       .mockResolvedValue({
@@ -168,7 +188,7 @@ describe('AskPanel', () => {
     const { rerender } = render(
       <AskPanel
         onSendWebChat={onSend}
-        primeRequestId={1}
+        sendRequestId={1}
         providerStatuses={{
           chatgpt: { provider: 'chatgpt', state: 'loading' },
         }}
@@ -177,15 +197,46 @@ describe('AskPanel', () => {
     );
 
     expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByText('Waiting for ChatGPT…')).toBeVisible();
     rerender(
       <AskPanel
         onSendWebChat={onSend}
-        primeRequestId={1}
+        sendRequestId={1}
         providerStatuses={readyStatuses}
         transcript={tutorialTranscript}
       />,
     );
     await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
+  });
+
+  it('reports sign-in and send errors without an implicit retry', async () => {
+    const onSend = vi
+      .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
+      .mockRejectedValue(new Error('Provider rejected the transfer.'));
+    const { rerender } = render(
+      <AskPanel
+        onSendWebChat={onSend}
+        providerStatuses={{
+          chatgpt: { provider: 'chatgpt', state: 'sign-in-required' },
+        }}
+        sendRequestId={1}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    expect(screen.getByText('Sign in to ChatGPT before sending.')).toBeVisible();
+    expect(onSend).not.toHaveBeenCalled();
+
+    rerender(
+      <AskPanel
+        onSendWebChat={onSend}
+        providerStatuses={readyStatuses}
+        sendRequestId={1}
+        transcript={tutorialTranscript}
+      />,
+    );
+    expect(await screen.findByText('Provider rejected the transfer.')).toBeVisible();
+    expect(onSend).toHaveBeenCalledOnce();
   });
 
   it('keeps frame preparation errors inside the frame area', async () => {

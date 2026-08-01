@@ -19,6 +19,7 @@ import {
   type WebChatProviderId,
   type WebChatProviderStatus,
 } from '@/services/web-chat';
+import { buildFrameRule, frameRuleId } from '@/services/web-chat-frame-rule';
 
 const settingsCoordinator = new SettingsWriteCoordinator(new SettingsRepository());
 const WEB_CHAT_FRAME_STORAGE_KEY = 'watchbetter:webchat-frames:v2';
@@ -45,6 +46,7 @@ interface PendingFrameBinding {
   readonly tabId: number;
   readonly provider: WebChatProviderId;
   readonly sessionId: string;
+  readonly ruleId: number;
 }
 
 interface WebChatFrameRegistry {
@@ -98,6 +100,24 @@ const findProviderTab = async (provider: WebChatProviderDefinition) => {
 
 const frameKey = (tabId: number, providerId: WebChatProviderId): string =>
   `${tabId}:${providerId}`;
+
+const installFrameRule = async (
+  tabId: number,
+  providerId: WebChatProviderId,
+): Promise<number> => {
+  const ruleId = frameRuleId(tabId, providerId);
+  await browser.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: [ruleId],
+    addRules: [buildFrameRule(tabId, providerId)],
+  });
+  return ruleId;
+};
+
+const removeFrameRule = async (ruleId: number): Promise<void> => {
+  await browser.declarativeNetRequest
+    .updateSessionRules({ removeRuleIds: [ruleId] })
+    .catch(() => undefined);
+};
 
 const emptyFrameRegistry = (): WebChatFrameRegistry => ({
   bindings: {},
@@ -177,11 +197,32 @@ const resetEmbeddedFrame = async (
   tabId: number,
   providerId: WebChatProviderId,
 ): Promise<void> => {
+  const registry = await loadFrameRegistry();
+  const ruleId = registry.bindings[frameKey(tabId, providerId)]?.ruleId;
   await mutateFrameRegistry((registry) => {
     const key = frameKey(tabId, providerId);
     delete registry.bindings[key];
     delete registry.frames[key];
   });
+  if (typeof ruleId === 'number') await removeFrameRule(ruleId);
+};
+
+const resetEmbeddedFramesForTab = async (tabId: number): Promise<void> => {
+  const registry = await loadFrameRegistry();
+  const ruleIds = Object.values(registry.bindings)
+    .filter((binding) => binding.tabId === tabId)
+    .map((binding) => binding.ruleId);
+  await mutateFrameRegistry((current) => {
+    for (const [key, binding] of Object.entries(current.bindings)) {
+      if (binding.tabId !== tabId) continue;
+      delete current.bindings[key];
+      delete current.frames[key];
+    }
+  });
+  if (ruleIds.length > 0)
+    await browser.declarativeNetRequest
+      .updateSessionRules({ removeRuleIds: [...new Set(ruleIds)] })
+      .catch(() => undefined);
 };
 
 const openProviderTab = async (
@@ -230,6 +271,7 @@ const providerStatus = async (
 const sendWebChat = async (
   providerId: WebChatProviderId,
   message: string,
+  newConversation: boolean,
   tabId: number,
 ): Promise<ExtensionResponse> => {
   const provider = WEB_CHAT_PROVIDERS[providerId];
@@ -243,6 +285,7 @@ const sendWebChat = async (
   const response = await sendToProviderPage(tabId, frame.frameId, {
     type: 'watchbetter:webchat-page-send',
     message,
+    newConversation,
   });
   if (!response?.ok) {
     return {
@@ -361,11 +404,18 @@ const handleRequest = async (
           type: 'error',
           message: 'Provider frames can be prepared only from the YouTube panel.',
         };
-      await prepareEmbeddedFrame({
-        tabId,
-        provider: request.provider,
-        sessionId: request.sessionId,
-      });
+      const ruleId = await installFrameRule(tabId, request.provider);
+      try {
+        await prepareEmbeddedFrame({
+          tabId,
+          provider: request.provider,
+          sessionId: request.sessionId,
+          ruleId,
+        });
+      } catch (error) {
+        await removeFrameRule(ruleId);
+        throw error;
+      }
       return { ok: true, type: 'acknowledged' };
     }
     case 'webchat:frame-ready':
@@ -409,7 +459,12 @@ const handleRequest = async (
           type: 'error',
           message: 'Embedded Ask is available only on YouTube.',
         };
-      return sendWebChat(request.provider, request.message, tabId);
+      return sendWebChat(
+        request.provider,
+        request.message,
+        request.newConversation,
+        tabId,
+      );
     }
     case 'settings:open':
       await browser.runtime.openOptionsPage();
@@ -455,5 +510,13 @@ export default defineBackground(() => {
         message: error instanceof Error ? error.message : 'Unexpected extension error.',
       }),
     );
+  });
+
+  browser.tabs.onRemoved.addListener((tabId) => {
+    void resetEmbeddedFramesForTab(tabId);
+  });
+  browser.webNavigation.onCommitted.addListener((details) => {
+    if (details.frameId !== 0 || isSupportedWatchUrl(details.url)) return;
+    void resetEmbeddedFramesForTab(details.tabId);
   });
 });

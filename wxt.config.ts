@@ -6,7 +6,13 @@ export default defineConfig({
   manifest: {
     name: 'WatchBetter',
     description:
-      'Navigate YouTube transcripts, ask ChatGPT or Gemini, and conservatively jump caption gaps.',
+      'Navigate YouTube transcripts and ask ChatGPT or Gemini from one focused companion.',
+    icons: {
+      16: 'icon/16.png',
+      32: 'icon/32.png',
+      48: 'icon/48.png',
+      128: 'icon/128.png',
+    },
     permissions: ['storage', 'declarativeNetRequest', 'webNavigation'],
     host_permissions: [
       'https://www.youtube.com/*',
@@ -15,15 +21,12 @@ export default defineConfig({
     ],
     action: {
       default_title: 'WatchBetter',
-    },
-    declarative_net_request: {
-      rule_resources: [
-        {
-          id: 'provider_frame_rules',
-          enabled: true,
-          path: 'rules/provider-frame-rules.json',
-        },
-      ],
+      default_icon: {
+        16: 'icon/16.png',
+        32: 'icon/32.png',
+        48: 'icon/48.png',
+        128: 'icon/128.png',
+      },
     },
   },
 });

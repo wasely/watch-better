@@ -172,8 +172,8 @@ export function SkipPanel({
               <Icon name="speed" />
             </span>
             <span>
-              <strong id={`${id}-title`}>Jump cutter</strong>
-              <small>Experimental</small>
+              <strong id={`${id}-title`}>Jump Cut</strong>
+              <small>Beta</small>
             </span>
           </div>
           <button
@@ -195,32 +195,27 @@ export function SkipPanel({
             {configuration.enabled ? (unavailable ? 'Turn off' : 'On') : 'Enable'}
           </button>
         </div>
-        <p>
-          Speeds through or jumps padded caption gaps while preserving speech. Off by
-          default and reversible immediately.
-        </p>
+        <p>Compresses caption gaps. Speech controls remain separate.</p>
       </section>
 
-      <section aria-label="Jump cutter status" className="ct-skip-status">
+      <section aria-label="Jump Cut status" className="ct-skip-status">
         <div aria-live="polite" className="ct-skip-status__state">
           <span className={`ct-skip-status__dot ct-skip-status__dot--${status.tone}`} />
           <span>
-            <small>Detection status</small>
+            <small>Status</small>
             <strong>{status.label}</strong>
           </span>
           <p>{snapshot.message ?? status.fallback}</p>
         </div>
         <div className="ct-skip-status__saved">
-          <small>Approx. saved</small>
           <strong>{formatDuration(snapshot.timeSavedSeconds)}</strong>
-          <span>This video</span>
+          <span>saved</span>
         </div>
       </section>
 
       <section aria-labelledby={`${id}-presets`} className="ct-skip-presets">
         <div className="ct-skip-section-heading">
           <strong id={`${id}-presets`}>Preset</strong>
-          <span>{matchingPreset ? 'Standard controls' : 'Custom controls'}</span>
         </div>
         <div className="ct-skip-preset-grid">
           {SKIP_PRESETS.map((preset) => (
@@ -359,10 +354,7 @@ export function SkipPanel({
       </details>
 
       <footer className="ct-skip-footer">
-        <span>
-          <strong>{detectionLabel}</strong>
-          <small>Approximate · never semantic skipping</small>
-        </span>
+        <small>{detectionLabel}</small>
         <button
           className="ct-button"
           disabled={!resetEnabled}

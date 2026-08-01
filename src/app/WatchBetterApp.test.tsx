@@ -14,7 +14,8 @@ describe('WatchBetterApp foundation shell', () => {
       />,
     );
 
-    expect(screen.getByText('Transcript ready')).toBeInTheDocument();
+    expect(screen.getByText('Watch Better')).toBeInTheDocument();
+    expect(screen.queryByText('Transcript ready')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Transcript' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -28,13 +29,7 @@ describe('WatchBetterApp foundation shell', () => {
     );
     expect(screen.getByTitle('ChatGPT embedded chat')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Jump Cut' }));
-    expect(screen.getByRole('tab', { name: 'Jump Cut' })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-    expect(screen.getByText('Jump cutter')).toBeInTheDocument();
-    expect(screen.getByText('Unavailable')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Jump Cut' })).not.toBeInTheDocument();
   });
 
   it('supports arrow-key navigation between tabs', async () => {
@@ -57,7 +52,7 @@ describe('WatchBetterApp foundation shell', () => {
       />,
     );
 
-    for (const name of ['Transcript', 'Ask', 'Jump Cut']) {
+    for (const name of ['Transcript', 'Ask']) {
       const targetId = screen.getByRole('tab', { name }).getAttribute('aria-controls');
       expect(targetId).not.toBeNull();
       expect(document.getElementById(targetId ?? '')).toHaveAttribute(
@@ -104,18 +99,27 @@ describe('WatchBetterApp foundation shell', () => {
       <WatchBetterApp activeTab="ask" onTabChange={onTabChange} />,
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Jump Cut' }));
-    expect(onTabChange).toHaveBeenCalledWith('skip');
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    expect(onTabChange).toHaveBeenCalledWith('transcript');
     expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
 
     rerender(<WatchBetterApp activeTab="skip" onTabChange={onTabChange} />);
-    expect(screen.getByRole('tab', { name: 'Jump Cut' })).toHaveAttribute(
+    expect(screen.getByRole('tab', { name: 'Transcript' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
+    expect(screen.queryByRole('tab', { name: 'Jump Cut' })).not.toBeInTheDocument();
+  });
+
+  it('ignores activation of the selected tab', () => {
+    const onTabChange = vi.fn();
+    render(<WatchBetterApp activeTab="ask" onTabChange={onTabChange} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
+    expect(onTabChange).not.toHaveBeenCalled();
   });
 
   it('supports controlled collapse state and reports expansion', () => {

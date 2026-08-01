@@ -29,7 +29,8 @@ Transcript Ask -> typed background prompt -> embedded signed-in provider frame
 User follow-ups -> provider's own composer -> conversation stays in frame
 ```
 
-The transcript Ask action starts a clean provider conversation with bounded context.
+The transcript **Send to AI** action starts a clean provider conversation with
+bounded context. Opening Ask or switching providers sends nothing.
 Follow-ups and new chats use the provider's own controls inside that frame. Switching
 providers lazily loads its separate frame once; both provider frames then stay mounted
 across panel tabs, collapse, and YouTube video changes.
@@ -56,9 +57,11 @@ The iframe, frame-bypass script, and adapter are intentionally limited to:
 - `https://chatgpt.com/*`
 - `https://gemini.google.com/*`
 
-One static ruleset removes anti-frame response headers and frame-identifying fetch
-headers only when YouTube initiates a ChatGPT/Gemini subframe. Provider UI changes
-can break selectors. WatchBetter can open the provider in a normal tab for sign-in.
+A Chrome session rule removes anti-frame response headers and frame-identifying
+fetch headers only for one prepared provider in one YouTube tab. It remains active
+for that provider frame's navigations and is removed when the tab closes, leaves a
+supported YouTube page, or explicitly resets the frame. Provider UI changes can
+break selectors. WatchBetter can open the provider in a normal tab for sign-in.
 
 ## YouTube lifecycle
 

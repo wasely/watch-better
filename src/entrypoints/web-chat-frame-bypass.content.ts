@@ -4,6 +4,7 @@ export default defineContentScript({
   runAt: 'document_start',
   world: 'MAIN',
   main() {
+    if (!/^#watchbetter-frame=[a-zA-Z0-9._:%-]+$/.test(location.hash)) return;
     const embedded = (() => {
       try {
         return window.self !== window.top;

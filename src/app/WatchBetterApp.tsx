@@ -1,13 +1,10 @@
 import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 
+import { BrandLogo } from '@/components/BrandLogo';
 import { Icon, type IconName } from '@/components/Icon';
+import { resolveInitialProductTab } from '@/config/product-features';
 import { AskPanel, type AskPanelProps } from '@/features/ask/AskPanel';
-import {
-  DEFAULT_SKIP_CONFIGURATION,
-  type PanelTab,
-  type TranscriptFontSize,
-} from '@/features/settings/settings';
-import { SkipPanel, type SkipPanelProps } from '@/features/skip/SkipPanel';
+import type { PanelTab, TranscriptFontSize } from '@/features/settings/settings';
 import {
   TranscriptPanel,
   type TranscriptPanelProps,
@@ -31,7 +28,6 @@ export interface WatchBetterAppProps {
   readonly collapsed?: boolean;
   readonly transcript?: TranscriptPanelProps;
   readonly ask?: AskPanelProps;
-  readonly skip?: SkipPanelProps;
   readonly onTabChange?: (tab: PanelTab) => void;
   readonly onCollapsedChange?: (collapsed: boolean) => void;
   readonly onOpenSettings?: () => void;
@@ -45,7 +41,6 @@ const tabs: readonly {
 }[] = [
   { id: 'transcript', label: 'Transcript', icon: 'captions' },
   { id: 'ask', label: 'Ask', icon: 'message' },
-  { id: 'skip', label: 'Jump Cut', icon: 'speed' },
 ];
 
 const transcriptStatus = (
@@ -55,7 +50,7 @@ const transcriptStatus = (
     case 'loading':
       return { readiness: 'loading', label: 'Loading transcript' };
     case 'ready':
-      return { readiness: 'ready', label: 'Transcript ready' };
+      return { readiness: 'ready', label: 'Ready' };
     case 'disabled':
       return { readiness: 'unavailable', label: 'Transcript loading off' };
     case 'unavailable':
@@ -73,15 +68,16 @@ export function WatchBetterApp({
   collapsed: controlledCollapsed,
   transcript,
   ask,
-  skip,
   onTabChange,
   onCollapsedChange,
   onOpenSettings,
   transcriptFontSize = 'standard',
 }: WatchBetterAppProps) {
-  const [internalActiveTab, setInternalActiveTab] = useState<PanelTab>(initialTab);
+  const [internalActiveTab, setInternalActiveTab] = useState<PanelTab>(() =>
+    resolveInitialProductTab(initialTab),
+  );
   const [internalCollapsed, setInternalCollapsed] = useState(initialCollapsed);
-  const activeTab = controlledActiveTab ?? internalActiveTab;
+  const activeTab = resolveInitialProductTab(controlledActiveTab ?? internalActiveTab);
   const collapsed = controlledCollapsed ?? internalCollapsed;
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -92,14 +88,6 @@ export function WatchBetterApp({
   const askProps: AskPanelProps = ask ?? {
     transcript:
       transcriptProps.state.kind === 'ready' ? transcriptProps.state.document : null,
-  };
-  const skipProps: SkipPanelProps = skip ?? {
-    configuration: DEFAULT_SKIP_CONFIGURATION,
-    snapshot: {
-      state: 'unsupported',
-      timeSavedSeconds: 0,
-      message: 'Jump cutter is not connected to this player yet.',
-    },
   };
   const status = transcriptStatus(transcriptProps.state);
 
@@ -114,6 +102,7 @@ export function WatchBetterApp({
   }, [activeTab, collapsed]);
 
   const selectTab = (nextTab: PanelTab) => {
+    if (nextTab === activeTab) return;
     if (controlledActiveTab === undefined) setInternalActiveTab(nextTab);
     onTabChange?.(nextTab);
   };
@@ -164,7 +153,7 @@ export function WatchBetterApp({
           type="button"
         >
           <span className="ct-brand-mark" aria-hidden="true">
-            <Icon name="spark" />
+            <BrandLogo />
           </span>
           <span
             aria-hidden="true"
@@ -187,14 +176,19 @@ export function WatchBetterApp({
         <header className="ct-header">
           <div className="ct-identity">
             <span className="ct-brand-mark" aria-hidden="true">
-              <Icon name="spark" />
+              <BrandLogo />
             </span>
             <div className="ct-identity__copy">
-              <strong>WatchBetter</strong>
-              <span className={`ct-status ct-status--${status.readiness}`}>
-                <i aria-hidden="true" />
-                {status.label}
-              </span>
+              <strong>Watch Better</strong>
+              {status.readiness !== 'ready' ? (
+                <span
+                  className={`ct-status ct-status--${status.readiness}`}
+                  title={status.label}
+                >
+                  <i aria-hidden="true" />
+                  <span>{status.label}</span>
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="ct-header__actions">
@@ -222,7 +216,8 @@ export function WatchBetterApp({
 
         <nav
           aria-label="WatchBetter sections"
-          className="ct-tabs"
+          className={`ct-tabs ct-tabs--${tabs.length}`}
+          data-active-tab={activeTab}
           onKeyDown={handleTabKeyDown}
           role="tablist"
         >
@@ -275,16 +270,6 @@ export function WatchBetterApp({
           tabIndex={activeTab === 'ask' ? 0 : -1}
         >
           <AskPanel {...askProps} />
-        </div>
-        <div
-          aria-labelledby={`${id}-skip-tab`}
-          className="ct-panel__body"
-          hidden={activeTab !== 'skip'}
-          id={`${id}-skip-panel`}
-          role="tabpanel"
-          tabIndex={activeTab === 'skip' ? 0 : -1}
-        >
-          <SkipPanel {...skipProps} />
         </div>
       </section>
     </div>

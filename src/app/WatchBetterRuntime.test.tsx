@@ -183,7 +183,7 @@ describe('WatchBetterRuntime integration', () => {
     );
   });
 
-  it('loads data, seeks playback, and primes signed-in ChatGPT from Transcript Ask', async () => {
+  it('loads data and sends only from the explicit transcript action', async () => {
     const pageController = new FakePageController();
     const playback = new FakePlayback();
     const provider: TranscriptProvider = {
@@ -204,7 +204,20 @@ describe('WatchBetterRuntime integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Seek to 0:08' }));
     expect(playback.snapshot.currentTimeSeconds).toBe(8);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+    const sendCount = () =>
+      browserState.sendMessage.mock.calls.filter(
+        ([request]) => (request as { type?: string }).type === 'webchat:send',
+      ).length;
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
+    expect(sendCount()).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: /Gemini/ }));
+    expect(sendCount()).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: /ChatGPT/ }));
+    expect(sendCount()).toBe(0);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send to AI' }));
     await waitFor(
       () =>
         expect(browserState.sendMessage).toHaveBeenCalledWith(
@@ -225,6 +238,12 @@ describe('WatchBetterRuntime integration', () => {
     );
     expect(screen.getByTitle('ChatGPT embedded chat')).toBeInTheDocument();
     expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
+
+    expect(sendCount()).toBe(1);
+    fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
+    await waitFor(() => expect(sendCount()).toBe(1));
 
     fireEvent.click(screen.getByRole('button', { name: 'Open ChatGPT in full tab' }));
     await waitFor(() =>

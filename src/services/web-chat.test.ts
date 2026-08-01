@@ -53,12 +53,14 @@ describe('web chat provider contract', () => {
       isWebChatPageRequest({
         type: 'watchbetter:webchat-page-send',
         message: 'Use this transcript.',
+        newConversation: true,
       }),
     ).toBe(true);
     expect(
       isWebChatPageRequest({
         type: 'watchbetter:webchat-page-send',
         message: 'Hello',
+        newConversation: false,
         cookie: 'secret',
       }),
     ).toBe(false);

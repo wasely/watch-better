@@ -5,7 +5,7 @@ This project-specific master overrides the generator's landing-page suggestions.
 ## Direction
 
 - Native-feeling YouTube companion; compact, calm, information-dense.
-- Neutral surfaces, one restrained violet accent, minimal glow/gradient.
+- Neutral surfaces, one restrained blue accent, no decorative glow/gradient.
 - Hierarchy through spacing, weight, and contrast—not oversized type or many cards.
 - Dark and light designed together.
 - Motion only explains state; 120–180ms and disabled/reduced when requested.
@@ -38,42 +38,43 @@ Use a bundled/system stack: `"Segoe UI", Inter, ui-sans-serif, system-ui, sans-s
 ### Dark
 
 - page/host transparent
-- panel `#111216`
-- raised surface `#181A20`
-- hover `#20232B`
-- input `#15171C`
-- border `#2A2D36`
-- strong text `#F2F3F5`
-- normal text `#D1D3D9`
-- muted text `#9297A3`
-- accent `#8B7CF6`
-- accent subtle `rgba(139,124,246,.14)`
+- panel `#0F1115`
+- raised surface `#15181D`
+- hover `#1C2027`
+- input `#12151A`
+- border `#292E36`
+- strong text `#F4F6F8`
+- normal text `#CBD1D8`
+- muted text `#87919D`
+- accent `#60A5FA`
+- accent subtle `rgba(96,165,250,.11)`
 - success `#57C58A`; warning `#E2A84A`; error `#EE6B72`
 
 ### Light
 
 - panel `#FFFFFF`
-- raised surface `#F7F7F9`
-- hover `#F0F1F5`
-- input `#FAFAFB`
-- border `#DADCE3`
-- strong text `#17181C`
-- normal text `#353842`
-- muted text `#69707D`
-- accent `#6757D9`
-- accent subtle `rgba(103,87,217,.11)`
+- raised surface `#F6F8FA`
+- hover `#EEF2F6`
+- input `#F8FAFC`
+- border `#D7DDE5`
+- strong text `#14181F`
+- normal text `#38414C`
+- muted text `#667281`
+- accent `#2563EB`
+- accent subtle `rgba(37,99,235,.08)`
 - success `#237A4B`; warning `#9A6400`; error `#C53C47`
 
 Every normal-text pair must meet WCAG AA. Color never carries state alone.
 
 ## Components
 
-- **Panel:** normal document flow, 100% column width, 320px usable minimum, thin border, subtle one-level shadow.
+- **Panel:** normal document flow, 100% column width, 320px usable minimum, thin border, subtle one-level shadow. Every tab shares one 440–620px responsive content shell and scrolls internally.
 - **Header:** 40–44px; identity left, small readiness status, icon actions right.
 - **Tabs:** three equal text+icon targets; active state uses accent text and 2px underline, not a filled capsule.
 - **Buttons:** minimum 32px compact height; icon-only hit area 36px minimum in constrained panel, with accessible label/tooltip. Primary actions limited to one per region.
 - **Inputs:** visible labels when meaning is not obvious; 34–36px control height; clear focus ring.
 - **Transcript rows:** flat list with separators, clickable timestamp, current-row accent edge/background, hover controls that are also keyboard-focusable.
+- **Embedded tools:** prefer one continuous surface. Cards are reserved for selectable options or warnings, not routine grouping.
 - **Status:** dot/icon plus text. Never dot/color alone.
 - **Advanced settings:** native disclosure pattern; no modal for routine controls.
 - **Feedback:** inline status or polite live region; avoid toast stacking.

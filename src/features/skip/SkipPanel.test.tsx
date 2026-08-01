@@ -22,7 +22,7 @@ describe('SkipPanel', () => {
       />,
     );
 
-    expect(screen.getByText('Experimental')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
     expect(screen.getByText('Off')).toBeInTheDocument();
     expect(screen.getByText('Playback is unchanged.')).toBeInTheDocument();
     expect(screen.getByText('0s')).toBeInTheDocument();
@@ -172,7 +172,10 @@ describe('SkipPanel', () => {
     expect(
       screen.getByText('Aggressive controls can remove context'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Custom controls')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Balanced/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 
   it('renders malformed savings as zero rather than invalid text', () => {

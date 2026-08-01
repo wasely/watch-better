@@ -4,6 +4,7 @@ import { browser } from 'wxt/browser';
 import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 
 import { HtmlVideoPlaybackController } from '@/adapters/youtube/playback-controller';
+import { createYouTubePlayerSizeSync } from '@/adapters/youtube/player-sizing';
 import {
   isYouTubeTheaterMode,
   placeYouTubePanelFirst,
@@ -36,6 +37,7 @@ export default defineContentScript({
     let controls: WatchBetterRuntimeControls | null = null;
     let runtimeVisible = false;
     let mounted: MountedRuntime | null = null;
+    let playerSizeSync: ReturnType<typeof createYouTubePlayerSizeSync> | null = null;
     let scheduled = false;
     let lastTheaterMode = isTheaterMode();
 
@@ -75,6 +77,8 @@ export default defineContentScript({
         host.dataset.watchbetterRoot = 'true';
         host.style.width = '100%';
         host.style.marginBottom = '12px';
+        playerSizeSync = createYouTubePlayerSizeSync(document, host);
+        playerSizeSync.sync();
         const runtime: MountedRuntime = {
           root: createRoot(container),
           pageController: new BrowserYouTubePageController(window),
@@ -92,6 +96,8 @@ export default defineContentScript({
         runtime?.root.unmount();
         runtime?.playback.dispose();
         runtime?.pageController.dispose();
+        playerSizeSync?.dispose();
+        playerSizeSync = null;
         mounted = null;
       },
     });
@@ -105,6 +111,7 @@ export default defineContentScript({
       }
       if (!ui.shadowHost.isConnected) ui.mount();
       else placeYouTubePanelFirst(target, ui.shadowHost);
+      playerSizeSync?.sync();
       const theaterMode = isTheaterMode();
       if (mounted && theaterMode !== lastTheaterMode) {
         lastTheaterMode = theaterMode;

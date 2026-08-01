@@ -39,15 +39,19 @@ describe('production privacy and permission audit', () => {
     );
   });
 
-  it('limits anti-frame header rules to provider subframes', () => {
-    const rules = read('public/rules/provider-frame-rules.json');
-    expect(rules).toContain('"chatgpt.com"');
-    expect(rules).toContain('"gemini.google.com"');
-    expect(rules).toContain('"initiatorDomains": ["youtube.com"]');
-    expect(rules).toContain('"sub_frame"');
-    expect(rules).not.toMatch(/<all_urls>|main_frame|api\.openai/);
-    expect(read('src/entrypoints/background.ts')).toContain(
-      'frame.parentFrameId !== 0',
+  it('limits anti-frame rules to one prepared tab and provider frame', () => {
+    const background = read('src/entrypoints/background.ts');
+    const frameRule = read('src/services/web-chat-frame-rule.ts');
+    expect(background).toContain('updateSessionRules');
+    expect(frameRule).toContain('tabIds: [tabId]');
+    expect(frameRule).toContain("resourceTypes: ['sub_frame' as const]");
+    expect(frameRule).toContain("header: 'cross-origin-resource-policy'");
+    expect(background).toContain('resetEmbeddedFramesForTab');
+    expect(background).not.toContain('removeFrameRule(binding.ruleId)');
+    expect(background).toContain('frame.parentFrameId !== 0');
+    expect(background).not.toMatch(/<all_urls>|main_frame|api\.openai/);
+    expect(read('src/entrypoints/web-chat-frame-bypass.content.ts')).toContain(
+      '#watchbetter-frame=',
     );
   });
 

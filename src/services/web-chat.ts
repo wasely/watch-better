@@ -15,6 +15,7 @@ export interface WebChatPageStatusRequest {
 export interface WebChatPageSendRequest {
   readonly type: 'watchbetter:webchat-page-send';
   readonly message: string;
+  readonly newConversation: boolean;
 }
 
 export type WebChatPageRequest = WebChatPageStatusRequest | WebChatPageSendRequest;
@@ -48,6 +49,7 @@ export interface WebChatProviderDefinition {
   readonly sendSelectors: readonly string[];
   readonly responseSelectors: readonly string[];
   readonly generatingSelectors: readonly string[];
+  readonly newConversationSelectors: readonly string[];
 }
 
 export const MAX_WEB_CHAT_MESSAGE_CHARACTERS = 24_000;
@@ -80,6 +82,11 @@ export const WEB_CHAT_PROVIDERS: Readonly<
       'button[data-testid="stop-button"]',
       'button[aria-label*="Stop generating" i]',
     ],
+    newConversationSelectors: [
+      'a[data-testid="create-new-chat-button"]',
+      'button[aria-label*="New chat" i]',
+      'a[href="/"]',
+    ],
   },
   gemini: {
     id: 'gemini',
@@ -105,6 +112,11 @@ export const WEB_CHAT_PROVIDERS: Readonly<
     generatingSelectors: [
       'button[aria-label*="Stop response" i]',
       'button[aria-label*="Stop generating" i]',
+    ],
+    newConversationSelectors: [
+      'button[aria-label*="New chat" i]',
+      'a[aria-label*="New chat" i]',
+      'a[href="/app"]',
     ],
   },
 });
@@ -137,7 +149,11 @@ export const isWebChatFrameBinding = (value: unknown): value is WebChatFrameBind
 
 export const isWebChatPageRequest = (value: unknown): value is WebChatPageRequest => {
   if (typeof value !== 'object' || value === null || !('type' in value)) return false;
-  const request = value as { readonly type?: unknown; readonly message?: unknown };
+  const request = value as {
+    readonly type?: unknown;
+    readonly message?: unknown;
+    readonly newConversation?: unknown;
+  };
   if (request.type === 'watchbetter:webchat-page-status')
     return Object.keys(request).length === 1;
   return (
@@ -145,7 +161,10 @@ export const isWebChatPageRequest = (value: unknown): value is WebChatPageReques
     typeof request.message === 'string' &&
     request.message.trim().length > 0 &&
     request.message.length <= MAX_WEB_CHAT_MESSAGE_CHARACTERS &&
-    Object.keys(request).every((key) => key === 'type' || key === 'message')
+    typeof request.newConversation === 'boolean' &&
+    Object.keys(request).every((key) =>
+      ['type', 'message', 'newConversation'].includes(key),
+    )
   );
 };
 

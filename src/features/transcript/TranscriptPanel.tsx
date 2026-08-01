@@ -30,11 +30,9 @@ export interface TranscriptPanelProps {
   readonly onSeek?: (segment: TranscriptSegment) => void;
   readonly onTrackChange?: (trackId: string) => void;
   readonly onCopy?: (text: string) => void | Promise<void>;
-  readonly onAskTranscript?: () => void;
-  readonly onAskSelection?: (segmentIds: ReadonlySet<TranscriptSegmentId>) => void;
+  readonly onSendToAI?: (segmentIds: ReadonlySet<TranscriptSegmentId>) => void;
   readonly onRetry?: () => void;
   readonly onEnableTranscript?: () => void;
-  readonly onFollowChange?: (following: boolean) => void;
 }
 
 const EMPTY_SELECTION: readonly TranscriptSegmentId[] = [];
@@ -131,9 +129,7 @@ function TranscriptReadyView({
   onSeek,
   onTrackChange,
   onCopy,
-  onAskTranscript,
-  onAskSelection,
-  onFollowChange,
+  onSendToAI,
 }: TranscriptPanelProps & {
   readonly state: Extract<TranscriptViewState, { readonly kind: 'ready' }>;
 }) {
@@ -166,13 +162,8 @@ function TranscriptReadyView({
     active.scrollIntoView({ block: 'center', behavior: 'auto' });
   }, [activeSegmentId, following]);
 
-  const setFollow = (next: boolean) => {
-    setFollowing(next);
-    onFollowChange?.(next);
-  };
-
   const suspendFollow = () => {
-    if (following) setFollow(false);
+    if (following) setFollowing(false);
   };
 
   const focusMatch = (nextIndex: number) => {
@@ -285,26 +276,28 @@ function TranscriptReadyView({
               {matchPosition}/{matches.length}
             </span>
           ) : null}
-          <button
-            aria-label="Previous transcript search result"
-            className="ct-mini-button"
-            disabled={matches.length === 0}
-            onClick={() => focusMatch(currentMatch - 1)}
-            title="Previous result"
-            type="button"
-          >
-            <Icon name="arrow-left" />
-          </button>
-          <button
-            aria-label="Next transcript search result"
-            className="ct-mini-button"
-            disabled={matches.length === 0}
-            onClick={() => focusMatch(currentMatch + 1)}
-            title="Next result"
-            type="button"
-          >
-            <Icon name="arrow-right" />
-          </button>
+          <span className="ct-search__nav">
+            <button
+              aria-label="Previous transcript search result"
+              className="ct-mini-button"
+              disabled={matches.length === 0}
+              onClick={() => focusMatch(currentMatch - 1)}
+              title="Previous result"
+              type="button"
+            >
+              <Icon name="arrow-left" />
+            </button>
+            <button
+              aria-label="Next transcript search result"
+              className="ct-mini-button"
+              disabled={matches.length === 0}
+              onClick={() => focusMatch(currentMatch + 1)}
+              title="Next result"
+              type="button"
+            >
+              <Icon name="arrow-right" />
+            </button>
+          </span>
         </div>
 
         <div className="ct-transcript__meta">
@@ -325,39 +318,27 @@ function TranscriptReadyView({
             </select>
           </label>
           <button
-            className="ct-mini-button ct-mini-button--labeled ct-mini-button--ask"
-            disabled={!onAskTranscript}
-            onClick={onAskTranscript}
+            aria-label="Copy transcript"
+            className="ct-mini-button ct-mini-button--labeled"
+            onClick={() =>
+              void copyTranscript(undefined, 'Full transcript copied to clipboard.')
+            }
+            title="Copy every caption to clipboard"
+            type="button"
+          >
+            <Icon name="copy" />
+            <span>Copy</span>
+          </button>
+          <button
+            className="ct-send-button"
+            disabled={!onSendToAI}
+            onClick={() => onSendToAI?.(selectedIds)}
             type="button"
           >
             <Icon name="message" />
-            <span>Ask</span>
-          </button>
-          <button
-            aria-pressed={following}
-            className={`ct-follow-button${following ? ' is-active' : ''}`}
-            onClick={() => setFollow(!following)}
-            title={following ? 'Following playback' : 'Resume following playback'}
-            type="button"
-          >
-            <Icon name="follow" />
-            <span>{following ? 'Following' : 'Resume follow'}</span>
+            <span>Send to AI</span>
           </button>
         </div>
-      </div>
-
-      <div className="ct-transcript__caption-action">
-        <button
-          className="ct-get-captions-button"
-          onClick={() =>
-            void copyTranscript(undefined, 'Captions copied to clipboard.')
-          }
-          title="Copy all available captions"
-          type="button"
-        >
-          <Icon name="copy" />
-          <span>Get Captions</span>
-        </button>
       </div>
 
       <div
@@ -454,12 +435,12 @@ function TranscriptReadyView({
             </button>
             <button
               className="ct-selection-action ct-selection-action--primary"
-              disabled={!onAskSelection}
-              onClick={() => onAskSelection?.(selectedIds)}
+              disabled={!onSendToAI}
+              onClick={() => onSendToAI?.(selectedIds)}
               type="button"
             >
               <Icon name="message" />
-              Ask
+              <span>Send to AI</span>
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { Icon } from '@/components/Icon';
+import { BrandLogo } from '@/components/BrandLogo';
+import { resolveInitialProductTab } from '@/config/product-features';
 import type {
   WatchBetterSettings,
   PanelTab,
@@ -6,8 +7,6 @@ import type {
   TranscriptCachePolicy,
   TranscriptFontSize,
 } from '@/features/settings/settings';
-import type { SkipPresetId } from '@/features/skip/skip-engine';
-import { configurationForSkipPreset } from '@/features/skip/skip-presets';
 import type { WebChatProviderId } from '@/services/web-chat';
 
 import './OptionsView.css';
@@ -38,9 +37,7 @@ export function OptionsView({
   return (
     <main className="ct-options" data-theme={theme}>
       <header className="ct-options__header">
-        <span aria-hidden="true">
-          <Icon name="spark" />
-        </span>
+        <BrandLogo aria-hidden="true" className="ct-options__logo" />
         <div>
           <h1>WatchBetter settings</h1>
           <p>Configure the YouTube companion without storing transcript content.</p>
@@ -73,11 +70,10 @@ export function OptionsView({
             onChange={(event) =>
               update({ defaultTab: event.currentTarget.value as PanelTab })
             }
-            value={settings.defaultTab}
+            value={resolveInitialProductTab(settings.defaultTab)}
           >
             <option value="transcript">Transcript</option>
             <option value="ask">Ask</option>
-            <option value="skip">Jump Cut</option>
           </select>
         </label>
         <label className="ct-options-row">
@@ -160,48 +156,6 @@ export function OptionsView({
             <option value="compact">Compact</option>
             <option value="standard">Standard</option>
             <option value="large">Large</option>
-          </select>
-        </label>
-      </section>
-
-      <section aria-labelledby="pause-title" className="ct-options-card">
-        <h2 id="pause-title">Jump cutter</h2>
-        <label className="ct-options-row">
-          <span>
-            <strong>Enable experimental controls</strong>
-            <small>Off by default; compresses padded transcript gaps.</small>
-          </span>
-          <input
-            checked={settings.pause.enabled}
-            disabled={disabled}
-            onChange={(event) =>
-              update({
-                pause: { ...settings.pause, enabled: event.currentTarget.checked },
-              })
-            }
-            type="checkbox"
-          />
-        </label>
-        <label className="ct-options-row">
-          <span>
-            <strong>Default preset</strong>
-            <small>Advanced values remain editable in the panel.</small>
-          </span>
-          <select
-            disabled={disabled}
-            onChange={(event) =>
-              update({
-                pause: configurationForSkipPreset(
-                  event.currentTarget.value as SkipPresetId,
-                  settings.pause.enabled,
-                ),
-              })
-            }
-            value={settings.pause.preset}
-          >
-            <option value="conservative">Conservative</option>
-            <option value="balanced">Balanced</option>
-            <option value="aggressive">Aggressive</option>
           </select>
         </label>
       </section>

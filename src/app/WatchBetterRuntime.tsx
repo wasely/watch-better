@@ -9,6 +9,7 @@ import type {
   YouTubePageController,
   YouTubePageSnapshot,
 } from '@/adapters/youtube/youtube-page-controller';
+import { resolveInitialProductTab } from '@/config/product-features';
 import type {
   TranscriptDocument,
   TranscriptProvider,
@@ -22,10 +23,6 @@ import {
   type WatchBetterSettings,
   type PanelTab,
 } from '@/features/settings/settings';
-import {
-  TranscriptGapSkipEngine,
-  type SkipEngineSnapshot,
-} from '@/features/skip/skip-engine';
 import type { ExtensionRequest, ExtensionResponse } from '@/messaging/messages';
 import {
   SettingsRepository,
@@ -43,12 +40,6 @@ const EMPTY_PLAYBACK: PlaybackSnapshot = {
   paused: true,
   adActive: false,
   supported: false,
-};
-
-const EMPTY_SKIP: SkipEngineSnapshot = {
-  state: 'disabled',
-  timeSavedSeconds: 0,
-  message: 'Playback is unchanged.',
 };
 
 const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
@@ -100,19 +91,19 @@ export function WatchBetterRuntime({
   const [transcript, setTranscript] = useState<TranscriptViewState>({
     kind: 'loading',
   });
-  const [activeTab, setActiveTab] = useState<PanelTab>(DEFAULT_SETTINGS.defaultTab);
+  const [activeTab, setActiveTab] = useState<PanelTab>(() =>
+    resolveInitialProductTab(DEFAULT_SETTINGS.defaultTab),
+  );
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<
     ReadonlySet<TranscriptSegmentId>
   >(new Set());
-  const [skipSnapshot, setSkipSnapshot] = useState<SkipEngineSnapshot>(EMPTY_SKIP);
   const [providerStatuses, setProviderStatuses] = useState<
     Partial<Record<WebChatProviderId, WebChatProviderStatus>>
   >({});
-  const [primeRequestId, setPrimeRequestId] = useState(0);
+  const [sendRequestId, setSendRequestId] = useState(0);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
-  const skipEngineRef = useRef<TranscriptGapSkipEngine | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
   const loadGenerationRef = useRef(0);
 
@@ -131,7 +122,7 @@ export function WatchBetterRuntime({
     const unsubscribe = pageController.subscribe((next) => {
       setPage(next);
       setSelectedSegmentIds(new Set());
-      setActiveTab(settingsRef.current.defaultTab);
+      setActiveTab(resolveInitialProductTab(settingsRef.current.defaultTab));
     });
     pageController.start();
     return () => {
@@ -143,23 +134,12 @@ export function WatchBetterRuntime({
   useEffect(() => playback.subscribe(setPlaybackState), [playback]);
 
   useEffect(() => {
-    const engine = new TranscriptGapSkipEngine(playback);
-    skipEngineRef.current = engine;
-    const unsubscribe = engine.subscribe(setSkipSnapshot);
-    return () => {
-      unsubscribe();
-      engine.dispose();
-      skipEngineRef.current = null;
-    };
-  }, [playback]);
-
-  useEffect(() => {
     let disposed = false;
     const sync = () => {
       void repository.load().then((next) => {
         if (disposed) return;
         setSettings(next);
-        setActiveTab(next.defaultTab);
+        setActiveTab(resolveInitialProductTab(next.defaultTab));
         setSettingsLoaded(true);
       });
     };
@@ -298,14 +278,6 @@ export function WatchBetterRuntime({
   const transcriptDocument: TranscriptDocument | null =
     transcript.kind === 'ready' ? transcript.document : null;
 
-  useEffect(() => {
-    skipEngineRef.current?.setTranscript(transcriptDocument?.segments ?? null);
-  }, [transcriptDocument]);
-
-  useEffect(() => {
-    skipEngineRef.current?.update(settings.pause);
-  }, [settings.pause]);
-
   const activeSegmentId = useMemo(() => {
     if (!transcriptDocument) return null;
     const index = findActiveSegmentIndex(
@@ -369,15 +341,10 @@ export function WatchBetterRuntime({
         onTrackChange: (trackId) => {
           if (page.videoId) void loadTranscript(page.videoId, trackId);
         },
-        onAskSelection: (segmentIds) => {
+        onSendToAI: (segmentIds) => {
           setSelectedSegmentIds(new Set(segmentIds));
           setActiveTab('ask');
-          setPrimeRequestId((current) => current + 1);
-        },
-        onAskTranscript: () => {
-          setSelectedSegmentIds(new Set());
-          setActiveTab('ask');
-          setPrimeRequestId((current) => current + 1);
+          setSendRequestId((current) => current + 1);
         },
         onEnableTranscript: () =>
           void patchSettings({ autoLoadTranscript: true }).catch(() => undefined),
@@ -390,7 +357,7 @@ export function WatchBetterRuntime({
         selectedSegmentIds,
         currentTimeSeconds: playbackState.currentTimeSeconds,
         providerStatuses,
-        primeRequestId,
+        sendRequestId,
         onSendWebChat: async (request) => {
           const response = await send({ type: 'webchat:send', ...request });
           if (!response.ok) throw new Error(response.message);
@@ -417,20 +384,6 @@ export function WatchBetterRuntime({
             sessionId,
           });
           if (!response.ok) throw new Error(response.message);
-        },
-      }}
-      skip={{
-        configuration: settings.pause,
-        snapshot: skipSnapshot,
-        detectionLabel: 'Built-in transcript-gap jump cutter',
-        onConfigurationChange: (pause) => {
-          skipEngineRef.current?.update(pause);
-          void patchSettings({ pause }).catch(() => undefined);
-        },
-        onReset: () => {
-          const pause = DEFAULT_SETTINGS.pause;
-          skipEngineRef.current?.update(pause);
-          void patchSettings({ pause }).catch(() => undefined);
         },
       }}
     />

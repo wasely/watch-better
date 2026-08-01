@@ -40,7 +40,7 @@ export interface AskPanelProps {
   readonly initialScope?: AIContextScope;
   readonly provider?: AIProvider;
   readonly providerStatuses?: Partial<Record<WebChatProviderId, WebChatProviderStatus>>;
-  readonly primeRequestId?: number;
+  readonly sendRequestId?: number;
   readonly onSendWebChat?: (request: ChatTurnRequest) => Promise<ChatTurnResult>;
   readonly onOpenWebChat?: (provider: WebChatProviderId) => void | Promise<void>;
   readonly onPrepareWebChat?: (
@@ -164,11 +164,10 @@ function ProviderFrame({
     >
       {prepared ? (
         <iframe
-          allow="autoplay; camera; clipboard-read; clipboard-write; microphone"
           onLoad={bindFrame}
           ref={iframeRef}
           referrerPolicy="no-referrer"
-          src={definition.url}
+          src={`${definition.url}#watchbetter-frame=${encodeURIComponent(sessionId)}`}
           title={`${definition.displayName} embedded chat`}
         />
       ) : null}
@@ -195,7 +194,7 @@ export function AskPanel({
   initialScope = 'entire-video',
   provider = DEFAULT_PROMPT_PROVIDER,
   providerStatuses = {},
-  primeRequestId = 0,
+  sendRequestId = 0,
   onSendWebChat,
   onOpenWebChat,
   onPrepareWebChat,
@@ -206,12 +205,19 @@ export function AskPanel({
     ReadonlySet<WebChatProviderId>
   >(() => new Set(['chatgpt']));
   const [primeState, setPrimeState] = useState<PrimeState>({ kind: 'idle' });
-  const primeSeenRef = useRef(0);
+  const [handledRequestId, setHandledRequestId] = useState(0);
 
   const providerDefinition = WEB_CHAT_PROVIDERS[selectedProvider];
   const providerStatus = providerStatuses[selectedProvider]?.state ?? 'not-open';
   const providerReady = providerStatus === 'ready';
   const primeSending = primeState.kind === 'sending';
+  const requestPending = sendRequestId > 0 && handledRequestId !== sendRequestId;
+  const waitingForProvider =
+    requestPending && !providerReady && providerStatus !== 'sign-in-required';
+  const signInMessage =
+    requestPending && providerStatus === 'sign-in-required'
+      ? `Sign in to ${providerDefinition.displayName} before sending.`
+      : '';
 
   const buildTranscriptPrompt = useCallback((): string | null => {
     if (!transcript) return null;
@@ -229,19 +235,15 @@ export function AskPanel({
   }, [currentTimeSeconds, initialScope, provider, selectedSegmentIds, transcript]);
 
   useEffect(() => {
-    if (
-      primeRequestId <= 0 ||
-      primeSeenRef.current === primeRequestId ||
-      !providerReady ||
-      !onSendWebChat
-    )
+    if (sendRequestId <= 0 || handledRequestId === sendRequestId || !onSendWebChat)
       return;
     const message = buildTranscriptPrompt();
     if (!message) return;
+    if (!providerReady) return;
     let disposed = false;
     queueMicrotask(() => {
-      if (disposed || primeSeenRef.current === primeRequestId) return;
-      primeSeenRef.current = primeRequestId;
+      if (disposed || handledRequestId === sendRequestId) return;
+      setHandledRequestId(sendRequestId);
       setPrimeState({ kind: 'sending' });
       void onSendWebChat({
         provider: selectedProvider,
@@ -267,8 +269,9 @@ export function AskPanel({
     };
   }, [
     buildTranscriptPrompt,
+    handledRequestId,
     onSendWebChat,
-    primeRequestId,
+    sendRequestId,
     providerReady,
     selectedProvider,
   ]);
@@ -316,10 +319,6 @@ export function AskPanel({
               type="button"
             >
               {WEB_CHAT_PROVIDERS[providerId].displayName}
-              <i
-                aria-hidden="true"
-                className={`ct-provider-status ct-provider-status--${providerStatuses[providerId]?.state ?? 'not-open'}`}
-              />
             </button>
           ))}
         </div>
@@ -350,7 +349,17 @@ export function AskPanel({
 
         {primeState.kind === 'sending' ? (
           <div className="ct-provider-frame__notice" role="status">
-            Adding transcript context…
+            Sending transcript to {providerDefinition.displayName}…
+          </div>
+        ) : null}
+        {waitingForProvider ? (
+          <div className="ct-provider-frame__notice" role="status">
+            Waiting for {providerDefinition.displayName}…
+          </div>
+        ) : null}
+        {primeState.kind === 'sent' ? (
+          <div className="ct-provider-frame__notice" role="status">
+            Transcript sent to {providerDefinition.displayName}.
           </div>
         ) : null}
         {primeState.kind === 'error' ? (
@@ -359,6 +368,14 @@ export function AskPanel({
             role="alert"
           >
             {primeState.message}
+          </div>
+        ) : null}
+        {signInMessage ? (
+          <div
+            className="ct-provider-frame__notice ct-provider-frame__notice--error"
+            role="alert"
+          >
+            {signInMessage}
           </div>
         ) : null}
       </div>

@@ -13,9 +13,9 @@
   --ct-space-5: 12px;
   --ct-space-6: 16px;
   --ct-space-7: 20px;
-  --ct-radius-sm: 6px;
-  --ct-radius-md: 8px;
-  --ct-radius-lg: 10px;
+  --ct-radius-sm: 5px;
+  --ct-radius-md: 7px;
+  --ct-radius-lg: 9px;
   --ct-font: 'Segoe UI', Inter, ui-sans-serif, system-ui, sans-serif;
   --ct-motion-fast: 140ms;
   --ct-focus: 0 0 0 2px var(--ct-surface), 0 0 0 4px var(--ct-accent);
@@ -39,39 +39,53 @@
 }
 
 .watchbetter-root[data-theme='dark'] {
-  --ct-surface: #111216;
-  --ct-surface-raised: #181a20;
-  --ct-surface-hover: #20232b;
-  --ct-input: #15171c;
-  --ct-border: #2a2d36;
-  --ct-text-strong: #f2f3f5;
-  --ct-text: #d1d3d9;
-  --ct-text-muted: #9297a3;
-  --ct-accent: #8b7cf6;
-  --ct-accent-strong: #6757d9;
-  --ct-accent-soft: rgb(139 124 246 / 14%);
-  --ct-success: #57c58a;
+  --ct-surface: #0a0c10;
+  --ct-surface-raised: #12151a;
+  --ct-surface-hover: #1b2027;
+  --ct-input: #090b0f;
+  --ct-border: #292f38;
+  --ct-border-strong: #48515e;
+  --ct-text-strong: #f4f6f8;
+  --ct-text: #cbd1d8;
+  --ct-text-muted: #87919d;
+  --ct-accent: #e3e6ea;
+  --ct-accent-strong: #f4f6f8;
+  --ct-accent-soft: rgb(227 230 234 / 11%);
+  --ct-success: #d5d9de;
   --ct-warning: #e2a84a;
   --ct-error: #ee6b72;
-  --ct-shadow: 0 5px 18px rgb(0 0 0 / 20%);
+  --ct-metal-highlight: rgb(255 255 255 / 24%);
+  --ct-metal-mid: #949da8;
+  --ct-metal-shadow: #252b33;
+  --ct-cool-glow: rgb(127 159 210 / 16%);
+  --ct-depth-shadow: 0 18px 48px rgb(0 0 0 / 38%), 0 4px 12px rgb(0 0 0 / 28%);
+  --ct-inset-highlight: inset 0 1px 0 rgb(255 255 255 / 8%);
+  --ct-shadow: 0 10px 30px rgb(0 0 0 / 28%);
 }
 
 .watchbetter-root[data-theme='light'] {
-  --ct-surface: #fff;
-  --ct-surface-raised: #f7f7f9;
-  --ct-surface-hover: #f0f1f5;
-  --ct-input: #fafafb;
-  --ct-border: #dadce3;
-  --ct-text-strong: #17181c;
-  --ct-text: #353842;
-  --ct-text-muted: #69707d;
-  --ct-accent: #6757d9;
-  --ct-accent-strong: #5949c3;
-  --ct-accent-soft: rgb(103 87 217 / 11%);
-  --ct-success: #237a4b;
-  --ct-warning: #8d5900;
-  --ct-error: #c53c47;
-  --ct-shadow: 0 4px 16px rgb(28 31 40 / 10%);
+  --ct-surface: #f7f8fa;
+  --ct-surface-raised: #fff;
+  --ct-surface-hover: #edf0f4;
+  --ct-input: #f2f4f7;
+  --ct-border: #d1d7df;
+  --ct-border-strong: #aab3bf;
+  --ct-text-strong: #14181f;
+  --ct-text: #38414c;
+  --ct-text-muted: #667281;
+  --ct-accent: #252a31;
+  --ct-accent-strong: #0f1115;
+  --ct-accent-soft: rgb(15 17 21 / 8%);
+  --ct-success: #343a42;
+  --ct-warning: #9a5b00;
+  --ct-error: #c43d4b;
+  --ct-metal-highlight: rgb(255 255 255 / 88%);
+  --ct-metal-mid: #737c87;
+  --ct-metal-shadow: #b8c0ca;
+  --ct-cool-glow: rgb(92 126 178 / 12%);
+  --ct-depth-shadow: 0 18px 44px rgb(30 42 62 / 14%), 0 4px 12px rgb(30 42 62 / 8%);
+  --ct-inset-highlight: inset 0 1px 0 rgb(255 255 255 / 92%);
+  --ct-shadow: 0 10px 28px rgb(30 42 62 / 11%);
 }
 
 .watchbetter-root button,

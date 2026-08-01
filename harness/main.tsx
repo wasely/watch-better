@@ -9,13 +9,8 @@ import {
   type WatchBetterSettings,
   type PanelTab,
 } from '@/features/settings/settings';
-import type {
-  SkipConfiguration,
-  SkipEngineSnapshot,
-} from '@/features/skip/skip-engine';
 import type { RuntimeStatus } from '@/messaging/messages';
 import type { TranscriptViewState } from '@/features/transcript/transcript-view-state';
-import { skipFixtures, type SkipFixtureId } from '@/test/fixtures/skip';
 import {
   spanishTranscript,
   transcriptFixtureStates,
@@ -24,7 +19,7 @@ import {
 
 import './style.css';
 
-const widths = [320, 402, 480] as const;
+const widths = [320, 360, 402, 480] as const;
 type HarnessWidth = (typeof widths)[number];
 type HarnessScenarioId = TranscriptFixtureId | 'search' | 'selected';
 type HarnessSurface = 'panel' | 'popup' | 'options';
@@ -137,8 +132,7 @@ const initialScenario: HarnessScenarioId =
     ? (requestedScenario as HarnessScenarioId)
     : 'tutorial';
 const requestedTab = harnessParams.get('tab');
-const initialTab: PanelTab =
-  requestedTab === 'ask' || requestedTab === 'skip' ? requestedTab : 'transcript';
+const initialTab: PanelTab = requestedTab === 'ask' ? requestedTab : 'transcript';
 const requestedSurface = harnessParams.get('surface');
 const initialSurface: HarnessSurface =
   requestedSurface === 'popup' || requestedSurface === 'options'
@@ -149,11 +143,6 @@ const initialPopupFixtureId: PopupFixtureId =
   requestedPopupFixture && requestedPopupFixture in popupFixtures
     ? (requestedPopupFixture as PopupFixtureId)
     : 'supported';
-const requestedSkipFixture = harnessParams.get('skip');
-const initialSkipFixtureId: SkipFixtureId =
-  requestedSkipFixture && requestedSkipFixture in skipFixtures
-    ? (requestedSkipFixture as SkipFixtureId)
-    : 'off';
 const openShouldFail = harnessParams.get('open') === 'error';
 const frameShouldFail = harnessParams.get('frame') === 'error';
 const providerFrameState =
@@ -198,14 +187,6 @@ function Harness() {
   const [width, setWidth] = useState<HarnessWidth>(initialWidth);
   const [scenario, setScenario] = useState<HarnessScenarioId>(initialScenario);
   const [panelTab, setPanelTab] = useState<PanelTab>(initialTab);
-  const [skipFixtureId, setSkipFixtureId] =
-    useState<SkipFixtureId>(initialSkipFixtureId);
-  const [skipConfiguration, setSkipConfiguration] = useState<SkipConfiguration>(
-    skipFixtures[initialSkipFixtureId].configuration,
-  );
-  const [skipSnapshot, setSkipSnapshot] = useState<SkipEngineSnapshot>(
-    skipFixtures[initialSkipFixtureId].snapshot,
-  );
   const [selectedTrackId, setSelectedTrackId] = useState('en-human');
   const [activeIndex, setActiveIndex] = useState(4);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -256,35 +237,6 @@ function Harness() {
       nextFixture.kind === 'ready' ? nextFixture.selectedTrackId : 'en-human',
     );
     setInstance((value) => value + 1);
-  };
-
-  const changeSkipFixture = (nextId: SkipFixtureId) => {
-    const nextFixture = skipFixtures[nextId];
-    setSkipFixtureId(nextId);
-    setSkipConfiguration(nextFixture.configuration);
-    setSkipSnapshot(nextFixture.snapshot);
-    setInstance((value) => value + 1);
-  };
-
-  const updateSkipConfiguration = (next: SkipConfiguration) => {
-    setSkipConfiguration(next);
-    setSkipSnapshot((current) => {
-      if (!next.enabled) {
-        return {
-          state: 'disabled',
-          timeSavedSeconds: current.timeSavedSeconds,
-          message: 'Playback restored. No pause compression is active.',
-        };
-      }
-      if (current.state === 'disabled') {
-        return {
-          state: 'ready',
-          timeSavedSeconds: current.timeSavedSeconds,
-          message: 'Candidate gaps are ready for this fixture.',
-        };
-      }
-      return current;
-    });
   };
 
   const changePopupFixture = (nextId: PopupFixtureId) => {
@@ -357,27 +309,8 @@ function Harness() {
               >
                 <option value="transcript">Transcript</option>
                 <option value="ask">Ask</option>
-                <option value="skip">Jump Cut</option>
               </select>
             </label>
-
-            {panelTab === 'skip' ? (
-              <label>
-                Skip state
-                <select
-                  onChange={(event) =>
-                    changeSkipFixture(event.currentTarget.value as SkipFixtureId)
-                  }
-                  value={skipFixtureId}
-                >
-                  {(Object.keys(skipFixtures) as SkipFixtureId[]).map((fixtureId) => (
-                    <option key={fixtureId} value={fixtureId}>
-                      {skipFixtures[fixtureId].label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
 
             <label>
               Column width
@@ -511,14 +444,6 @@ function Harness() {
               onCollapsedChange={setCollapsed}
               onOpenSettings={() => setSurface('options')}
               onTabChange={setPanelTab}
-              skip={{
-                configuration: skipConfiguration,
-                snapshot: skipSnapshot,
-                detectionLabel: 'Transcript-gap fixture candidate',
-                initialAdvancedOpen: skipFixtures[skipFixtureId].advancedOpen ?? false,
-                onConfigurationChange: updateSkipConfiguration,
-                onReset: () => changeSkipFixture('off'),
-              }}
               theme={theme}
               transcript={{
                 state: transcriptState,
@@ -527,7 +452,7 @@ function Harness() {
                 ...(selectedFixtureIds
                   ? { initialSelectedSegmentIds: selectedFixtureIds }
                   : {}),
-                onAskSelection: () => undefined,
+                onSendToAI: () => undefined,
                 onCopy: () => Promise.resolve(),
                 onEnableTranscript: () => changeScenario('tutorial'),
                 onRetry: () => changeScenario('tutorial'),

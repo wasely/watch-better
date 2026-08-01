@@ -100,7 +100,7 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Verify: unit snapshot/behavior tests including huge transcripts.
   - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded.
 - [~] **MVP-051 · P0 — Embedded ChatGPT/Gemini bridge**
-  - Acceptance: the live provider page renders inside Ask; Transcript Ask primes its exact frame; follow-ups continue; no API key/cookie/token access; transmission is explicit and bounded.
+  - Acceptance: the live provider page renders inside Ask; **Send to AI** primes its exact frame; opening Ask and switching providers send nothing; follow-ups continue; no API key/cookie/token access; transmission is explicit and bounded.
   - Verify: service/DOM/component/runtime/message tests, manifest/source audit, live signed-in provider checks.
   - Status: Automated contract, DOM, chaining, priming, permission, and no-credential audits pass; live ChatGPT/Gemini checks pending.
 

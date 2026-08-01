@@ -1,0 +1,63 @@
+name: Bug report
+description: Report reproducible WatchBetter behavior that is not working correctly.
+title: 'bug: '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve WatchBetter. Remove private information from screenshots and logs.
+  - type: input
+    id: version
+    attributes:
+      label: WatchBetter version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: chrome
+    attributes:
+      label: Chrome and operating system
+      placeholder: Chrome 145 on Windows 11
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Transcript
+        - ChatGPT embedding
+        - Gemini embedding
+        - Panel layout
+        - Popup or settings
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include a public YouTube URL when relevant.
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Do not include cookies, tokens, account details, or private transcripts.

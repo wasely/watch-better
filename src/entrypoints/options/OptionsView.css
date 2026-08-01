@@ -1,14 +1,14 @@
 .ct-options {
-  --options-bg: #f5f6f8;
+  --options-bg: #f6f8fa;
   --options-surface: #fff;
-  --options-input: #fafafb;
-  --options-border: #dadce3;
-  --options-divider: #e7e8ec;
-  --options-text: #353842;
-  --options-strong: #17181c;
-  --options-muted: #69707d;
-  --options-accent: #6757d9;
-  --options-accent-soft: rgb(103 87 217 / 11%);
+  --options-input: #f8fafc;
+  --options-border: #d7dde5;
+  --options-divider: #e6eaf0;
+  --options-text: #38414c;
+  --options-strong: #14181f;
+  --options-muted: #667281;
+  --options-accent: #252a31;
+  --options-accent-soft: rgb(15 17 21 / 8%);
 
   width: min(720px, calc(100% - 32px));
   padding-block: 36px;
@@ -18,16 +18,16 @@
 }
 
 .ct-options[data-theme='dark'] {
-  --options-bg: #0d0e11;
-  --options-surface: #111216;
-  --options-input: #181a20;
-  --options-border: #2a2d36;
-  --options-divider: #242730;
-  --options-text: #d1d3d9;
-  --options-strong: #f2f3f5;
-  --options-muted: #9297a3;
-  --options-accent: #8b7cf6;
-  --options-accent-soft: rgb(139 124 246 / 16%);
+  --options-bg: #0b0d10;
+  --options-surface: #0f1115;
+  --options-input: #15181d;
+  --options-border: #292e36;
+  --options-divider: #232830;
+  --options-text: #cbd1d8;
+  --options-strong: #f4f6f8;
+  --options-muted: #87919d;
+  --options-accent: #e3e6ea;
+  --options-accent-soft: rgb(227 230 234 / 11%);
 }
 
 .ct-options *,
@@ -53,21 +53,14 @@
   margin-bottom: 20px;
 }
 
-.ct-options__header > span {
-  display: grid;
-  width: 42px;
-  height: 42px;
+.ct-options__logo {
+  display: block;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
-  place-items: center;
-  color: var(--options-accent);
-  background: var(--options-accent-soft);
+  object-fit: contain;
   border: 1px solid color-mix(in srgb, var(--options-accent) 30%, var(--options-border));
-  border-radius: 10px;
-}
-
-.ct-options__header svg {
-  width: 20px;
-  height: 20px;
+  border-radius: 7px;
 }
 
 .ct-options h1,
@@ -79,8 +72,8 @@
 .ct-options h1 {
   margin-bottom: 3px;
   color: var(--options-strong);
-  font-size: 20px;
-  line-height: 25px;
+  font-size: 18px;
+  line-height: 23px;
 }
 
 .ct-options__header p {
@@ -95,7 +88,7 @@
   margin-bottom: 14px;
   background: var(--options-surface);
   border: 1px solid var(--options-border);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .ct-options-card h2 {
@@ -149,6 +142,30 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.ct-options .ct-button {
+  min-height: 36px;
+  padding: 7px 12px;
+  color: var(--options-strong);
+  background: var(--options-input);
+  border: 1px solid var(--options-border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ct-options .ct-button:hover:not(:disabled) {
+  color: var(--options-accent);
+  background: var(--options-accent-soft);
+  border-color: color-mix(in srgb, var(--options-accent) 42%, var(--options-border));
+}
+
+.ct-options .ct-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .ct-options-row input[type='checkbox'] {

@@ -1,40 +1,45 @@
 # WatchBetter
 
+[![CI](https://github.com/wasely/watch-better/actions/workflows/ci.yml/badge.svg)](https://github.com/wasely/watch-better/actions/workflows/ci.yml)
+
+<p align="center">
+  <img src="docs/assets/watchbetter-logo.png" alt="WatchBetter logo" width="180" />
+</p>
+
 WatchBetter is a Chrome extension for desktop YouTube watch pages. It adds a
-compact transcript navigator, transcript-grounded Ask panel, and optional
-caption-gap jump cutter beside the video.
+compact transcript navigator and transcript-grounded Ask panel beside the video.
 
 ## Features
 
-- Instantly copy every available YouTube caption with **Get Captions**—no speech-to-text wait.
+- Copy every available YouTube caption from the transcript toolbar—no speech-to-text wait.
 - Search, select, copy, and seek through timestamped caption rows.
 - Ask ChatGPT or Google Gemini about bounded timestamped transcript context.
 - Use ChatGPT or Gemini as a live embedded webpage inside WatchBetter—no API key.
 - Use each provider's own composer, conversation history, and new-chat controls.
 - Keep loaded provider frames alive across panel tabs, collapse, and YouTube video
   changes so returning to ChatGPT or Gemini is instant.
-- Speed through or jump long caption gaps with conservative controls that are off
-  by default.
 - Light/dark themes, keyboard navigation, responsive panel layouts, and a compact
   collapsed launcher.
 
 ## How Ask works
 
-1. In WatchBetter's **Ask** tab, choose ChatGPT or Gemini.
+1. In WatchBetter's **Ask** tab, choose ChatGPT or Gemini. Opening Ask sends nothing.
 2. WatchBetter loads the provider's real website directly inside the Ask tab.
 3. If embedded sign-in is refused, use the external-tab button, sign in normally,
    and return to YouTube.
-4. Clicking **Ask** from the transcript primes that exact embedded frame with
-   bounded timestamped context.
+4. In **Transcript**, optionally select rows, then choose **Send to AI**. This is the
+   only action that transfers transcript content; with no selection, it sends the
+   full bounded transcript.
 5. Ask follow-up questions with the provider's own composer. Its normal
    conversation and new-chat controls stay inside WatchBetter.
 
 WatchBetter never reads browser cookies or tokens, stores an API key, calls a model
-API, or sends analytics. To show the two official sites inside YouTube, one static
-Chrome rule removes anti-frame headers only from ChatGPT/Gemini subframes initiated
-by YouTube. It does not modify top-level pages, other sites, requests, or account
-data. Provider interfaces can change without notice, so their adapters may need
-updates.
+API, or sends analytics. To show the two official sites inside YouTube, WatchBetter
+creates a tab- and provider-scoped Chrome session rule immediately before loading a
+verified frame, keeps it only while that YouTube tab needs the provider, and removes
+it when the tab closes or leaves YouTube. It does not
+modify top-level pages, other sites, or account data. Provider interfaces can change
+without notice, so their adapters may need updates.
 
 ## Requirements
 
@@ -73,7 +78,7 @@ Generated browser output and archives are under `.output/`.
 | Permission or host      | Purpose                                                                                |
 | ----------------------- | -------------------------------------------------------------------------------------- |
 | `storage`               | Save settings, optional session transcripts, and embedded-frame routing IDs.           |
-| `declarativeNetRequest` | Permit only the scoped ChatGPT/Gemini subframe header rule needed for embedding.       |
+| `declarativeNetRequest` | Briefly permit one prepared ChatGPT/Gemini subframe in the current YouTube tab.        |
 | `webNavigation`         | Verify a registered provider is the panel's direct child frame before routing prompts. |
 | `youtube.com`           | Mount the panel and read captions exposed on the current watch page.                   |
 | `chatgpt.com`           | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
@@ -88,6 +93,7 @@ Transcripts and conversations are not persisted by default. The optional browser
 session cache is bounded and cleared with the browser session. Transcript context
 is sent only after an explicit Ask action, to the provider selected by the user.
 ChatGPT and Gemini then apply their own account, retention, and usage policies.
+See the full [privacy policy](PRIVACY.md) and [security policy](SECURITY.md).
 
 ## Project map
 
@@ -105,4 +111,10 @@ ChatGPT and Gemini then apply their own account, retention, and usage policies.
 - ChatGPT/Gemini web UI automation can require maintenance after provider changes.
 - Some authentication flows refuse third-party frames; the full-tab sign-in fallback
   remains available.
-- Jump Cut is experimental and disabled by default.
+- Jump Cut source is retained for later development but feature-gated out of the
+  initial product.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Public launch preparation and the remaining
+live release gate are tracked in [docs/CHROME_WEB_STORE.md](docs/CHROME_WEB_STORE.md).

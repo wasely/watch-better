@@ -2,8 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { DEFAULT_SETTINGS } from '@/features/settings/settings';
-import { configurationForSkipPreset } from '@/features/skip/skip-presets';
-
 import { OptionsView } from './OptionsView';
 
 describe('OptionsView', () => {
@@ -18,7 +16,7 @@ describe('OptionsView', () => {
 
     expect(screen.getByRole('heading', { name: 'Panel defaults' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Transcript' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Jump cutter' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Jump Cut' })).not.toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'AI sessions and privacy' }),
     ).toBeInTheDocument();
@@ -39,30 +37,12 @@ describe('OptionsView', () => {
     );
 
     fireEvent.change(screen.getByRole('combobox', { name: /^Default tab/ }), {
-      target: { value: 'skip' },
+      target: { value: 'ask' },
     });
-    expect(onChange).toHaveBeenLastCalledWith({ defaultTab: 'skip' });
+    expect(onChange).toHaveBeenLastCalledWith({ defaultTab: 'ask' });
 
     fireEvent.click(screen.getByRole('checkbox', { name: /^Follow playback/ }));
     expect(onChange).toHaveBeenLastCalledWith({ autoFollowTranscript: false });
-  });
-
-  it('applies complete pause presets', () => {
-    const onChange = vi.fn();
-    render(
-      <OptionsView
-        onChange={onChange}
-        settings={DEFAULT_SETTINGS}
-        status="Settings loaded"
-      />,
-    );
-
-    fireEvent.change(screen.getByRole('combobox', { name: /^Default preset/ }), {
-      target: { value: 'aggressive' },
-    });
-    expect(onChange).toHaveBeenLastCalledWith({
-      pause: configurationForSkipPreset('aggressive', false),
-    });
   });
 
   it('disables controls while settings are loading', () => {

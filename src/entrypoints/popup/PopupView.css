@@ -1,14 +1,14 @@
 .ct-popup {
-  --popup-bg: #111216;
-  --popup-surface: #181a20;
-  --popup-hover: #20232b;
-  --popup-border: #2a2d36;
-  --popup-text: #d1d3d9;
-  --popup-strong: #f2f3f5;
-  --popup-muted: #9297a3;
-  --popup-accent: #8b7cf6;
-  --popup-accent-soft: rgb(139 124 246 / 16%);
-  --popup-success: #57c58a;
+  --popup-bg: #0f1115;
+  --popup-surface: #15181d;
+  --popup-hover: #1c2027;
+  --popup-border: #292e36;
+  --popup-text: #cbd1d8;
+  --popup-strong: #f4f6f8;
+  --popup-muted: #87919d;
+  --popup-accent: #e3e6ea;
+  --popup-accent-soft: rgb(227 230 234 / 11%);
+  --popup-success: #d5d9de;
   --popup-warning: #e2a84a;
 
   width: 320px;
@@ -20,16 +20,16 @@
 
 .ct-popup[data-theme='light'] {
   --popup-bg: #fff;
-  --popup-surface: #f7f7f9;
-  --popup-hover: #ededf2;
-  --popup-border: #dadce3;
-  --popup-text: #353842;
-  --popup-strong: #17181c;
-  --popup-muted: #69707d;
-  --popup-accent: #6757d9;
-  --popup-accent-soft: rgb(103 87 217 / 11%);
-  --popup-success: #237a4b;
-  --popup-warning: #9a6400;
+  --popup-surface: #f6f8fa;
+  --popup-hover: #eef2f6;
+  --popup-border: #d7dde5;
+  --popup-text: #38414c;
+  --popup-strong: #14181f;
+  --popup-muted: #667281;
+  --popup-accent: #252a31;
+  --popup-accent-soft: rgb(15 17 21 / 8%);
+  --popup-success: #343a42;
+  --popup-warning: #9a5b00;
 }
 
 .ct-popup *,
@@ -55,19 +55,13 @@
 }
 
 .ct-popup__logo {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  color: var(--popup-accent);
-  background: var(--popup-accent-soft);
+  display: block;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  object-fit: contain;
   border: 1px solid color-mix(in srgb, var(--popup-accent) 30%, var(--popup-border));
-  border-radius: 8px;
-}
-
-.ct-popup__logo svg {
-  width: 17px;
-  height: 17px;
+  border-radius: 6px;
 }
 
 .ct-popup__header > div {
@@ -146,6 +140,14 @@
   border: 1px solid var(--popup-border);
   border-radius: 7px;
   cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.ct-popup-toggle:hover:not(:disabled) {
+  background: var(--popup-surface);
+  border-color: color-mix(in srgb, var(--popup-muted) 52%, var(--popup-border));
 }
 
 .ct-popup-toggle > span {

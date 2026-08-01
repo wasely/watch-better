@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 
 import {
+  isProviderStartUrl,
   isWebChatFrameBinding,
   isWebChatPageRequest,
   providerForHostname,
@@ -36,6 +37,33 @@ const waitForComposer = async (
   return null;
 };
 
+const startNewConversation = async (
+  definition: NonNullable<ReturnType<typeof providerForHostname>>,
+): Promise<HTMLElement> => {
+  if (!isProviderStartUrl(definition, location.href)) {
+    const control = firstVisible(definition.newConversationSelectors);
+    if (!control)
+      throw new Error(
+        `${definition.displayName} new-chat control is unavailable. Open it in a full tab and start a new chat.`,
+      );
+    control.click();
+  }
+
+  const deadline = Date.now() + COMPOSER_TIMEOUT_MS;
+  do {
+    const composer = firstVisible(definition.composerSelectors);
+    if (
+      composer &&
+      composerText(composer) === '' &&
+      (isProviderStartUrl(definition, location.href) ||
+        responseTexts(definition).length === 0)
+    )
+      return composer;
+    await delay(POLL_INTERVAL_MS);
+  } while (Date.now() < deadline);
+  throw new Error(`${definition.displayName} did not open a clean conversation.`);
+};
+
 export default defineContentScript({
   matches: ['https://chatgpt.com/*', 'https://gemini.google.com/*'],
   allFrames: true,
@@ -68,7 +96,7 @@ export default defineContentScript({
     ): Promise<WebChatPageResponse | undefined> => {
       if (!isWebChatPageRequest(message)) return undefined;
 
-      const composer = await waitForComposer(
+      let composer = await waitForComposer(
         definition.composerSelectors,
         message.type === 'watchbetter:webchat-page-status'
           ? 1_500
@@ -101,6 +129,7 @@ export default defineContentScript({
 
       activeSend = true;
       try {
+        if (message.newConversation) composer = await startNewConversation(definition);
         const baseline = responseTexts(definition);
         const baselineLast = baseline.at(-1) ?? '';
         fillComposer(composer, message.message);

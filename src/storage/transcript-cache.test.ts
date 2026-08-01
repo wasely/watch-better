@@ -11,6 +11,11 @@ const session = vi.hoisted(() => {
       Object.assign(session.values, next);
       return Promise.resolve();
     }),
+    remove: vi.fn((keys: string | readonly string[]) => {
+      for (const key of typeof keys === 'string' ? [keys] : keys)
+        delete session.values[key];
+      return Promise.resolve();
+    }),
   };
 });
 
@@ -35,6 +40,7 @@ describe('TranscriptCache', () => {
     for (const key of Object.keys(session.values)) delete session.values[key];
     session.get.mockClear();
     session.set.mockClear();
+    session.remove.mockClear();
   });
 
   it('keeps the default policy in memory only', async () => {
@@ -50,5 +56,20 @@ describe('TranscriptCache', () => {
     expect(session.set).toHaveBeenCalledOnce();
     cache.clearMemory();
     await expect(cache.get('video', 'en', 'session')).resolves.toEqual(transcript);
+  });
+
+  it('evicts the oldest session transcript after three documents', async () => {
+    const cache = new TranscriptCache();
+    for (const videoId of ['one', 'two', 'three', 'four'])
+      await cache.set(videoId, 'en', { ...transcript, videoId }, 'session');
+
+    const transcriptKeys = Object.keys(session.values).filter((key) =>
+      key.startsWith('watchbetter:transcript-cache:'),
+    );
+    expect(transcriptKeys).toHaveLength(3);
+    expect(transcriptKeys.some((key) => key.includes('one'))).toBe(false);
+    expect(session.remove).toHaveBeenCalledWith([
+      'watchbetter:transcript-cache:one:en',
+    ]);
   });
 });

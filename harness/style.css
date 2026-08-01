@@ -86,7 +86,7 @@ select {
 
 .harness-controls input[type='range'] {
   width: 120px;
-  accent-color: #8b7cf6;
+  accent-color: #2563eb;
 }
 
 .harness-controls .harness-check {
@@ -99,10 +99,12 @@ select {
 }
 
 .harness-check input {
-  accent-color: #8b7cf6;
+  accent-color: #2563eb;
 }
 
 .harness-stage {
+  --harness-player-height: 460px;
+
   display: grid;
   min-width: 980px;
   grid-template-columns: minmax(520px, 1fr) auto;
@@ -115,7 +117,7 @@ select {
   position: sticky;
   top: 80px;
   overflow: hidden;
-  min-height: 460px;
+  height: var(--harness-player-height);
   color: #9297a3;
   background: #09090b;
   border: 1px solid #2b2b30;
@@ -156,6 +158,8 @@ select {
 }
 
 .harness-column {
+  --watchbetter-player-height: var(--harness-player-height);
+
   display: grid;
   min-width: 320px;
   gap: 12px;

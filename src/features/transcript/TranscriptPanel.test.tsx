@@ -96,10 +96,10 @@ describe('TranscriptPanel', () => {
     const input = screen.getByRole('searchbox', { name: 'Search transcript' });
     await user.type(input, 'evidence');
 
-    expect(screen.getByRole('button', { name: 'Resume follow' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
+    expect(screen.queryByRole('button', { name: 'Following' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Resume follow' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText(/1\/\d+/)).toBeInTheDocument();
     expect(document.querySelectorAll('mark').length).toBeGreaterThan(1);
 
@@ -115,10 +115,10 @@ describe('TranscriptPanel', () => {
       copiedValues.push(text);
       return Promise.resolve();
     });
-    const onAskSelection = vi.fn();
+    const onSendToAI = vi.fn();
     const { container } = render(
       <TranscriptPanel
-        onAskSelection={onAskSelection}
+        onSendToAI={onSendToAI}
         onCopy={onCopy}
         state={readyTranscriptState()}
       />,
@@ -158,10 +158,10 @@ describe('TranscriptPanel', () => {
     );
 
     fireEvent.click(ask);
-    expect(onAskSelection.mock.calls[0]?.[0]).toHaveProperty('size', 4);
+    expect(onSendToAI.mock.calls[0]?.[0]).toHaveProperty('size', 4);
   });
 
-  it('copies every available caption from the Get Captions action', async () => {
+  it('copies the full transcript from the toolbar', async () => {
     const copiedValues: string[] = [];
     render(
       <TranscriptPanel
@@ -177,7 +177,7 @@ describe('TranscriptPanel', () => {
     const finalText = tutorialTranscript.segments.at(-1)?.text;
     if (!firstText || !finalText) throw new Error('Caption fixture is incomplete.');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Get Captions' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy transcript' }));
 
     await waitFor(() => expect(copiedValues).toHaveLength(1));
     expect(copiedValues[0]).toContain(tutorialTranscript.videoTitle);
@@ -186,49 +186,29 @@ describe('TranscriptPanel', () => {
     );
     expect(copiedValues[0]).toContain(firstText);
     expect(copiedValues[0]).toContain(finalText);
-    expect(screen.getByText('Captions copied to clipboard.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Full transcript copied to clipboard.'),
+    ).toBeInTheDocument();
   });
 
-  it('starts a full-transcript chat from the visible Ask button', async () => {
-    const user = userEvent.setup();
-    const onAskTranscript = vi.fn();
+  it('keeps copy separate and sends the full transcript only from Send to AI', async () => {
+    const onCopy = vi.fn(() => Promise.resolve());
+    const onSendToAI = vi.fn();
     render(
       <TranscriptPanel
-        onAskTranscript={onAskTranscript}
+        onCopy={onCopy}
+        onSendToAI={onSendToAI}
         state={readyTranscriptState()}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Ask' }));
-    expect(onAskTranscript).toHaveBeenCalledOnce();
-  });
+    fireEvent.click(screen.getByRole('button', { name: 'Copy transcript' }));
+    await waitFor(() => expect(onCopy).toHaveBeenCalledOnce());
+    expect(onSendToAI).not.toHaveBeenCalled();
 
-  it('suspends and explicitly resumes playback following', async () => {
-    const user = userEvent.setup();
-    const onFollowChange = vi.fn();
-    const active = tutorialTranscript.segments[3];
-    if (!active) throw new Error('Fixture segment missing.');
-    render(
-      <TranscriptPanel
-        activeSegmentId={active.id}
-        onFollowChange={onFollowChange}
-        state={readyTranscriptState()}
-      />,
-    );
-
-    const list = screen.getByRole('list');
-    fireEvent.wheel(list);
-    expect(screen.getByRole('button', { name: 'Resume follow' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Resume follow' }));
-    expect(screen.getByRole('button', { name: 'Following' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    expect(onFollowChange).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Send to AI' }));
+    expect(onSendToAI).toHaveBeenCalledOnce();
+    expect(onSendToAI.mock.calls[0]?.[0]).toHaveProperty('size', 0);
   });
 
   it('keeps the two-hour fixture searchable and rendered as one accessible list', () => {
