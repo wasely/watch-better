@@ -205,14 +205,16 @@ describe('WatchBetterRuntime integration', () => {
     expect(playback.snapshot.currentTimeSeconds).toBe(8);
 
     fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
-    await waitFor(() =>
-      expect(browserState.sendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'webchat:send',
-          provider: 'chatgpt',
-          newConversation: true,
-        }),
-      ),
+    await waitFor(
+      () =>
+        expect(browserState.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'webchat:send',
+            provider: 'chatgpt',
+            newConversation: true,
+          }),
+        ),
+      { timeout: 3_500 },
     );
     expect(JSON.stringify(browserState.sendMessage.mock.calls)).toContain(
       'TRANSCRIPT CONTEXT',
@@ -223,7 +225,7 @@ describe('WatchBetterRuntime integration', () => {
     );
     expect(await screen.findByText('Ready for questions.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Open ChatGPT/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Open full tab/ }));
     await waitFor(() =>
       expect(browserState.sendMessage).toHaveBeenCalledWith({
         type: 'webchat:open',

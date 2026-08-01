@@ -194,9 +194,11 @@ export function WatchBetterRuntime({
     };
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', onVisibilityChange);
+    const interval = window.setInterval(refresh, 2_000);
     refresh();
     return () => {
       disposed = true;
+      window.clearInterval(interval);
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
@@ -402,6 +404,18 @@ export function WatchBetterRuntime({
         },
         onOpenWebChat: async (provider) => {
           const response = await send({ type: 'webchat:open', provider });
+          if (!response.ok) throw new Error(response.message);
+        },
+        onPrepareWebChat: async (provider, sessionId) => {
+          setProviderStatuses((current) => ({
+            ...current,
+            [provider]: { provider, state: 'loading' },
+          }));
+          const response = await send({
+            type: 'webchat:frame-prepare',
+            provider,
+            sessionId,
+          });
           if (!response.ok) throw new Error(response.message);
         },
       }}

@@ -99,8 +99,8 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: each context/suggestion builds bounded, timestamp-preserving prompts without network calls.
   - Verify: unit snapshot/behavior tests including huge transcripts.
   - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded.
-- [~] **MVP-051 · P0 — ChatGPT/Gemini web-session bridge**
-  - Acceptance: Transcript Ask primes the selected provider; follow-ups continue; no API key/cookie/token access; transmission is explicit and bounded; rendered answers return to WatchBetter.
+- [~] **MVP-051 · P0 — Embedded ChatGPT/Gemini bridge**
+  - Acceptance: the live provider page renders inside Ask; Transcript Ask primes its exact frame; follow-ups continue; no API key/cookie/token access; transmission is explicit and bounded.
   - Verify: service/DOM/component/runtime/message tests, manifest/source audit, live signed-in provider checks.
   - Status: Automated contract, DOM, chaining, priming, permission, and no-credential audits pass; live ChatGPT/Gemini checks pending.
 
@@ -136,7 +136,7 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 - [x] **MVP-073 · P0 · PRD-053 — Full canonical validation**
   - Acceptance: clean install plus format/lint/type/tests/build/zip all pass with no critical/high defects.
   - Verify: exact commands and results in `STATUS.md`.
-  - Status: Verified 2026-07-30; clean install baseline, format, lint, strict typecheck, 93 tests, coverage, build, and zip pass with no high automated defect.
+  - Status: Clean install baseline verified 2026-07-30; format, lint, strict typecheck, 99 tests, coverage, build, and zip revalidated 2026-07-31 with no high automated defect.
 - [~] **MVP-074 · P0 · PRD-001–PRD-053 — Production extension smoke test**
   - Acceptance: unpacked production build satisfies live YouTube Definition of Done checks; any unavailable manual verification is explicitly blocked, never implied.
   - Verify: Chrome unpacked/manual matrix and captured evidence.

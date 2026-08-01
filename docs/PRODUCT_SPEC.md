@@ -16,13 +16,16 @@ gaps without replacing YouTube's player or content.
 - Build bounded timestamped transcript prompts for entire video, current section,
   or selected rows.
 - Support ChatGPT and Gemini provider selection.
-- Open/reuse each official provider tab and use its signed-in web session.
+- Embed each official provider webpage inside the Ask tab and use its signed-in web
+  session.
 - Send only after an explicit Ask action; return rendered assistant text to the
   WatchBetter panel.
-- Start clean conversations and preserve follow-up continuity within each provider
-  tab.
-- Never store/copy provider credentials, call model APIs, or use iframe/header
-  bypasses.
+- Start clean conversations and preserve follow-up continuity within each embedded
+  provider frame.
+- Bind each provider load to a one-use session ID and route only to its verified
+  direct child frame in the originating YouTube tab.
+- Never store/copy provider credentials or call model APIs. Limit frame-header
+  changes to provider subframes initiated by YouTube.
 - Keep settings validated, messages allowlisted, and transcript caching memory-only
   by default.
 - Keep Jump Cut disabled by default and restore playback behavior on disable/error.
@@ -41,7 +44,7 @@ gaps without replacing YouTube's player or content.
 - No persistent transcripts, prompts, or conversations by default.
 - Optional transcript cache uses browser session storage with hard size/count bounds.
 - Host access limited to YouTube, ChatGPT, and Gemini.
-- No cookie, scripting, capture, clipboard, broad-host, or network-header permission.
+- No cookie, scripting, capture, clipboard, broad-host, or main-frame header changes.
 - Explain that submitted transcript context is handled under the selected provider's
   account and data policies.
 

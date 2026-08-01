@@ -13,7 +13,7 @@ Scale: likelihood (L/M/H), impact (L/M/H/Critical).
 | RSK-007 | WXT or test tooling incompatibility with Node 24/Windows causes non-reproducible builds.                                             |          M |        M | Pin versions/lockfile, clean `npm ci`, canonical scripts, CI-like local validation, document supported Node if downgrade required.             | Open      |
 | RSK-008 | Theme/host CSS and narrow layouts make a polished harness diverge from live YouTube.                                                 |          M |        H | Shadow root, owned pixel/token scale, real mount screenshots, dark/light/narrow/zoom matrix.                                                   | Open      |
 | RSK-009 | Browser clipboard/tab APIs behave differently outside direct user gestures.                                                          |          M |        H | Invoke from explicit handlers, service adapter tests, visible error/fallback, manual Chrome check.                                             | Open      |
-| RSK-010 | Background provider tabs can be throttled or a response can exceed the three-minute wait.                                            |          M |        H | Keep tab open, stable-response polling, explicit timeout, activate provider tab on failure so the answer remains recoverable.                  | Mitigated |
+| RSK-010 | Provider embedding or authentication can fail after CSP, frame-detection, or third-party-cookie changes.                             |          H |        H | YouTube-only subframe rules, visible live frame, normal-tab sign-in fallback, explicit status, and live provider release gate.                 | Open      |
 
 ## Five largest implementation risks
 

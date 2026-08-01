@@ -60,7 +60,16 @@ export interface AskPanelProps {
   readonly primeRequestId?: number;
   readonly onSendWebChat?: (request: ChatTurnRequest) => Promise<ChatTurnResult>;
   readonly onOpenWebChat?: (provider: WebChatProviderId) => void | Promise<void>;
+  readonly onPrepareWebChat?: (
+    provider: WebChatProviderId,
+    sessionId: string,
+  ) => void | Promise<void>;
 }
+
+const createFrameSessionId = (): string =>
+  typeof globalThis.crypto?.randomUUID === 'function'
+    ? globalThis.crypto.randomUUID()
+    : `frame-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const resolveScope = (
   scope: AIContextScope,
@@ -109,6 +118,7 @@ export function AskPanel({
   primeRequestId = 0,
   onSendWebChat,
   onOpenWebChat,
+  onPrepareWebChat,
 }: AskPanelProps) {
   const [scope, setScope] = useState<AIContextScope>(() =>
     resolveScope(initialScope, selectedSegmentIds.size, currentTimeSeconds),
@@ -118,9 +128,16 @@ export function AskPanel({
   const [previousResponseId, setPreviousResponseId] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] =
     useState<WebChatProviderId>('chatgpt');
+  const [frameEpoch, setFrameEpoch] = useState(0);
+  const [framePrepared, setFramePrepared] = useState(!onPrepareWebChat);
+  const [frameTimedOut, setFrameTimedOut] = useState(false);
+  const [framePreparationError, setFramePreparationError] = useState('');
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState('');
   const messagesRef = useRef<HTMLDivElement>(null);
+  const providerFrameRef = useRef<HTMLIFrameElement>(null);
+  const bindingTimersRef = useRef<readonly number[]>([]);
+  const prepareWebChatRef = useRef(onPrepareWebChat);
   const primeSeenRef = useRef(0);
   const resolvedScope = resolveScope(
     scope,
@@ -130,6 +147,76 @@ export function AskPanel({
   const providerDefinition = WEB_CHAT_PROVIDERS[selectedProvider];
   const providerStatus = providerStatuses[selectedProvider]?.state ?? 'not-open';
   const providerReady = providerStatus === 'ready';
+  const frameSessionId = useMemo(
+    () => `${selectedProvider}:${frameEpoch}:${createFrameSessionId()}`,
+    [frameEpoch, selectedProvider],
+  );
+
+  useEffect(() => {
+    prepareWebChatRef.current = onPrepareWebChat;
+  }, [onPrepareWebChat]);
+
+  useEffect(() => {
+    if (!prepareWebChatRef.current) {
+      setFramePrepared(true);
+      setFrameTimedOut(false);
+      setFramePreparationError('');
+      return;
+    }
+    let disposed = false;
+    setFramePrepared(false);
+    setFrameTimedOut(false);
+    setFramePreparationError('');
+    void Promise.resolve(prepareWebChatRef.current(selectedProvider, frameSessionId))
+      .then(() => {
+        if (!disposed) setFramePrepared(true);
+      })
+      .catch((error: unknown) => {
+        if (disposed) return;
+        setFramePreparationError(
+          error instanceof Error ? error.message : 'Could not prepare the AI frame.',
+        );
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [frameSessionId, selectedProvider]);
+
+  useEffect(() => {
+    if (
+      !framePrepared ||
+      providerStatus === 'ready' ||
+      providerStatus === 'sign-in-required'
+    )
+      return;
+    const timer = window.setTimeout(() => setFrameTimedOut(true), 20_000);
+    return () => window.clearTimeout(timer);
+  }, [framePrepared, providerStatus]);
+
+  useEffect(
+    () => () => {
+      for (const timer of bindingTimersRef.current) window.clearTimeout(timer);
+    },
+    [frameSessionId],
+  );
+
+  const bindProviderFrame = useCallback(() => {
+    for (const timer of bindingTimersRef.current) window.clearTimeout(timer);
+    const postBinding = () => {
+      providerFrameRef.current?.contentWindow?.postMessage(
+        {
+          type: 'watchbetter:webchat-frame-binding',
+          provider: selectedProvider,
+          sessionId: frameSessionId,
+        },
+        new URL(providerDefinition.url).origin,
+      );
+    };
+    postBinding();
+    bindingTimersRef.current = [100, 500, 1_500].map((delay) =>
+      window.setTimeout(postBinding, delay),
+    );
+  }, [frameSessionId, providerDefinition.url, selectedProvider]);
 
   useEffect(() => {
     messagesRef.current?.scrollTo?.({ top: messagesRef.current.scrollHeight });
@@ -160,7 +247,7 @@ export function AskPanel({
       const userId = messageId();
       const assistantId = messageId();
       setSending(true);
-      setFeedback(`Sending to your ${providerDefinition.displayName} web session…`);
+      setFeedback(`Sending to the embedded ${providerDefinition.displayName} window…`);
       setMessages((current) => [
         ...current,
         { id: userId, role: 'user', text: displayText },
@@ -211,12 +298,16 @@ export function AskPanel({
 
   useEffect(() => {
     if (primeRequestId <= 0 || primeSeenRef.current === primeRequestId) return;
+    if (!providerReady || !onSendWebChat) return;
     primeSeenRef.current = primeRequestId;
-    void sendQuestion(
-      PRIME_QUESTION,
-      'Use this transcript and get ready for questions.',
+    queueMicrotask(
+      () =>
+        void sendQuestion(
+          PRIME_QUESTION,
+          'Use this transcript and get ready for questions.',
+        ),
     );
-  }, [primeRequestId, sendQuestion]);
+  }, [onSendWebChat, primeRequestId, providerReady, sendQuestion]);
 
   const transcriptSummary = useMemo(
     () =>
@@ -231,6 +322,11 @@ export function AskPanel({
     [currentTimeSeconds, resolvedScope, selectedSegmentIds.size, transcript],
   );
 
+  const resetProviderFrame = (providerId: WebChatProviderId) => {
+    setFrameEpoch((current) => current + 1);
+    setFeedback(`${WEB_CHAT_PROVIDERS[providerId].displayName} frame reloading.`);
+  };
+
   if (!transcript) return <AskUnavailableState />;
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -242,6 +338,7 @@ export function AskPanel({
   };
 
   const newConversation = () => {
+    resetProviderFrame(selectedProvider);
     setMessages([]);
     setPreviousResponseId(null);
     setFeedback('New conversation. The next message will include transcript context.');
@@ -250,6 +347,7 @@ export function AskPanel({
   const selectProvider = (providerId: WebChatProviderId) => {
     if (providerId === selectedProvider || sending) return;
     setSelectedProvider(providerId);
+    resetProviderFrame(providerId);
     setMessages([]);
     setPreviousResponseId(null);
     setFeedback(
@@ -263,7 +361,7 @@ export function AskPanel({
         <div>
           <span className="ct-mode-badge">
             <Icon name="spark" />
-            {providerDefinition.displayName} web session
+            {providerDefinition.displayName} embedded
           </span>
           <strong>{transcript.videoTitle}</strong>
           <span>{transcriptSummary}</span>
@@ -296,14 +394,17 @@ export function AskPanel({
         ))}
       </div>
 
-      {!providerReady ? (
+      {providerStatus === 'sign-in-required' ||
+      providerStatus === 'not-open' ||
+      frameTimedOut ||
+      framePreparationError ? (
         <div className="ct-chat__setup" role="status">
           <Icon name="external" />
           <div>
             <strong>Connect {providerDefinition.displayName}</strong>
             <span>
-              Open the official site and sign in. WatchBetter uses that browser tab; no
-              API key, cookie access, or copied sign-in data.
+              The live site is embedded below. If its sign-in flow refuses the frame,
+              sign in once in a normal tab and return here.
             </span>
           </div>
           <button
@@ -311,7 +412,7 @@ export function AskPanel({
             onClick={() => void onOpenWebChat?.(selectedProvider)}
             type="button"
           >
-            Open {providerDefinition.displayName}
+            Open sign-in tab
           </button>
         </div>
       ) : null}
@@ -346,22 +447,45 @@ export function AskPanel({
       </fieldset>
 
       <div
-        aria-label={`${providerDefinition.displayName} conversation`}
-        aria-live="polite"
-        className="ct-chat__messages"
-        ref={messagesRef}
-        role="log"
+        className={`ct-provider-frame ct-provider-frame--${providerStatus}`}
+        data-testid="provider-frame"
       >
-        {messages.length === 0 ? (
-          <div className="ct-chat__welcome">
-            <Icon name="message" />
-            <strong>Ask anything about this video</strong>
-            <span>
-              Your first message includes bounded timestamped transcript context.
-            </span>
+        {framePrepared ? (
+          <iframe
+            allow="autoplay; camera; clipboard-read; clipboard-write; microphone"
+            key={frameSessionId}
+            onLoad={bindProviderFrame}
+            ref={providerFrameRef}
+            referrerPolicy="no-referrer"
+            src={providerDefinition.url}
+            title={`${providerDefinition.displayName} embedded chat`}
+          />
+        ) : null}
+        {framePreparationError ||
+        (!frameTimedOut &&
+          providerStatus !== 'ready' &&
+          providerStatus !== 'sign-in-required') ? (
+          <div className="ct-provider-frame__loading" role="status">
+            {framePreparationError ? null : <span aria-hidden="true" />}
+            <strong>
+              {framePreparationError
+                ? `${providerDefinition.displayName} frame unavailable`
+                : `Loading ${providerDefinition.displayName}…`}
+            </strong>
+            {framePreparationError ? <p>{framePreparationError}</p> : null}
           </div>
-        ) : (
-          messages.map((message) => (
+        ) : null}
+      </div>
+
+      {messages.length > 0 ? (
+        <div
+          aria-label={`${providerDefinition.displayName} WatchBetter transcript`}
+          aria-live="polite"
+          className="ct-chat__messages"
+          ref={messagesRef}
+          role="log"
+        >
+          {messages.map((message) => (
             <article
               className={`ct-chat-message ct-chat-message--${message.role}${message.pending ? ' is-pending' : ''}${message.error ? ' is-error' : ''}`}
               key={message.id}
@@ -371,9 +495,9 @@ export function AskPanel({
               </strong>
               <p>{message.text}</p>
             </article>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : null}
 
       <div aria-label="Suggested video questions" className="ct-chat__suggestions">
         {SUGGESTED_ASK_ACTIONS.slice(0, 4).map((action) => (
@@ -423,15 +547,15 @@ export function AskPanel({
         <span aria-live="polite">
           {feedback ||
             (providerReady
-              ? `Ready · ${providerDefinition.displayName} web`
-              : `${providerDefinition.displayName} not connected`)}
+              ? `Ready · ${providerDefinition.displayName} embedded`
+              : `${providerDefinition.displayName} frame loading`)}
         </span>
         <button
           className="ct-link-button"
           onClick={() => void onOpenWebChat?.(selectedProvider)}
           type="button"
         >
-          Open {providerDefinition.displayName} ↗
+          Open full tab ↗
         </button>
       </div>
     </div>

@@ -17,10 +17,40 @@ import {
   type WebChatPageResponse,
   type WebChatProviderDefinition,
   type WebChatProviderId,
+  type WebChatProviderStatus,
 } from '@/services/web-chat';
 
 const settingsCoordinator = new SettingsWriteCoordinator(new SettingsRepository());
-const WEB_CHAT_TAB_STORAGE_KEY = 'watchbetter:webchat-tabs:v1';
+const WEB_CHAT_FRAME_STORAGE_KEY = 'watchbetter:webchat-frames:v2';
+
+interface MessageSenderContext {
+  readonly frameId?: number | undefined;
+  readonly url?: string | undefined;
+  readonly tab?:
+    | {
+        readonly id?: number | undefined;
+        readonly url?: string | undefined;
+      }
+    | undefined;
+}
+
+interface EmbeddedFrameRecord {
+  readonly tabId: number;
+  readonly frameId: number;
+  readonly provider: WebChatProviderId;
+  readonly sessionId: string;
+}
+
+interface PendingFrameBinding {
+  readonly tabId: number;
+  readonly provider: WebChatProviderId;
+  readonly sessionId: string;
+}
+
+interface WebChatFrameRegistry {
+  readonly bindings: Record<string, PendingFrameBinding>;
+  readonly frames: Record<string, EmbeddedFrameRecord>;
+}
 
 const isSupportedWatchUrl = (url: string | undefined): boolean => {
   if (!url) return false;
@@ -66,28 +96,91 @@ const findProviderTab = async (provider: WebChatProviderDefinition) => {
   );
 };
 
-const loadConversationTabId = async (
-  providerId: WebChatProviderId,
-): Promise<number | null> => {
-  const stored = await browser.storage.session.get(WEB_CHAT_TAB_STORAGE_KEY);
-  const value = stored[WEB_CHAT_TAB_STORAGE_KEY];
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
-  const tabId = (value as Record<string, unknown>)[providerId];
-  return typeof tabId === 'number' ? tabId : null;
+const frameKey = (tabId: number, providerId: WebChatProviderId): string =>
+  `${tabId}:${providerId}`;
+
+const emptyFrameRegistry = (): WebChatFrameRegistry => ({
+  bindings: {},
+  frames: {},
+});
+
+const loadFrameRegistry = async (): Promise<WebChatFrameRegistry> => {
+  const stored = await browser.storage.session.get(WEB_CHAT_FRAME_STORAGE_KEY);
+  const value = stored[WEB_CHAT_FRAME_STORAGE_KEY];
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return emptyFrameRegistry();
+  const registry = value as Partial<WebChatFrameRegistry>;
+  return {
+    bindings:
+      typeof registry.bindings === 'object' && registry.bindings !== null
+        ? registry.bindings
+        : {},
+    frames:
+      typeof registry.frames === 'object' && registry.frames !== null
+        ? registry.frames
+        : {},
+  };
 };
 
-const saveConversationTabId = async (
-  providerId: WebChatProviderId,
-  tabId: number,
+let frameRegistryQueue = Promise.resolve();
+
+const mutateFrameRegistry = async (
+  mutate: (registry: WebChatFrameRegistry) => void,
 ): Promise<void> => {
-  const stored = await browser.storage.session.get(WEB_CHAT_TAB_STORAGE_KEY);
-  const current = stored[WEB_CHAT_TAB_STORAGE_KEY];
-  const tabs =
-    typeof current === 'object' && current !== null && !Array.isArray(current)
-      ? current
-      : {};
-  await browser.storage.session.set({
-    [WEB_CHAT_TAB_STORAGE_KEY]: { ...tabs, [providerId]: tabId },
+  const task = frameRegistryQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const registry = await loadFrameRegistry();
+      mutate(registry);
+      await browser.storage.session.set({ [WEB_CHAT_FRAME_STORAGE_KEY]: registry });
+    });
+  frameRegistryQueue = task;
+  await task;
+};
+
+const loadEmbeddedFrame = async (
+  tabId: number,
+  providerId: WebChatProviderId,
+): Promise<EmbeddedFrameRecord | null> => {
+  await frameRegistryQueue.catch(() => undefined);
+  const registry = await loadFrameRegistry();
+  const key = frameKey(tabId, providerId);
+  const binding = registry.bindings[key];
+  const frame = registry.frames[key];
+  return frame?.tabId === tabId &&
+    frame.provider === providerId &&
+    binding?.sessionId === frame.sessionId
+    ? frame
+    : null;
+};
+
+const prepareEmbeddedFrame = async (binding: PendingFrameBinding): Promise<void> => {
+  await mutateFrameRegistry((registry) => {
+    const key = frameKey(binding.tabId, binding.provider);
+    registry.bindings[key] = binding;
+    delete registry.frames[key];
+  });
+};
+
+const saveEmbeddedFrame = async (record: EmbeddedFrameRecord): Promise<boolean> => {
+  let saved = false;
+  await mutateFrameRegistry((registry) => {
+    const key = frameKey(record.tabId, record.provider);
+    if (registry.bindings[key]?.sessionId !== record.sessionId) return;
+    registry.frames[key] = record;
+    saved = true;
+  });
+  return saved;
+};
+
+const resetEmbeddedFrame = async (
+  tabId: number,
+  providerId: WebChatProviderId,
+): Promise<void> => {
+  await mutateFrameRegistry((registry) => {
+    const key = frameKey(tabId, providerId);
+    delete registry.bindings[key];
+    delete registry.frames[key];
   });
 };
 
@@ -107,150 +200,57 @@ const openProviderTab = async (
   return created.id;
 };
 
-const waitForTabComplete = async (tabId: number, timeout = 30_000): Promise<void> => {
-  const current = await browser.tabs.get(tabId).catch(() => null);
-  if (current?.status === 'complete') return;
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      browser.tabs.onUpdated.removeListener(onUpdated);
-      reject(new Error('The AI page took too long to load.'));
-    }, timeout);
-    const onUpdated = (
-      updatedTabId: number,
-      changeInfo: { readonly status?: string },
-    ) => {
-      if (updatedTabId !== tabId || changeInfo.status !== 'complete') return;
-      clearTimeout(timer);
-      browser.tabs.onUpdated.removeListener(onUpdated);
-      resolve();
-    };
-    browser.tabs.onUpdated.addListener(onUpdated);
-  });
-};
-
 const sendToProviderPage = async (
   tabId: number,
+  frameId: number,
   request: WebChatPageRequest,
 ): Promise<WebChatPageResponse | null> => {
   try {
-    return await browser.tabs.sendMessage(tabId, request);
+    return await browser.tabs.sendMessage(tabId, request, { frameId });
   } catch {
     return null;
   }
 };
 
-const sendToProviderPageWhenReady = async (
+const providerStatus = async (
+  providerId: WebChatProviderId,
   tabId: number,
-  request: WebChatPageRequest,
-  timeout = 10_000,
-): Promise<WebChatPageResponse | null> => {
-  const deadline = Date.now() + timeout;
-  do {
-    const response = await sendToProviderPage(tabId, request);
-    if (response) return response;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  } while (Date.now() < deadline);
-  return null;
-};
-
-const providerStatus = async (providerId: WebChatProviderId) => {
-  const provider = WEB_CHAT_PROVIDERS[providerId];
-  const tab = await findProviderTab(provider);
-  if (typeof tab?.id !== 'number')
-    return { provider: providerId, state: 'not-open' as const };
-  if (tab.status === 'loading')
-    return { provider: providerId, state: 'loading' as const };
-  const response = await sendToProviderPage(tab.id, {
+): Promise<WebChatProviderStatus> => {
+  const frame = await loadEmbeddedFrame(tabId, providerId);
+  if (!frame) return { provider: providerId, state: 'loading' };
+  const response = await sendToProviderPage(tabId, frame.frameId, {
     type: 'watchbetter:webchat-page-status',
   });
   return {
     provider: providerId,
-    state: response?.ok ? ('ready' as const) : ('sign-in-required' as const),
+    state: response?.ok ? 'ready' : 'sign-in-required',
   };
 };
 
 const sendWebChat = async (
   providerId: WebChatProviderId,
   message: string,
-  newConversation: boolean,
+  tabId: number,
 ): Promise<ExtensionResponse> => {
   const provider = WEB_CHAT_PROVIDERS[providerId];
-  let tabId: number;
-  if (newConversation) {
-    const availableTab = await findProviderTab(provider);
-    if (typeof availableTab?.id !== 'number') {
-      await openProviderTab(provider);
-      return {
-        ok: false,
-        type: 'error',
-        message: `${provider.displayName} opened. Sign in, then return to YouTube and send again.`,
-      };
-    }
-    const ready = await sendToProviderPageWhenReady(
-      availableTab.id,
-      { type: 'watchbetter:webchat-page-status' },
-      2_000,
-    );
-    if (!ready?.ok) {
-      await browser.tabs
-        .update(availableTab.id, { active: true })
-        .catch(() => undefined);
-      return {
-        ok: false,
-        type: 'error',
-        message: `Sign in to ${provider.displayName}, then return to YouTube and send again.`,
-      };
-    }
-    if (isProviderStartUrl(provider, availableTab.url)) tabId = availableTab.id;
-    else {
-      const created = await browser.tabs.create({
-        active: false,
-        url: provider.url,
-        windowId: availableTab.windowId,
-      });
-      if (typeof created.id !== 'number')
-        throw new Error(`Could not start a new ${provider.displayName} chat.`);
-      tabId = created.id;
-      await waitForTabComplete(tabId);
-    }
-    await saveConversationTabId(providerId, tabId);
-  } else {
-    const storedTabId = await loadConversationTabId(providerId);
-    if (storedTabId === null)
-      return {
-        ok: false,
-        type: 'error',
-        message: `${provider.displayName} lost the conversation tab. Start a new chat.`,
-      };
-    const storedTab = await browser.tabs.get(storedTabId).catch(() => null);
-    const storedProvider = (() => {
-      try {
-        return providerForHostname(new URL(storedTab?.url ?? '').hostname)?.id ?? null;
-      } catch {
-        return null;
-      }
-    })();
-    if (storedProvider !== providerId)
-      return {
-        ok: false,
-        type: 'error',
-        message: `${provider.displayName} lost the conversation tab. Start a new chat.`,
-      };
-    tabId = storedTabId;
-  }
-
-  const response = await sendToProviderPageWhenReady(tabId, {
+  const frame = await loadEmbeddedFrame(tabId, providerId);
+  if (!frame)
+    return {
+      ok: false,
+      type: 'error',
+      message: `${provider.displayName} is still loading inside WatchBetter.`,
+    };
+  const response = await sendToProviderPage(tabId, frame.frameId, {
     type: 'watchbetter:webchat-page-send',
     message,
   });
   if (!response?.ok) {
-    await browser.tabs.update(tabId, { active: true }).catch(() => undefined);
     return {
       ok: false,
       type: 'error',
       message:
         response?.message ??
-        `${provider.displayName} is not ready. Sign in, then try again.`,
+        `${provider.displayName} is not ready in the embedded window.`,
     };
   }
   if (response.type !== 'webchat-page:response')
@@ -268,7 +268,46 @@ const sendWebChat = async (
   };
 };
 
-const handleRequest = async (request: ExtensionRequest): Promise<ExtensionResponse> => {
+const youtubeSenderTabId = (sender: MessageSenderContext): number | null =>
+  typeof sender.tab?.id === 'number' && isSupportedWatchUrl(sender.tab.url)
+    ? sender.tab.id
+    : null;
+
+const registerEmbeddedFrame = async (
+  providerId: WebChatProviderId,
+  sessionId: string,
+  sender: MessageSenderContext,
+): Promise<boolean> => {
+  const tabId = youtubeSenderTabId(sender);
+  if (tabId === null || typeof sender.frameId !== 'number' || sender.frameId <= 0)
+    return false;
+  try {
+    if (providerForHostname(new URL(sender.url ?? '').hostname)?.id !== providerId)
+      return false;
+  } catch {
+    return false;
+  }
+  try {
+    const frame = await browser.webNavigation.getFrame({
+      tabId,
+      frameId: sender.frameId,
+    });
+    if (!frame || frame.parentFrameId !== 0) return false;
+  } catch {
+    return false;
+  }
+  return saveEmbeddedFrame({
+    tabId,
+    frameId: sender.frameId,
+    provider: providerId,
+    sessionId,
+  });
+};
+
+const handleRequest = async (
+  request: ExtensionRequest,
+  sender: MessageSenderContext,
+): Promise<ExtensionResponse> => {
   switch (request.type) {
     case 'runtime:get-status': {
       const settings = await settingsCoordinator.load();
@@ -314,14 +353,64 @@ const handleRequest = async (request: ExtensionRequest): Promise<ExtensionRespon
     case 'webchat:open':
       await openProviderTab(WEB_CHAT_PROVIDERS[request.provider]);
       return { ok: true, type: 'acknowledged' };
-    case 'webchat:get-status':
+    case 'webchat:frame-prepare': {
+      const tabId = youtubeSenderTabId(sender);
+      if (tabId === null || sender.frameId !== 0)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Provider frames can be prepared only from the YouTube panel.',
+        };
+      await prepareEmbeddedFrame({
+        tabId,
+        provider: request.provider,
+        sessionId: request.sessionId,
+      });
+      return { ok: true, type: 'acknowledged' };
+    }
+    case 'webchat:frame-ready':
+      return (await registerEmbeddedFrame(request.provider, request.sessionId, sender))
+        ? { ok: true, type: 'acknowledged' }
+        : {
+            ok: false,
+            type: 'error',
+            message: 'Rejected an untrusted embedded provider frame.',
+          };
+    case 'webchat:frame-reset': {
+      const tabId = youtubeSenderTabId(sender);
+      if (tabId === null || sender.frameId !== 0)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Frame reset is available only from the YouTube panel.',
+        };
+      await resetEmbeddedFrame(tabId, request.provider);
+      return { ok: true, type: 'acknowledged' };
+    }
+    case 'webchat:get-status': {
+      const tabId = youtubeSenderTabId(sender);
+      if (tabId === null)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Embedded provider status is available only on YouTube.',
+        };
       return {
         ok: true,
         type: 'webchat:status',
-        ...(await providerStatus(request.provider)),
+        ...(await providerStatus(request.provider, tabId)),
       };
-    case 'webchat:send':
-      return sendWebChat(request.provider, request.message, request.newConversation);
+    }
+    case 'webchat:send': {
+      const tabId = youtubeSenderTabId(sender);
+      if (tabId === null)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Embedded Ask is available only on YouTube.',
+        };
+      return sendWebChat(request.provider, request.message, tabId);
+    }
     case 'settings:open':
       await browser.runtime.openOptionsPage();
       return { ok: true, type: 'acknowledged' };
@@ -356,13 +445,15 @@ export default defineBackground(() => {
 
   // WebExtension onMessage listeners intentionally return a promise response.
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
-  browser.runtime.onMessage.addListener((message: unknown) => {
+  browser.runtime.onMessage.addListener((message: unknown, sender) => {
     if (!isExtensionRequest(message)) return undefined;
 
-    return handleRequest(message).catch((error: unknown): ExtensionResponse => ({
-      ok: false,
-      type: 'error',
-      message: error instanceof Error ? error.message : 'Unexpected extension error.',
-    }));
+    return handleRequest(message, sender).catch(
+      (error: unknown): ExtensionResponse => ({
+        ok: false,
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Unexpected extension error.',
+      }),
+    );
   });
 });

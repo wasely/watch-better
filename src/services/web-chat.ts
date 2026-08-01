@@ -19,6 +19,12 @@ export interface WebChatPageSendRequest {
 
 export type WebChatPageRequest = WebChatPageStatusRequest | WebChatPageSendRequest;
 
+export interface WebChatFrameBinding {
+  readonly type: 'watchbetter:webchat-frame-binding';
+  readonly provider: WebChatProviderId;
+  readonly sessionId: string;
+}
+
 export type WebChatPageResponse =
   | { readonly ok: true; readonly type: 'webchat-page:ready' }
   | {
@@ -45,6 +51,7 @@ export interface WebChatProviderDefinition {
 }
 
 export const MAX_WEB_CHAT_MESSAGE_CHARACTERS = 24_000;
+export const MAX_WEB_CHAT_SESSION_ID_CHARACTERS = 160;
 
 export const WEB_CHAT_PROVIDERS: Readonly<
   Record<WebChatProviderId, WebChatProviderDefinition>
@@ -104,6 +111,29 @@ export const WEB_CHAT_PROVIDERS: Readonly<
 
 export const isWebChatProviderId = (value: unknown): value is WebChatProviderId =>
   value === 'chatgpt' || value === 'gemini';
+
+export const isWebChatSessionId = (value: unknown): value is string =>
+  typeof value === 'string' &&
+  value.length > 0 &&
+  value.length <= MAX_WEB_CHAT_SESSION_ID_CHARACTERS &&
+  /^[a-zA-Z0-9._:-]+$/.test(value);
+
+export const isWebChatFrameBinding = (value: unknown): value is WebChatFrameBinding => {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as {
+    readonly type?: unknown;
+    readonly provider?: unknown;
+    readonly sessionId?: unknown;
+  };
+  return (
+    candidate.type === 'watchbetter:webchat-frame-binding' &&
+    isWebChatProviderId(candidate.provider) &&
+    isWebChatSessionId(candidate.sessionId) &&
+    Object.keys(candidate).every((key) =>
+      ['type', 'provider', 'sessionId'].includes(key),
+    )
+  );
+};
 
 export const isWebChatPageRequest = (value: unknown): value is WebChatPageRequest => {
   if (typeof value !== 'object' || value === null || !('type' in value)) return false;

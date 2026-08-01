@@ -8,9 +8,8 @@ caption-gap jump cutter beside the video.
 
 - Search, select, copy, and seek through available YouTube captions.
 - Ask ChatGPT or Google Gemini about bounded timestamped transcript context.
-- Use the AI provider account already signed in through the browser—no API key.
-- Keep multi-turn answers in WatchBetter while the matching provider tab performs
-  the request.
+- Use ChatGPT or Gemini as a live embedded webpage inside WatchBetter—no API key.
+- Keep multi-turn answers visible in both the provider window and WatchBetter.
 - Speed through or jump long caption gaps with conservative controls that are off
   by default.
 - Light/dark themes, keyboard navigation, responsive panel layouts, and a compact
@@ -19,16 +18,19 @@ caption-gap jump cutter beside the video.
 ## How Ask works
 
 1. In WatchBetter's **Ask** tab, choose ChatGPT or Gemini.
-2. Select **Open ChatGPT** or **Open Gemini** and sign in on the official site.
-3. Return to YouTube. WatchBetter detects the ready web session.
+2. WatchBetter loads the provider's real website directly inside the Ask tab.
+3. If embedded sign-in is refused, use **Open sign-in tab**, sign in normally, and
+   return to YouTube.
 4. Send a question. The first turn includes bounded timestamped transcript
    context; later turns continue in the same provider chat.
-5. WatchBetter reads the rendered answer from that provider tab and displays it in
-   the Ask panel.
+5. WatchBetter reads the rendered answer from that exact embedded frame and also
+   displays it in its compact transcript log.
 
 WatchBetter never reads browser cookies or tokens, stores an API key, calls a model
-API, strips iframe security headers, or sends analytics. Provider websites can
-change their interface without notice, so their DOM adapters may occasionally need
+API, or sends analytics. To show the two official sites inside YouTube, one static
+Chrome rule removes anti-frame headers only from ChatGPT/Gemini subframes initiated
+by YouTube. It does not modify top-level pages, other sites, requests, or account
+data. Provider interfaces can change without notice, so their adapters may need
 updates.
 
 ## Requirements
@@ -65,15 +67,17 @@ Generated browser output and archives are under `.output/`.
 
 ## Permissions
 
-| Permission or host  | Purpose                                                                                |
-| ------------------- | -------------------------------------------------------------------------------------- |
-| `storage`           | Save user settings and an optional session-only transcript cache.                      |
-| `youtube.com`       | Mount the panel and read captions exposed on the current watch page.                   |
-| `chatgpt.com`       | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
-| `gemini.google.com` | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
+| Permission or host      | Purpose                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `storage`               | Save settings, optional session transcripts, and embedded-frame routing IDs.           |
+| `declarativeNetRequest` | Permit only the scoped ChatGPT/Gemini subframe header rule needed for embedding.       |
+| `webNavigation`         | Verify a registered provider is the panel's direct child frame before routing prompts. |
+| `youtube.com`           | Mount the panel and read captions exposed on the current watch page.                   |
+| `chatgpt.com`           | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
+| `gemini.google.com`     | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
 
-No broad host match, cookie permission, scripting permission, header-rewrite rule,
-or remote executable code is included.
+No broad host match, cookie permission, scripting permission, top-level header
+rewrite, browsing-data access, or remote executable code is included.
 
 ## Privacy
 
@@ -96,5 +100,6 @@ ChatGPT and Gemini then apply their own account, retention, and usage policies.
 - Desktop YouTube watch pages only; no Shorts, live streams, or mobile support.
 - Available caption tracks only; no speech-to-text fallback.
 - ChatGPT/Gemini web UI automation can require maintenance after provider changes.
-- The provider tab must remain open during a request.
+- Some authentication flows refuse third-party frames; the full-tab sign-in fallback
+  remains available.
 - Jump Cut is experimental and disabled by default.

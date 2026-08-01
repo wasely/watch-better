@@ -155,6 +155,12 @@ const initialSkipFixtureId: SkipFixtureId =
     ? (requestedSkipFixture as SkipFixtureId)
     : 'off';
 const openShouldFail = harnessParams.get('open') === 'error';
+const providerFrameState =
+  harnessParams.get('frame') === 'loading'
+    ? ('loading' as const)
+    : openShouldFail
+      ? ('sign-in-required' as const)
+      : ('ready' as const);
 const initialCollapsed = harnessParams.get('collapsed') === '1';
 
 function NeighborCard() {
@@ -491,7 +497,7 @@ function Harness() {
                 providerStatuses: {
                   chatgpt: {
                     provider: 'chatgpt',
-                    state: openShouldFail ? 'sign-in-required' : 'ready',
+                    state: providerFrameState,
                   },
                   gemini: { provider: 'gemini', state: 'ready' },
                 },

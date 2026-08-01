@@ -25,15 +25,29 @@ describe('production privacy and permission audit', () => {
     expect(background).toContain('sendToProviderPage');
   });
 
-  it('requests storage plus only supported first-party web hosts', () => {
+  it('requests storage, scoped frame rules, and only supported hosts', () => {
     const config = read('wxt.config.ts');
-    expect(config).toContain("permissions: ['storage']");
+    expect(config).toContain(
+      "permissions: ['storage', 'declarativeNetRequest', 'webNavigation']",
+    );
     expect(config).toContain("'https://www.youtube.com/*'");
     expect(config).toContain("'https://chatgpt.com/*'");
     expect(config).toContain("'https://gemini.google.com/*'");
     expect(config).not.toContain('api.openai.com');
     expect(config).not.toMatch(
-      /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|declarativeNetRequest/,
+      /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|browsingData|webRequest/,
+    );
+  });
+
+  it('limits anti-frame header rules to provider subframes', () => {
+    const rules = read('public/rules/provider-frame-rules.json');
+    expect(rules).toContain('"chatgpt.com"');
+    expect(rules).toContain('"gemini.google.com"');
+    expect(rules).toContain('"initiatorDomains": ["youtube.com"]');
+    expect(rules).toContain('"sub_frame"');
+    expect(rules).not.toMatch(/<all_urls>|main_frame|api\.openai/);
+    expect(read('src/entrypoints/background.ts')).toContain(
+      'frame.parentFrameId !== 0',
     );
   });
 
@@ -41,6 +55,7 @@ describe('production privacy and permission audit', () => {
     const production = [
       'src/entrypoints/background.ts',
       'src/entrypoints/web-chat.content.ts',
+      'src/entrypoints/web-chat-frame-bypass.content.ts',
       'src/features/ask/AskPanel.tsx',
       'src/services/web-chat.ts',
     ]

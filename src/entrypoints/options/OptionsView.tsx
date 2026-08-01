@@ -212,7 +212,7 @@ export function OptionsView({
           <span>
             <strong>ChatGPT and Gemini</strong>
             <small>
-              Sign in on each official site. WatchBetter uses the matching browser tab
+              Sign in on each official site. WatchBetter embeds the matching live page
               for grounded questions.
             </small>
           </span>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -24,19 +24,58 @@ describe('AskPanel', () => {
 
     expect(screen.getByText('Connect ChatGPT')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Open ChatGPT' }));
+    expect(screen.getByTitle('ChatGPT embedded chat')).toHaveAttribute(
+      'src',
+      'https://chatgpt.com/',
+    );
+    await user.click(screen.getByRole('button', { name: 'Open sign-in tab' }));
     expect(onOpenWebChat).toHaveBeenCalledWith('chatgpt');
   });
 
   it('switches between ChatGPT and Gemini sessions', async () => {
     const user = userEvent.setup();
+    const onPrepareWebChat = vi.fn(() => Promise.resolve());
     render(
-      <AskPanel providerStatuses={readyStatuses} transcript={tutorialTranscript} />,
+      <AskPanel
+        onPrepareWebChat={onPrepareWebChat}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(onPrepareWebChat).toHaveBeenCalledWith('chatgpt', expect.any(String)),
+    );
+    const chatGptFrame = await screen.findByTitle<HTMLIFrameElement>(
+      'ChatGPT embedded chat',
+    );
+    const frameWindow = chatGptFrame.contentWindow;
+    if (!frameWindow) throw new Error('Expected an iframe window.');
+    const postMessage = vi.spyOn(frameWindow, 'postMessage');
+    fireEvent.load(chatGptFrame);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'watchbetter:webchat-frame-binding',
+        provider: 'chatgpt',
+      }),
+      'https://chatgpt.com',
     );
 
     await user.click(screen.getByRole('button', { name: /Gemini/ }));
-    expect(screen.getByText('Gemini web session')).toBeInTheDocument();
-    expect(screen.getByLabelText('Gemini conversation')).toBeInTheDocument();
+    expect(screen.getByText('Gemini embedded')).toBeInTheDocument();
+    expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
+      'src',
+      'https://gemini.google.com/app',
+    );
+    await waitFor(() =>
+      expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
+    );
+
+    const callsBeforeNewChat = onPrepareWebChat.mock.calls.length;
+    await user.click(screen.getByRole('button', { name: 'New chat' }));
+    await waitFor(() =>
+      expect(onPrepareWebChat.mock.calls.length).toBeGreaterThan(callsBeforeNewChat),
+    );
   });
 
   it('applies suggested questions and context', async () => {

@@ -34,6 +34,26 @@ describe('extension message validation', () => {
     );
     expect(
       isExtensionRequest({
+        type: 'webchat:frame-prepare',
+        provider: 'chatgpt',
+        sessionId: 'frame-123',
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:frame-ready',
+        provider: 'chatgpt',
+        sessionId: 'frame-123',
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionRequest({ type: 'webchat:frame-ready', provider: 'chatgpt' }),
+    ).toBe(false);
+    expect(
+      isExtensionRequest({ type: 'webchat:frame-reset', provider: 'gemini' }),
+    ).toBe(true);
+    expect(
+      isExtensionRequest({
         type: 'webchat:send',
         provider: 'chatgpt',
         message: 'Use the transcript.',

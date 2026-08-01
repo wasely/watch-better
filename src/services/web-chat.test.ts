@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   isProviderStartUrl,
+  isWebChatFrameBinding,
   isWebChatPageRequest,
   providerForHostname,
   WEB_CHAT_PROVIDERS,
@@ -59,6 +60,31 @@ describe('web chat provider contract', () => {
         type: 'watchbetter:webchat-page-send',
         message: 'Hello',
         cookie: 'secret',
+      }),
+    ).toBe(false);
+  });
+
+  it('accepts only bounded provider frame bindings', () => {
+    expect(
+      isWebChatFrameBinding({
+        type: 'watchbetter:webchat-frame-binding',
+        provider: 'gemini',
+        sessionId: 'frame-123',
+      }),
+    ).toBe(true);
+    expect(
+      isWebChatFrameBinding({
+        type: 'watchbetter:webchat-frame-binding',
+        provider: 'gemini',
+        sessionId: 'frame 123',
+      }),
+    ).toBe(false);
+    expect(
+      isWebChatFrameBinding({
+        type: 'watchbetter:webchat-frame-binding',
+        provider: 'gemini',
+        sessionId: 'frame-123',
+        token: 'hidden',
       }),
     ).toBe(false);
   });

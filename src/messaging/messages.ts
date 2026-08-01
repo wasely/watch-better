@@ -1,6 +1,7 @@
 import type { WatchBetterSettings } from '@/features/settings/settings';
 import {
   isWebChatProviderId,
+  isWebChatSessionId,
   MAX_WEB_CHAT_MESSAGE_CHARACTERS,
   type WebChatProviderId,
   type WebChatProviderStatus,
@@ -24,6 +25,17 @@ export type ExtensionRequest =
   | { readonly type: 'panel:restore' }
   | { readonly type: 'settings:open' }
   | { readonly type: 'webchat:open'; readonly provider: WebChatProviderId }
+  | {
+      readonly type: 'webchat:frame-prepare';
+      readonly provider: WebChatProviderId;
+      readonly sessionId: string;
+    }
+  | {
+      readonly type: 'webchat:frame-ready';
+      readonly provider: WebChatProviderId;
+      readonly sessionId: string;
+    }
+  | { readonly type: 'webchat:frame-reset'; readonly provider: WebChatProviderId }
   | { readonly type: 'webchat:get-status'; readonly provider: WebChatProviderId }
   | {
       readonly type: 'webchat:send';
@@ -103,6 +115,7 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     readonly provider?: unknown;
     readonly message?: unknown;
     readonly newConversation?: unknown;
+    readonly sessionId?: unknown;
   };
   const hasOnlyKeys = (...allowed: readonly string[]) =>
     Object.keys(candidate).every((key) => allowed.includes(key));
@@ -117,8 +130,16 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     case 'settings:update':
       return isSettingsPatch(candidate.changes) && hasOnlyKeys('type', 'changes');
     case 'webchat:open':
+    case 'webchat:frame-reset':
     case 'webchat:get-status':
       return isWebChatProviderId(candidate.provider) && hasOnlyKeys('type', 'provider');
+    case 'webchat:frame-prepare':
+    case 'webchat:frame-ready':
+      return (
+        isWebChatProviderId(candidate.provider) &&
+        isWebChatSessionId(candidate.sessionId) &&
+        hasOnlyKeys('type', 'provider', 'sessionId')
+      );
     case 'webchat:send':
       return (
         isWebChatProviderId(candidate.provider) &&

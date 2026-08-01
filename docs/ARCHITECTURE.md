@@ -8,8 +8,8 @@ WatchBetter is a WXT Manifest V3 extension with five production surfaces:
    watch pages.
 2. `WatchBetterRuntime.tsx` owns settings, transcript, playback, Ask, and jump-cut
    state.
-3. `background.ts` validates extension messages and routes work between YouTube
-   and provider tabs.
+3. `background.ts` validates extension messages and routes work to an exact provider
+   frame ID inside the originating YouTube tab.
 4. `web-chat.content.ts` runs only on ChatGPT and Gemini, using the rendered page
    composer and assistant response DOM.
 5. Popup/options surfaces expose status, restore, settings, and provider links.
@@ -23,18 +23,25 @@ accounts.
 YouTube captions -> normalized transcript -> bounded timestamped prompt
                                             |
                                             v
-Ask panel -> typed background message -> signed-in provider tab
+Ask panel -> typed background message -> embedded signed-in provider frame
                                             |
                                             v
-Ask panel <- typed rendered-text result <- provider content script
+Ask panel <- typed rendered-text result <- exact provider frame content script
 ```
 
 The first turn starts a clean provider conversation and includes bounded transcript
 context. Follow-up turns contain only the new question and continue in that provider
-tab. Switching providers or selecting **New chat** makes the next turn start clean.
+frame. Switching providers or selecting **New chat** makes the next turn start clean.
 
 No provider credential, cookie, token, or API key crosses this flow. No direct model
 API is called.
+
+Before mounting a provider URL, the YouTube panel creates a one-use frame session
+ID and registers it with the background worker. After load, the panel sends that
+binding into the iframe. The provider content script returns the same binding, and
+the background accepts it only when `webNavigation` confirms a direct child frame
+of the originating YouTube tab. Stale, nested, wrong-provider, and cross-tab frame
+registrations are rejected.
 
 ## Provider adapter
 
@@ -43,13 +50,14 @@ API is called.
 response extraction, and generation-state detection. `web-chat.content.ts` polls for
 a stable rendered answer with a three-minute timeout.
 
-The adapter is intentionally limited to:
+The iframe, frame-bypass script, and adapter are intentionally limited to:
 
 - `https://chatgpt.com/*`
 - `https://gemini.google.com/*`
 
-Provider UI changes can break selectors. Failures are explicit; WatchBetter opens
-the provider tab so the user can sign in or inspect the unfinished response.
+One static ruleset removes anti-frame response headers and frame-identifying fetch
+headers only when YouTube initiates a ChatGPT/Gemini subframe. Provider UI changes
+can break selectors. WatchBetter can open the provider in a normal tab for sign-in.
 
 ## YouTube lifecycle
 
@@ -63,7 +71,7 @@ The extension never deletes or reparents YouTube or third-party content.
 - Local: validated WatchBetter settings only.
 - Memory: default transcript cache and current Ask UI state.
 - Session storage: optional bounded transcript cache (three documents; two million
-  serialized characters per document).
+  serialized characters per document) plus non-sensitive provider frame IDs.
 
 Version 2 settings use `watchbetter:settings:v2`. No conversations or provider
 secrets are stored.
@@ -76,6 +84,9 @@ Public extension requests are strict discriminated unions:
 - panel status/restore
 - settings update/open
 - `webchat:open`
+- `webchat:frame-prepare`
+- `webchat:frame-ready`
+- `webchat:frame-reset`
 - `webchat:get-status`
 - `webchat:send`
 
@@ -86,12 +97,14 @@ characters are rejected.
 ## Permissions
 
 - `storage` for typed settings and optional session cache.
+- `declarativeNetRequest` for YouTube-initiated provider subframes only.
+- `webNavigation` to verify registered provider frames are direct YouTube children.
 - YouTube host access for the panel and captions.
 - ChatGPT/Gemini host access for the user-initiated web-session bridge.
 
-There is no `tabs`, `cookies`, `scripting`, `tabCapture`, clipboard,
-`declarativeNetRequest`, broad-host, iframe-header bypass, or remote-code permission.
-Standard tab methods are used to open/query already-allowlisted provider pages.
+There is no requested `tabs`, `cookies`, `scripting`, `tabCapture`, clipboard,
+`browsingData`, broad-host, main-frame rewrite, or remote-code permission. Standard
+tab methods are used only for the explicit full-tab sign-in fallback.
 
 ## Jump-cut boundary
 

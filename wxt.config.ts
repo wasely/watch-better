@@ -7,7 +7,7 @@ export default defineConfig({
     name: 'WatchBetter',
     description:
       'Navigate YouTube transcripts, ask ChatGPT or Gemini, and conservatively jump caption gaps.',
-    permissions: ['storage'],
+    permissions: ['storage', 'declarativeNetRequest', 'webNavigation'],
     host_permissions: [
       'https://www.youtube.com/*',
       'https://chatgpt.com/*',
@@ -15,6 +15,15 @@ export default defineConfig({
     ],
     action: {
       default_title: 'WatchBetter',
+    },
+    declarative_net_request: {
+      rule_resources: [
+        {
+          id: 'provider_frame_rules',
+          enabled: true,
+          path: 'rules/provider-frame-rules.json',
+        },
+      ],
     },
   },
 });

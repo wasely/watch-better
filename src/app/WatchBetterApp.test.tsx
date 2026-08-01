@@ -26,7 +26,7 @@ describe('WatchBetterApp foundation shell', () => {
       'aria-selected',
       'true',
     );
-    expect(screen.getByText('ChatGPT web session')).toBeInTheDocument();
+    expect(screen.getByText('ChatGPT embedded')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Jump Cut' }));
     expect(screen.getByRole('tab', { name: 'Jump Cut' })).toHaveAttribute(

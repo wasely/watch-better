@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 
 import {
+  isWebChatFrameBinding,
   isWebChatPageRequest,
   providerForHostname,
   type WebChatPageResponse,
@@ -37,11 +38,30 @@ const waitForComposer = async (
 
 export default defineContentScript({
   matches: ['https://chatgpt.com/*', 'https://gemini.google.com/*'],
+  allFrames: true,
   runAt: 'document_idle',
   main() {
     const definition = providerForHostname(location.hostname);
     if (!definition) return;
     let activeSend = false;
+    let boundSessionId: string | null = null;
+
+    const announceReady = (sessionId: string) =>
+      browser.runtime
+        .sendMessage({
+          type: 'webchat:frame-ready',
+          provider: definition.id,
+          sessionId,
+        })
+        .catch(() => undefined);
+
+    const bindToYouTubePanel = (event: MessageEvent<unknown>) => {
+      if (event.origin !== 'https://www.youtube.com') return;
+      if (!isWebChatFrameBinding(event.data)) return;
+      if (event.data.provider !== definition.id) return;
+      boundSessionId = event.data.sessionId;
+      void announceReady(boundSessionId);
+    };
 
     const respond = async (
       message: unknown,
@@ -138,5 +158,9 @@ export default defineContentScript({
     // WebExtension message listeners may return a promise response.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     browser.runtime.onMessage.addListener(respond);
+    window.addEventListener('message', bindToYouTubePanel);
+    window.addEventListener('load', () => {
+      if (boundSessionId) void announceReady(boundSessionId);
+    });
   },
 });
