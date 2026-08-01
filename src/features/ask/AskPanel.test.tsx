@@ -12,27 +12,48 @@ const readyStatuses = {
 };
 
 describe('AskPanel', () => {
-  it('shows an honest unavailable state without transcript context', () => {
-    render(<AskPanel transcript={null} />);
-    expect(screen.getByText('Transcript context is required')).toBeInTheDocument();
-  });
+  it('shows the provider site without duplicating its composer', () => {
+    render(<AskPanel providerStatuses={readyStatuses} transcript={null} />);
 
-  it('connects through the selected provider website', async () => {
-    const user = userEvent.setup();
-    const onOpenWebChat = vi.fn();
-    render(<AskPanel onOpenWebChat={onOpenWebChat} transcript={tutorialTranscript} />);
-
-    expect(screen.getByText('Connect ChatGPT')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
     expect(screen.getByTitle('ChatGPT embedded chat')).toHaveAttribute(
       'src',
       'https://chatgpt.com/',
     );
-    await user.click(screen.getByRole('button', { name: 'Open sign-in tab' }));
+    expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New chat' })).not.toBeInTheDocument();
+  });
+
+  it('opens the selected provider in a full tab', async () => {
+    const user = userEvent.setup();
+    const onOpenWebChat = vi.fn();
+    render(
+      <AskPanel
+        onOpenWebChat={onOpenWebChat}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open ChatGPT in full tab' }));
     expect(onOpenWebChat).toHaveBeenCalledWith('chatgpt');
   });
 
-  it('switches between ChatGPT and Gemini sessions', async () => {
+  it('shows full-tab failures without adding more controls', async () => {
+    const user = userEvent.setup();
+    render(
+      <AskPanel
+        onOpenWebChat={() => Promise.reject(new Error('Tab opening failed.'))}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Open ChatGPT in full tab' }));
+    expect(await screen.findByText('Tab opening failed.')).toBeVisible();
+  });
+
+  it('switches provider frames and binds each prepared session', async () => {
     const user = userEvent.setup();
     const onPrepareWebChat = vi.fn(() => Promise.resolve());
     render(
@@ -62,7 +83,6 @@ describe('AskPanel', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /Gemini/ }));
-    expect(screen.getByText('Gemini embedded')).toBeInTheDocument();
     expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
       'src',
       'https://gemini.google.com/app',
@@ -70,81 +90,13 @@ describe('AskPanel', () => {
     await waitFor(() =>
       expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
     );
-
-    const callsBeforeNewChat = onPrepareWebChat.mock.calls.length;
-    await user.click(screen.getByRole('button', { name: 'New chat' }));
-    await waitFor(() =>
-      expect(onPrepareWebChat.mock.calls.length).toBeGreaterThan(callsBeforeNewChat),
-    );
   });
 
-  it('applies suggested questions and context', async () => {
-    const user = userEvent.setup();
-    render(
-      <AskPanel
-        currentTimeSeconds={144}
-        providerStatuses={readyStatuses}
-        transcript={tutorialTranscript}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Explain this section' }));
-    expect(screen.getByDisplayValue(/Explain this section/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Current section' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-  });
-
-  it('sends bounded transcript context once and chains later turns', async () => {
-    const user = userEvent.setup();
-    const onSend = vi
-      .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
-      .mockResolvedValueOnce({
-        text: 'First answer [00:12]',
-        responseId: 'web_chatgpt_first',
-        provider: 'chatgpt',
-      })
-      .mockResolvedValueOnce({
-        text: 'Second answer',
-        responseId: 'web_chatgpt_second',
-        provider: 'chatgpt',
-      });
-    render(
-      <AskPanel
-        onSendWebChat={onSend}
-        providerStatuses={readyStatuses}
-        transcript={tutorialTranscript}
-      />,
-    );
-
-    await user.type(
-      screen.getByLabelText('Ask about this video'),
-      'What is the thesis?',
-    );
-    await user.click(screen.getByRole('button', { name: 'Send' }));
-    await screen.findByText('First answer [00:12]');
-    expect(onSend.mock.calls[0]?.[0]).toMatchObject({
-      provider: 'chatgpt',
-      newConversation: true,
-    });
-    expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
-
-    await user.type(screen.getByLabelText('Ask about this video'), 'What evidence?');
-    await user.click(screen.getByRole('button', { name: 'Send' }));
-    await screen.findByText('Second answer');
-    expect(onSend.mock.calls[1]?.[0]).toEqual({
-      provider: 'chatgpt',
-      message: 'What evidence?',
-      newConversation: false,
-    });
-  });
-
-  it('primes the selected provider from the transcript Ask action', async () => {
+  it('primes the provider frame with transcript context once', async () => {
     const onSend = vi
       .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
       .mockResolvedValue({
-        text: 'Transcript loaded. Ask away.',
+        text: 'Transcript loaded.',
         responseId: 'web_chatgpt_prime',
         provider: 'chatgpt',
       });
@@ -158,44 +110,81 @@ describe('AskPanel', () => {
     );
 
     await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
+    expect(onSend.mock.calls[0]?.[0]).toMatchObject({
+      provider: 'chatgpt',
+      newConversation: true,
+    });
     expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
-    expect(
-      screen.getByText('Use this transcript and get ready for questions.'),
-    ).toBeInTheDocument();
-    expect(await screen.findByText('Transcript loaded. Ask away.')).toBeVisible();
+    expect(screen.queryByText('Transcript loaded.')).not.toBeInTheDocument();
   });
 
-  it('supports selected transcript context', async () => {
-    const user = userEvent.setup();
+  it('uses selected transcript rows when priming', async () => {
     const selected = new Set([
       tutorialTranscript.segments[2]?.id ?? '',
       tutorialTranscript.segments[3]?.id ?? '',
     ]);
+    const onSend = vi
+      .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
+      .mockResolvedValue({
+        text: 'Ready.',
+        responseId: 'web_chatgpt_selected',
+        provider: 'chatgpt',
+      });
     render(
       <AskPanel
+        onSendWebChat={onSend}
+        primeRequestId={1}
         providerStatuses={readyStatuses}
         selectedSegmentIds={selected}
         transcript={tutorialTranscript}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Selected (2)' }));
-    expect(screen.getByText('2 selected rows')).toBeInTheDocument();
+    await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
+    expect(onSend.mock.calls[0]?.[0].message).toContain('Selected transcript rows');
   });
 
-  it('shows provider failures in the conversation', async () => {
-    const user = userEvent.setup();
+  it('waits for the exact provider frame before priming', async () => {
+    const onSend = vi
+      .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
+      .mockResolvedValue({
+        text: 'Ready.',
+        responseId: 'web_chatgpt_wait',
+        provider: 'chatgpt',
+      });
+    const { rerender } = render(
+      <AskPanel
+        onSendWebChat={onSend}
+        primeRequestId={1}
+        providerStatuses={{
+          chatgpt: { provider: 'chatgpt', state: 'loading' },
+        }}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    expect(onSend).not.toHaveBeenCalled();
+    rerender(
+      <AskPanel
+        onSendWebChat={onSend}
+        primeRequestId={1}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+    await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
+  });
+
+  it('keeps frame preparation errors inside the frame area', async () => {
     render(
       <AskPanel
-        onSendWebChat={() => Promise.reject(new Error('ChatGPT sign-in required.'))}
+        onPrepareWebChat={() => Promise.reject(new Error('Binding failed.'))}
         providerStatuses={readyStatuses}
         transcript={tutorialTranscript}
       />,
     );
 
-    await user.type(screen.getByLabelText('Ask about this video'), 'Summarize.');
-    await user.click(screen.getByRole('button', { name: 'Send' }));
-    expect(await screen.findByText('ChatGPT sign-in required.')).toBeVisible();
-    expect(screen.getByText('Message failed')).toBeVisible();
+    expect(await screen.findByText('ChatGPT frame unavailable')).toBeVisible();
+    expect(screen.getByText('Binding failed.')).toBeVisible();
   });
 });

@@ -223,9 +223,10 @@ describe('WatchBetterRuntime integration', () => {
       'aria-selected',
       'true',
     );
-    expect(await screen.findByText('Ready for questions.')).toBeInTheDocument();
+    expect(screen.getByTitle('ChatGPT embedded chat')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Open full tab/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open ChatGPT in full tab' }));
     await waitFor(() =>
       expect(browserState.sendMessage).toHaveBeenCalledWith({
         type: 'webchat:open',

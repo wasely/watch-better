@@ -23,15 +23,15 @@ accounts.
 YouTube captions -> normalized transcript -> bounded timestamped prompt
                                             |
                                             v
-Ask panel -> typed background message -> embedded signed-in provider frame
-                                            |
-                                            v
-Ask panel <- typed rendered-text result <- exact provider frame content script
+Transcript Ask -> typed background prompt -> embedded signed-in provider frame
+                                                 |
+                                                 v
+User follow-ups -> provider's own composer -> conversation stays in frame
 ```
 
-The first turn starts a clean provider conversation and includes bounded transcript
-context. Follow-up turns contain only the new question and continue in that provider
-frame. Switching providers or selecting **New chat** makes the next turn start clean.
+The transcript Ask action starts a clean provider conversation with bounded context.
+Follow-ups and new chats use the provider's own controls inside that frame. Switching
+providers loads that provider's separate frame session.
 
 No provider credential, cookie, token, or API key crosses this flow. No direct model
 API is called.

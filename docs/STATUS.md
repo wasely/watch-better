@@ -22,7 +22,8 @@ unpacked-extension smoke test remains the release gate.
   top-level pages and unrelated frames are unchanged.
 - Uses one-use frame session bindings plus direct-child `webNavigation`
   verification before routing provider status or prompt messages.
-- Sends a bounded transcript prompt only after the user submits an Ask request.
+- Sends a bounded transcript prompt only after the user clicks Transcript Ask;
+  follow-ups use the embedded provider's own composer.
 - Retains transcript navigation, search, selection, seek, SPA lifecycle handling,
   and conservative transcript-gap Jump Cut.
 - Keeps memory-only transcript handling by default, with bounded session caching as

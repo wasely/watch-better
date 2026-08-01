@@ -155,6 +155,7 @@ const initialSkipFixtureId: SkipFixtureId =
     ? (requestedSkipFixture as SkipFixtureId)
     : 'off';
 const openShouldFail = harnessParams.get('open') === 'error';
+const frameShouldFail = harnessParams.get('frame') === 'error';
 const providerFrameState =
   harnessParams.get('frame') === 'loading'
     ? ('loading' as const)
@@ -242,17 +243,6 @@ function Harness() {
       ),
     [scenario, transcriptState],
   );
-  const askInitialQuestion =
-    harnessParams.get('empty') === '1'
-      ? ''
-      : scenario === 'podcast'
-        ? 'Summarize this video with the strongest evidence and important caveats.'
-        : scenario === 'selected'
-          ? 'Explain why these selected sections matter and identify the evidence.'
-          : scenario === 'search'
-            ? 'Find where they discuss evidence and explain the surrounding context.'
-            : 'List the key ideas and cite the strongest timestamped evidence.';
-
   const remount = (nextCollapsed: boolean) => {
     setCollapsed(nextCollapsed);
     setInstance((value) => value + 1);
@@ -493,7 +483,6 @@ function Harness() {
                 selectedSegmentIds: askSelectedSegmentIds,
                 currentTimeSeconds: activeSegment?.startSeconds ?? null,
                 initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
-                initialQuestion: askInitialQuestion,
                 providerStatuses: {
                   chatgpt: {
                     provider: 'chatgpt',
@@ -510,6 +499,10 @@ function Harness() {
                 onOpenWebChat: () =>
                   openShouldFail
                     ? Promise.reject(new Error('Fixture tab failure.'))
+                    : Promise.resolve(),
+                onPrepareWebChat: () =>
+                  frameShouldFail
+                    ? Promise.reject(new Error('Fixture frame binding failure.'))
                     : Promise.resolve(),
               }}
               activeTab={panelTab}

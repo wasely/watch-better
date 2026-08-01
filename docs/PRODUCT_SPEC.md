@@ -18,8 +18,8 @@ gaps without replacing YouTube's player or content.
 - Support ChatGPT and Gemini provider selection.
 - Embed each official provider webpage inside the Ask tab and use its signed-in web
   session.
-- Send only after an explicit Ask action; return rendered assistant text to the
-  WatchBetter panel.
+- Send transcript context only after an explicit Ask action; keep the provider's
+  rendered conversation and controls visible inside the WatchBetter panel.
 - Start clean conversations and preserve follow-up continuity within each embedded
   provider frame.
 - Bind each provider load to a one-use session ID and route only to its verified
