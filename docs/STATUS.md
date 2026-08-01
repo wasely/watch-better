@@ -13,8 +13,8 @@ unpacked-extension smoke test remains the release gate.
 
 - Renamed the product, package, UI, storage keys, docs, and build archive to
   WatchBetter.
-- Added ChatGPT/Gemini selection, provider readiness states, new-chat/follow-up
-  handling, and rendered-answer return to the YouTube panel.
+- Added compact ChatGPT/Gemini selection and provider readiness states. The
+  embedded provider owns its composer, conversation history, and new-chat UI.
 - Embeds the selected official provider page and routes messages to its exact frame
   ID. Provider login remains in the browser; WatchBetter does not read cookies,
   tokens, passwords, or API keys.
@@ -33,14 +33,14 @@ unpacked-extension smoke test remains the release gate.
 
 - Canonical validation passed: Prettier, ESLint, strict TypeScript, 23 Vitest files /
   99 tests, and WXT production build.
-- Coverage: 63.39% statements / 66.29% lines overall; YouTube adapters 82.12%
-  statements / 90.10% lines; Ask 91.18% statements / 97.28% lines.
-- Build: `.output/chrome-mv3/`, 538.23 kB.
-- Package: `.output/watchbetter-0.1.0-chrome.zip`, 166.67 kB.
+- Coverage: 62.37% statements / 65.34% lines overall; YouTube adapters 82.12%
+  statements / 90.10% lines; Ask 90.12% statements / 98% lines.
+- Build: `.output/chrome-mv3/`, 529.6 kB.
+- Package: `.output/watchbetter-0.1.0-chrome.zip`, 164.65 kB.
 - Built manifest: `storage`, scoped `declarativeNetRequest`, direct-frame
   `webNavigation`, and exact YouTube, ChatGPT, and Gemini hosts.
 - Browser harness: real ChatGPT frame inspected at dark 320px and light 480px;
-  loading state inspected; measured zero horizontal overflow.
+  success/loading/error states inspected; measured zero horizontal overflow.
 - Production audit tests reject provider API endpoints, cookie access, credential
   handling, broad host access, and excess permissions.
 
