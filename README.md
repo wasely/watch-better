@@ -1,4 +1,4 @@
-# WatchBetter
+# Watch Better
 
 [![CI](https://github.com/wasely/watch-better/actions/workflows/ci.yml/badge.svg)](https://github.com/wasely/watch-better/actions/workflows/ci.yml)
 
@@ -6,8 +6,7 @@
   <img src="docs/assets/watchbetter-logo.png" alt="WatchBetter logo" width="180" />
 </p>
 
-WatchBetter is a Chrome extension for desktop YouTube watch pages. It adds a
-compact transcript navigator and transcript-grounded Ask panel beside the video.
+youtube analize and ask questions in real time 
 
 ## Features
 
