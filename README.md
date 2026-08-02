@@ -6,21 +6,35 @@
   <img src="docs/assets/watchbetter-logo.png" alt="Watch Better logo" width="160" />
 </p>
 
-Watch Better is a Chrome extension for navigating YouTube transcripts and asking
-ChatGPT, Gemini, or DeepSeek questions using timestamped video context.
+Watch Better is a Chrome extension for finding useful moments in YouTube videos and
+asking better questions about them. The transcript, timestamps, and your preferred AI
+stay beside the video, so you spend less time scrubbing, copying, and changing tabs.
 
-## Watch the demos
+## Live demos
 
-| Transcript workflow                                                                                                                   | Ask workflow                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| [![Play the Watch Better transcript demo](docs/assets/screenshots/transcript-panel-dark.webp)](docs/assets/demos/transcript-demo.mp4) | [![Play the Watch Better Ask demo](docs/assets/screenshots/ask-panel-light.webp)](docs/assets/demos/ask-demo.mp4) |
-| [Play transcript demo (MP4)](docs/assets/demos/transcript-demo.mp4)                                                                   | [Play Ask demo (MP4)](docs/assets/demos/ask-demo.mp4)                                                             |
+These demos play and loop directly on GitHub.
 
-### Gemini inside Watch Better
+### 1. Search and navigate the transcript
 
-| Full panel                                                                                       | YouTube context                                                                                |
-| ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| ![Gemini inside the dark Watch Better Ask panel](docs/assets/screenshots/gemini-panel-dark.webp) | ![Gemini panel beside a YouTube video](docs/assets/screenshots/gemini-panel-dark-context.webp) |
+![Live Watch Better transcript workflow](docs/assets/demos/transcript-demo.gif)
+
+### 2. Select context and send it to AI
+
+![Live Watch Better send-to-AI workflow](docs/assets/demos/ask-send-demo.gif)
+
+### 3. Continue with a grounded answer
+
+![Live Watch Better AI answer workflow](docs/assets/demos/ask-answer-demo.gif)
+
+## Screenshots
+
+| Light transcript panel                                                                         | Dark transcript panel                                                                            |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| ![Watch Better light transcript panel](docs/assets/screenshots/transcript-panel-light.webp)    | ![Watch Better dark transcript panel](docs/assets/screenshots/transcript-panel-dark.webp)        |
+| **ChatGPT inside Ask**                                                                         | **Gemini inside Ask**                                                                            |
+| ![ChatGPT beside a YouTube video](docs/assets/screenshots/ask-panel-light.webp)                | ![Gemini inside the dark Watch Better Ask panel](docs/assets/screenshots/gemini-panel-dark.webp) |
+| **Gemini with YouTube context**                                                                |                                                                                                  |
+| ![Gemini panel beside a YouTube video](docs/assets/screenshots/gemini-panel-dark-context.webp) |                                                                                                  |
 
 ## Features
 
@@ -32,6 +46,50 @@ ChatGPT, Gemini, or DeepSeek questions using timestamped video context.
 - Open DeepSeek in a normal tab because its security challenge blocks embedded pages.
 - Switch between light and dark themes, resize the panel, or collapse it to a launcher.
 - Configure transcript behavior, default tab, caching, and appearance from one settings page.
+
+## Why use Watch Better?
+
+Long videos often contain a few minutes you actually need. Watch Better helps you find
+those minutes, choose the exact context, and ask a focused question without turning the
+video into another tab-management job.
+
+| Task                   | Common manual workflow                       | Watch Better                                                         |
+| ---------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
+| Find the useful moment | Scrub the video or scan a long transcript    | Search timestamped rows and jump straight to the video moment        |
+| Prepare AI context     | Copy and clean a large transcript by hand    | Select exact rows or use the bounded full transcript                 |
+| Ask a provider         | Switch between YouTube and a separate AI tab | Keep ChatGPT or Gemini beside the video; use a prepared DeepSeek tab |
+| Connect AI             | Configure another service or API workflow    | Use your existing signed-in provider session; no API key             |
+| Control sharing        | Manually track what was pasted               | Nothing is sent until you choose **Send to AI**                      |
+
+### How it compares
+
+This is a workflow comparison, not a claim that one tool fits everybody.
+
+|                          | Watch Better                            | YouTube alone           | Glasp YouTube Summary              | NoteGPT                       |
+| ------------------------ | --------------------------------------- | ----------------------- | ---------------------------------- | ----------------------------- |
+| Main job                 | Find moments, select context, then ask  | Watch and read captions | Generate transcripts and summaries | Turn video links into notes   |
+| Works beside the video   | Yes                                     | Yes                     | Yes                                | Separate web workspace        |
+| Jump from transcript     | Yes                                     | Yes                     | Yes                                | Available in transcript tools |
+| Choose exact rows for AI | Yes                                     | No built-in AI handoff  | Not advertised                     | Not advertised                |
+| AI interface in panel    | ChatGPT and Gemini                      | No                      | Summary tools and AI integrations  | Built-in AI workspace         |
+| DeepSeek workflow        | Prepared prompt opens in a normal tab   | No                      | Not advertised                     | Not advertised                |
+| API key needed           | No—uses your signed-in provider session | No                      | No for the extension               | No for the web app            |
+
+“Not advertised” means we could not verify the feature on the product's public page;
+it does not mean the feature can never exist. Checked August 2026 using the official
+[YouTube transcript guide](https://support.google.com/youtube/answer/15930243),
+[Glasp YouTube Summary page](https://glasp.co/youtube-summary?lang=en), and
+[NoteGPT product overview](https://help.notegpt.io/what-is-notegpt).
+
+```mermaid
+flowchart LR
+    A[YouTube captions] --> B[Search or select moments]
+    B --> C[Choose Send to AI]
+    C --> D{Provider}
+    D --> E[ChatGPT in panel]
+    D --> F[Gemini in panel]
+    D --> G[DeepSeek in full tab]
+```
 
 ## How Ask works
 
@@ -115,12 +173,24 @@ See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
 ## Project map
 
-- `src/entrypoints/` — YouTube, background, popup, options, and provider entry points
-- `src/features/` — transcript, Ask, settings, and feature-domain UI
-- `src/services/web-chat*.ts` — provider allowlist and web-session adapters
-- `harness/` — isolated UI scenarios for testing and visual review
-- `docs/` — architecture, decisions, risks, release notes, and test documentation
-- `design-system/watchbetter/` — visual system source of truth
+```text
+watch-better/
+├── src/
+│   ├── entrypoints/       # YouTube, popup, settings, background, provider scripts
+│   ├── features/
+│   │   ├── transcript/    # Search, select, copy, and seek
+│   │   ├── ask/           # Provider choice and prompt flow
+│   │   ├── settings/      # User preferences
+│   │   └── skip/          # Disabled Jump Cut prototype
+│   ├── services/          # Clipboard and signed-in web-chat adapters
+│   ├── storage/           # Settings and bounded transcript cache
+│   └── components/        # Shared extension UI
+├── harness/               # Isolated UI scenarios
+├── docs/                  # Architecture, decisions, release notes, and media
+├── design-system/         # Visual system source of truth
+├── package.json           # Commands and dependencies
+└── wxt.config.ts          # Chrome extension configuration
+```
 
 ## Current limits
 
