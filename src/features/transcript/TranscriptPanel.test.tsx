@@ -75,6 +75,43 @@ describe('TranscriptPanel', () => {
     expect(onSeek).toHaveBeenCalledWith(active);
   });
 
+  it('keeps auto-follow scrolling inside the transcript list', () => {
+    const active = tutorialTranscript.segments[4];
+    if (!active) throw new Error('Fixture segment missing.');
+
+    const { container, rerender } = render(
+      <TranscriptPanel state={readyTranscriptState()} />,
+    );
+    const list = container.querySelector<HTMLElement>('.ct-transcript__list');
+    const row = container.querySelector<HTMLElement>(
+      `[data-segment-id="${active.id}"]`,
+    );
+    if (!list || !row) throw new Error('Transcript elements missing.');
+
+    Object.defineProperties(list, {
+      clientHeight: { configurable: true, value: 240 },
+      scrollHeight: { configurable: true, value: 1_200 },
+    });
+    Object.defineProperties(row, {
+      offsetHeight: { configurable: true, value: 48 },
+      offsetTop: { configurable: true, value: 560 },
+    });
+    const scrollTo = vi.fn(({ top }: ScrollToOptions) => {
+      list.scrollTop = top ?? 0;
+    });
+    Object.defineProperty(list, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    });
+
+    rerender(
+      <TranscriptPanel activeSegmentId={active.id} state={readyTranscriptState()} />,
+    );
+
+    expect(scrollTo).toHaveBeenCalledWith({ behavior: 'auto', top: 464 });
+    expect(list.scrollTop).toBe(464);
+  });
+
   it('moves row focus with transcript arrow keys', () => {
     render(<TranscriptPanel state={readyTranscriptState()} />);
     const rowButtons = Array.from(

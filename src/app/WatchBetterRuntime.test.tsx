@@ -127,6 +127,13 @@ const track: TranscriptTrack = {
   isAutomatic: false,
 };
 
+const spanishTrack: TranscriptTrack = {
+  id: 'es',
+  languageCode: 'es',
+  languageLabel: 'Español',
+  isAutomatic: false,
+};
+
 const documentFor = (videoId: string): TranscriptDocument => ({
   videoId,
   videoTitle: `Video ${videoId}`,
@@ -142,6 +149,20 @@ const documentFor = (videoId: string): TranscriptDocument => ({
       text: `First evidence for ${videoId}.`,
     },
     { id: `${videoId}-b`, startSeconds: 8, endSeconds: 10, text: 'Second idea.' },
+  ],
+});
+
+const spanishDocumentFor = (videoId: string): TranscriptDocument => ({
+  ...documentFor(videoId),
+  languageCode: spanishTrack.languageCode,
+  languageLabel: spanishTrack.languageLabel,
+  segments: [
+    {
+      id: `${videoId}-es-a`,
+      startSeconds: 0,
+      endSeconds: 2,
+      text: `Primera evidencia para ${videoId}.`,
+    },
   ],
 });
 
@@ -251,6 +272,42 @@ describe('WatchBetterRuntime integration', () => {
         type: 'webchat:open',
         provider: 'chatgpt',
       }),
+    );
+  });
+
+  it('loads the transcript selected from the language panel', async () => {
+    const pageController = new FakePageController();
+    const playback = new FakePlayback();
+    const load = vi.fn((request: { videoId: string; trackId?: string | null }) =>
+      Promise.resolve(
+        request.trackId === spanishTrack.id
+          ? spanishDocumentFor(request.videoId)
+          : documentFor(request.videoId),
+      ),
+    );
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track, spanishTrack])),
+      load,
+    };
+    render(
+      <WatchBetterRuntime
+        pageController={pageController}
+        playback={playback}
+        transcriptProvider={provider}
+      />,
+    );
+
+    await screen.findByText('First evidence for one.');
+    const language = screen.getByRole('combobox', {
+      name: 'Transcript language',
+    });
+    fireEvent.change(language, { target: { value: spanishTrack.id } });
+
+    await screen.findByText('Primera evidencia para one.');
+    expect(language).toHaveValue(spanishTrack.id);
+    expect(load).toHaveBeenLastCalledWith(
+      { videoId: 'one', trackId: spanishTrack.id },
+      expect.any(AbortSignal),
     );
   });
 

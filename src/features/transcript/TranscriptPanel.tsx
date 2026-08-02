@@ -120,6 +120,20 @@ const findSegmentElement = (
     (element) => element.dataset.segmentId === id,
   );
 
+const scrollSegmentWithinList = (
+  list: HTMLElement,
+  segment: HTMLElement,
+  behavior: ScrollBehavior,
+) => {
+  const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
+  const centeredTop =
+    segment.offsetTop - (list.clientHeight - segment.offsetHeight) / 2;
+  const top = Math.min(maxScrollTop, Math.max(0, centeredTop));
+
+  if (typeof list.scrollTo === 'function') list.scrollTo({ behavior, top });
+  else list.scrollTop = top;
+};
+
 function TranscriptReadyView({
   state,
   activeSegmentId = null,
@@ -156,10 +170,11 @@ function TranscriptReadyView({
 
   useEffect(() => {
     if (!following || !activeSegmentId) return;
-    const active = findSegmentElement(listRef.current, activeSegmentId);
-    if (!active) return;
+    const list = listRef.current;
+    const active = findSegmentElement(list, activeSegmentId);
+    if (!list || !active) return;
     ignoreScrollUntilRef.current = performance.now() + 500;
-    active.scrollIntoView({ block: 'center', behavior: 'auto' });
+    scrollSegmentWithinList(list, active, 'auto');
   }, [activeSegmentId, following]);
 
   const suspendFollow = () => {
@@ -175,9 +190,13 @@ function TranscriptReadyView({
     if (!segment) return;
 
     suspendFollow();
-    const row = findSegmentElement(listRef.current, segment.id);
-    row?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    row?.querySelector<HTMLElement>('[data-segment-seek]')?.focus();
+    const list = listRef.current;
+    const row = findSegmentElement(list, segment.id);
+    if (!list || !row) return;
+    scrollSegmentWithinList(list, row, 'smooth');
+    row
+      .querySelector<HTMLElement>('[data-segment-seek]')
+      ?.focus({ preventScroll: true });
   };
 
   const toggleSelection = (index: number, id: TranscriptSegmentId, range: boolean) => {
