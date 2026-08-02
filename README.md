@@ -1,40 +1,84 @@
 # Watch Better
 
-[![CI](https://github.com/wasely/watch-better/actions/workflows/ci.yml/badge.svg)](https://github.com/wasely/watch-better/actions/workflows/ci.yml)
-
 <p align="center">
   <img src="docs/assets/watchbetter-logo.png" alt="Watch Better logo" width="160" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/wasely/watch-better/releases/download/v0.1.0/watchbetter-0.1.0-chrome.zip"><img src="https://img.shields.io/badge/Download-v0.1.0-2563eb?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Watch Better" /></a>
+  <a href="https://discord.gg/dpx3RhJM9"><img src="https://img.shields.io/badge/Discord-Join-5865f2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Watch Better Discord" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge" alt="MIT License" /></a>
+  <a href="https://github.com/wasely/watch-better/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/wasely/watch-better/ci.yml?branch=main&style=for-the-badge&label=Build" alt="Build status" /></a>
 </p>
 
 Watch Better is a Chrome extension for finding useful moments in YouTube videos and
 asking better questions about them. The transcript, timestamps, and your preferred AI
 stay beside the video, so you spend less time scrubbing, copying, and changing tabs.
 
-## Live demos
+<p align="center">
+  <a href="#install-in-chrome">Install</a> ·
+  <a href="#see-it-work">See it work</a> ·
+  <a href="#how-it-compares">Compare</a> ·
+  <a href="#development">Build</a>
+</p>
+
+## Install in Chrome
+
+1. Download `watchbetter-0.1.0-chrome.zip` from the
+   [latest release](https://github.com/wasely/watch-better/releases/latest).
+2. Extract the ZIP somewhere you will keep it.
+3. Open `chrome://extensions` in Chrome.
+4. Turn on **Developer mode**.
+5. Choose **Load unpacked**, then select the extracted folder containing
+   `manifest.json`.
+6. Pin **Watch Better** and open a YouTube video with captions.
+
+Keep the extracted folder in place. Chrome needs it to run the extension.
+
+## See it work
 
 These demos play and loop directly on GitHub.
 
-### 1. Search and navigate the transcript
+### 1. Find the right moment
 
-![Live Watch Better transcript workflow](docs/assets/demos/transcript-demo.gif)
+Search the transcript, then select a timestamp to jump there.
 
-### 2. Select context and send it to AI
+<p align="center">
+  <img src="docs/assets/demos/transcript-demo.gif" alt="Search a YouTube transcript and jump to a timestamp" width="600" />
+</p>
 
-![Live Watch Better send-to-AI workflow](docs/assets/demos/ask-send-demo.gif)
+### 2. Send only the useful context
 
-### 3. Continue with a grounded answer
+Choose transcript rows and send them when you are ready.
 
-![Live Watch Better AI answer workflow](docs/assets/demos/ask-answer-demo.gif)
+<p align="center">
+  <img src="docs/assets/demos/ask-send-demo.gif" alt="Select transcript context and send it to AI" width="600" />
+</p>
 
-## Screenshots
+### 3. Ask beside the video
 
-| Light transcript panel                                                                         | Dark transcript panel                                                                            |
-| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| ![Watch Better light transcript panel](docs/assets/screenshots/transcript-panel-light.webp)    | ![Watch Better dark transcript panel](docs/assets/screenshots/transcript-panel-dark.webp)        |
-| **ChatGPT inside Ask**                                                                         | **Gemini inside Ask**                                                                            |
-| ![ChatGPT beside a YouTube video](docs/assets/screenshots/ask-panel-light.webp)                | ![Gemini inside the dark Watch Better Ask panel](docs/assets/screenshots/gemini-panel-dark.webp) |
-| **Gemini with YouTube context**                                                                |                                                                                                  |
-| ![Gemini panel beside a YouTube video](docs/assets/screenshots/gemini-panel-dark-context.webp) |                                                                                                  |
+Continue in ChatGPT or Gemini without losing the video.
+
+<p align="center">
+  <img src="docs/assets/demos/ask-answer-demo.gif" alt="Ask an AI provider beside a YouTube video" width="600" />
+</p>
+
+<details>
+<summary><strong>Still screenshots</strong></summary>
+
+### Transcript
+
+<p align="center">
+  <img src="docs/assets/screenshots/transcript-panel-dark.webp" alt="Watch Better transcript panel in dark mode" width="420" />
+</p>
+
+### ChatGPT inside Ask
+
+<p align="center">
+  <img src="docs/assets/screenshots/ask-panel-light.webp" alt="ChatGPT beside a YouTube video" width="420" />
+</p>
+
+</details>
 
 ## Features
 
@@ -102,22 +146,7 @@ flowchart LR
 ChatGPT and Gemini run inside Watch Better. DeepSeek opens in a full tab. Provider
 interfaces can change without notice, so their adapters may occasionally need updates.
 
-## Install in Chrome
-
-No programming or developer tools required.
-
-1. Open the [latest Watch Better release](https://github.com/wasely/watch-better/releases/latest).
-2. Download `watchbetter-0.1.0-chrome.zip`.
-3. Extract the ZIP to a folder you will keep.
-4. In Chrome, open `chrome://extensions`.
-5. Turn on **Developer mode** in the top-right corner.
-6. Choose **Load unpacked** and select the extracted folder containing `manifest.json`.
-7. Pin **Watch Better**, then open a YouTube video with captions.
-
-Chrome may remove the extension if you delete or move the extracted folder. Keep that
-folder in place after installation.
-
-### Build from source
+## Development
 
 Requires Node.js 22+ and npm 10+.
 
@@ -128,24 +157,17 @@ npm run build
 
 Load `.output/chrome-mv3/` from `chrome://extensions`.
 
-To create a distributable archive:
-
-```bash
-npm run zip
-```
-
-The ZIP is written to `.output/watchbetter-0.1.0-chrome.zip`.
-
-## Development
+Other useful commands:
 
 ```bash
 npm run dev
 npm run dev:harness
+npm run zip
 npm run validate
 ```
 
 `npm run validate` checks formatting, lint, TypeScript, all tests, and the
-production extension build.
+production extension build. `npm run zip` creates the install archive in `.output/`.
 
 ## Permissions
 
@@ -202,7 +224,8 @@ watch-better/
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Chrome Web Store preparation is tracked in
-[docs/CHROME_WEB_STORE.md](docs/CHROME_WEB_STORE.md).
+[docs/CHROME_WEB_STORE.md](docs/CHROME_WEB_STORE.md). For questions and feedback,
+[join the Watch Better Discord](https://discord.gg/dpx3RhJM9).
 
 ## License
 
