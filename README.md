@@ -11,9 +11,9 @@
   <a href="https://github.com/wasely/watch-better/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/wasely/watch-better/ci.yml?branch=main&style=for-the-badge&label=Build" alt="Build status" /></a>
 </p>
 
-Watch Better is a Chrome extension for finding useful moments in YouTube videos and
-asking better questions about them. The transcript, timestamps, and your preferred AI
-stay beside the video, so you spend less time scrubbing, copying, and changing tabs.
+Watch Better is a Chrome extension for searchable YouTube transcripts and AI video
+analysis. Find timestamped moments, select the useful context, and ask ChatGPT, Gemini,
+or DeepSeek without losing your place in the video.
 
 <p align="center">
   <a href="#install-in-chrome">Install</a> ·
@@ -39,15 +39,7 @@ Keep the extracted folder in place. Chrome needs it to run the extension.
 
 These demos play and loop directly on GitHub.
 
-### 1. Find the right moment
-
-Search the transcript, then select a timestamp to jump there.
-
-<p align="center">
-  <img src="docs/assets/demos/transcript-demo.gif" alt="Search a YouTube transcript and jump to a timestamp" width="600" />
-</p>
-
-### 2. Send only the useful context
+### 1. Send only the useful context
 
 Choose transcript rows and send them when you are ready.
 
@@ -55,7 +47,7 @@ Choose transcript rows and send them when you are ready.
   <img src="docs/assets/demos/ask-send-demo.gif" alt="Select transcript context and send it to AI" width="600" />
 </p>
 
-### 3. Ask beside the video
+### 2. Ask beside the video
 
 Continue in ChatGPT or Gemini without losing the video.
 
@@ -63,19 +55,17 @@ Continue in ChatGPT or Gemini without losing the video.
   <img src="docs/assets/demos/ask-answer-demo.gif" alt="Ask an AI provider beside a YouTube video" width="600" />
 </p>
 
-<details>
-<summary><strong>Still screenshots</strong></summary>
+## Preview
 
-### Transcript
+<p align="center">
+  <img src="docs/assets/screenshots/ask-panel-light.webp" alt="Watch Better running beside a YouTube video" width="680" />
+</p>
+
+<details>
+<summary><strong>See the transcript view</strong></summary>
 
 <p align="center">
   <img src="docs/assets/screenshots/transcript-panel-dark.webp" alt="Watch Better transcript panel in dark mode" width="420" />
-</p>
-
-### ChatGPT inside Ask
-
-<p align="center">
-  <img src="docs/assets/screenshots/ask-panel-light.webp" alt="ChatGPT beside a YouTube video" width="420" />
 </p>
 
 </details>
