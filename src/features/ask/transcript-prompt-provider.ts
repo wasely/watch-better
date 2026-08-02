@@ -244,7 +244,7 @@ const scopeLabel = (scope: AIContextRequest['scope']): string => {
 
 export class TranscriptPromptProvider implements AIProvider {
   public readonly id = 'chatgpt-handoff';
-  public readonly displayName = 'ChatGPT handoff';
+  public readonly displayName = 'AI transcript handoff';
   readonly #contextCharacterLimit: number;
 
   public constructor(contextCharacterLimit = DEFAULT_CONTEXT_CHARACTER_LIMIT) {

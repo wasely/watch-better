@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "A focused YouTube transcript and signed-in AI Ask companion.",
+  "license": "MIT",
   "scripts": {
     "dev": "wxt",
     "dev:harness": "vite --config harness/vite.config.ts",

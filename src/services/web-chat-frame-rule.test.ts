@@ -12,6 +12,7 @@ describe('embedded provider frame rules', () => {
   it.each([
     ['chatgpt', 'chatgpt.com'],
     ['gemini', 'gemini.google.com'],
+    ['deepseek', 'chat.deepseek.com'],
   ] as const)('limits %s to its exact provider subframe', (provider, hostname) => {
     const rule = buildFrameRule(73, provider);
 

@@ -14,6 +14,7 @@ import {
 const readyStatuses = {
   chatgpt: { provider: 'chatgpt' as const, state: 'ready' as const },
   gemini: { provider: 'gemini' as const, state: 'ready' as const },
+  deepseek: { provider: 'deepseek' as const, state: 'ready' as const },
 };
 
 describe('AskPanel', () => {
@@ -30,6 +31,7 @@ describe('AskPanel', () => {
 
     expect(onSend).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: /Gemini/ }));
+    await user.click(screen.getByRole('button', { name: /DeepSeek/ }));
     await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -115,6 +117,17 @@ describe('AskPanel', () => {
     );
     await waitFor(() =>
       expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
+    );
+
+    await user.click(screen.getByRole('button', { name: /DeepSeek/ }));
+    expect(screen.getByTitle('DeepSeek embedded chat')).toHaveAttribute(
+      'src',
+      expect.stringMatching(
+        /^https:\/\/chat\.deepseek\.com\/#watchbetter-frame=deepseek%3A/,
+      ),
+    );
+    await waitFor(() =>
+      expect(onPrepareWebChat).toHaveBeenCalledWith('deepseek', expect.any(String)),
     );
 
     await user.click(screen.getByRole('button', { name: /ChatGPT/ }));

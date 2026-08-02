@@ -330,6 +330,7 @@ function TranscriptReadyView({
             <span>Copy</span>
           </button>
           <button
+            aria-label="Send to AI"
             className="ct-send-button"
             disabled={!onSendToAI}
             onClick={() => onSendToAI?.(selectedIds)}
@@ -434,6 +435,7 @@ function TranscriptReadyView({
               Copy
             </button>
             <button
+              aria-label="Send selected transcript to AI"
               className="ct-selection-action ct-selection-action--primary"
               disabled={!onSendToAI}
               onClick={() => onSendToAI?.(selectedIds)}

@@ -140,6 +140,7 @@ export function WatchBetterApp({
   return (
     <div
       className="watchbetter-root"
+      data-collapsed={collapsed}
       data-theme={theme}
       data-transcript-font-size={transcriptFontSize}
       ref={rootRef}
@@ -152,19 +153,19 @@ export function WatchBetterApp({
           title={`Expand WatchBetter — ${status.label}`}
           type="button"
         >
-          <span className="ct-brand-mark" aria-hidden="true">
-            <BrandLogo />
+          <span className="ct-launcher__brand" aria-hidden="true">
+            <span className="ct-brand-mark">
+              <BrandLogo />
+            </span>
+            <span
+              className={`ct-launcher__status ct-launcher__status--${status.readiness}`}
+            />
           </span>
-          <span
-            aria-hidden="true"
-            className={`ct-launcher__status ct-launcher__status--${status.readiness}`}
-          >
-            {status.readiness === 'ready'
-              ? '✓'
-              : status.readiness === 'loading'
-                ? '…'
-                : '!'}
+          <span className="ct-launcher__copy">
+            <strong>Watch Better</strong>
+            <small>{status.label}</small>
           </span>
+          <Icon name="arrow-right" />
         </button>
       ) : null}
 

@@ -3,7 +3,7 @@
 Last updated: August 1, 2026
 
 WatchBetter is a browser extension that adds transcript navigation and an optional
-ChatGPT or Gemini workflow to desktop YouTube watch pages.
+ChatGPT, Gemini, or DeepSeek workflow to desktop YouTube watch pages.
 
 ## Data WatchBetter handles
 
@@ -12,7 +12,7 @@ timestamps, and the transcript rows you select. This processing happens locally 
 the browser.
 
 When you explicitly choose **Send to AI**, WatchBetter sends the selected transcript
-rows—or the full transcript when nothing is selected—to the ChatGPT or Gemini page
+rows—or the full transcript when nothing is selected—to the ChatGPT, Gemini, or DeepSeek page
 you selected. Opening the Ask tab loads that provider's website inside the panel.
 The provider may receive normal browser request and account-session information and
 applies its own privacy, retention, and account policies.
@@ -32,7 +32,7 @@ tokens, or API keys.
 
 ## Permissions
 
-WatchBetter requests access only to YouTube, ChatGPT, and Gemini pages used by its
+WatchBetter requests access only to YouTube, ChatGPT, Gemini, and DeepSeek pages used by its
 documented features. It uses Chrome storage for settings and session state,
 `declarativeNetRequest` for the selected provider subframe, and `webNavigation` to
 verify that prompt messages are routed only to the registered direct-child frame.
@@ -40,7 +40,7 @@ verify that prompt messages are routed only to the registered direct-child frame
 ## Retention and deletion
 
 Session data is cleared when the browser session ends. Uninstalling WatchBetter
-removes its extension storage through Chrome. Content sent to ChatGPT or Gemini is
+removes its extension storage through Chrome. Content sent to an AI provider is
 retained or deleted according to that provider's controls and policies.
 
 ## Questions

@@ -160,7 +160,7 @@ export function WatchBetterRuntime({
   useEffect(() => {
     let disposed = false;
     const refresh = () => {
-      for (const provider of ['chatgpt', 'gemini'] as const)
+      for (const provider of ['chatgpt', 'gemini', 'deepseek'] as const)
         void send({ type: 'webchat:get-status', provider }).then((response) => {
           if (disposed || !response.ok || response.type !== 'webchat:status') return;
           setProviderStatuses((current) => ({
@@ -329,7 +329,10 @@ export function WatchBetterRuntime({
       onCollapsedChange={(panelCollapsed) =>
         void patchSettings({ panelCollapsed }).catch(() => undefined)
       }
-      onOpenSettings={() => void send({ type: 'settings:open' })}
+      onOpenSettings={async () => {
+        const response = await send({ type: 'settings:open' });
+        if (!response.ok) throw new Error(response.message);
+      }}
       onTabChange={setActiveTab}
       theme={theme}
       transcriptFontSize={settings.transcriptFontSize}

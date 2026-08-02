@@ -51,6 +51,9 @@ describe('YouTube player size sync', () => {
 
     playerHeight = 405.5;
     onResize();
+    expect(host.style.getPropertyValue(PLAYER_HEIGHT_PROPERTY)).toBe('720px');
+
+    window.dispatchEvent(new Event('resize'));
     expect(host.style.getPropertyValue(PLAYER_HEIGHT_PROPERTY)).toBe('405.5px');
 
     sizeSync.dispose();

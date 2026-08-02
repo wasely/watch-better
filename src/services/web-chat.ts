@@ -1,4 +1,4 @@
-export type WebChatProviderId = 'chatgpt' | 'gemini';
+export type WebChatProviderId = 'chatgpt' | 'gemini' | 'deepseek';
 
 export type WebChatConnectionState =
   'ready' | 'not-open' | 'sign-in-required' | 'loading';
@@ -119,10 +119,27 @@ export const WEB_CHAT_PROVIDERS: Readonly<
       'a[href="/app"]',
     ],
   },
+  deepseek: {
+    id: 'deepseek',
+    displayName: 'DeepSeek',
+    url: 'https://chat.deepseek.com/',
+    tabPatterns: ['https://chat.deepseek.com/*'],
+    composerSelectors: [
+      'textarea[placeholder*="Message DeepSeek" i]',
+      'textarea[placeholder*="DeepSeek" i]',
+    ],
+    sendSelectors: [],
+    responseSelectors: ['.ds-message .ds-assistant-message-main-content'],
+    generatingSelectors: [
+      '[role="button"].ds-button--primary[aria-label*="Stop" i]',
+      '[role="button"][aria-label*="Stop generating" i]',
+    ],
+    newConversationSelectors: ['a[href="/"]'],
+  },
 });
 
 export const isWebChatProviderId = (value: unknown): value is WebChatProviderId =>
-  value === 'chatgpt' || value === 'gemini';
+  value === 'chatgpt' || value === 'gemini' || value === 'deepseek';
 
 export const isWebChatSessionId = (value: unknown): value is string =>
   typeof value === 'string' &&
@@ -174,6 +191,7 @@ export const providerForHostname = (
   const normalized = hostname.toLocaleLowerCase();
   if (normalized === 'chatgpt.com') return WEB_CHAT_PROVIDERS.chatgpt;
   if (normalized === 'gemini.google.com') return WEB_CHAT_PROVIDERS.gemini;
+  if (normalized === 'chat.deepseek.com') return WEB_CHAT_PROVIDERS.deepseek;
   return null;
 };
 
@@ -185,8 +203,9 @@ export const isProviderStartUrl = (
   try {
     const parsed = new URL(value);
     if (providerForHostname(parsed.hostname)?.id !== definition.id) return false;
-    if (definition.id === 'chatgpt') return parsed.pathname === '/';
-    return parsed.pathname === '/' || /^\/app\/?$/.test(parsed.pathname);
+    if (definition.id === 'gemini')
+      return parsed.pathname === '/' || /^\/app\/?$/.test(parsed.pathname);
+    return parsed.pathname === '/';
   } catch {
     return false;
   }

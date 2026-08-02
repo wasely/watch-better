@@ -17,7 +17,7 @@ import './AskPanel.css';
 
 const DEFAULT_PROMPT_PROVIDER = new TranscriptPromptProvider();
 const EMPTY_SELECTION = new Set<TranscriptSegmentId>();
-const PROVIDER_IDS = ['chatgpt', 'gemini'] as const;
+const PROVIDER_IDS = ['chatgpt', 'gemini', 'deepseek'] as const;
 const PRIME_QUESTION =
   'Use this transcript as the source of truth. Get ready to answer my questions about this video, cite useful timestamps, and say when the transcript does not establish an answer.';
 

@@ -33,6 +33,7 @@ describe('production privacy and permission audit', () => {
     expect(config).toContain("'https://www.youtube.com/*'");
     expect(config).toContain("'https://chatgpt.com/*'");
     expect(config).toContain("'https://gemini.google.com/*'");
+    expect(config).toContain("'https://chat.deepseek.com/*'");
     expect(config).not.toContain('api.openai.com');
     expect(config).not.toMatch(
       /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|browsingData|webRequest/,

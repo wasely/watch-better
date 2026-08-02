@@ -164,7 +164,7 @@ export function OptionsView({
         <h2 id="handoff-title">AI sessions and privacy</h2>
         <div className="ct-options-row">
           <span>
-            <strong>ChatGPT and Gemini</strong>
+            <strong>ChatGPT, Gemini, and DeepSeek</strong>
             <small>
               Sign in on each official site. WatchBetter embeds the matching live page
               for grounded questions.
@@ -186,6 +186,14 @@ export function OptionsView({
               type="button"
             >
               Open Gemini
+            </button>
+            <button
+              className="ct-button"
+              disabled={disabled || !onOpenWebChat}
+              onClick={() => onOpenWebChat?.('deepseek')}
+              type="button"
+            >
+              Open DeepSeek
             </button>
           </div>
         </div>
@@ -211,8 +219,8 @@ export function OptionsView({
         <p className="ct-options-privacy">
           WatchBetter stores no API keys, cookies, analytics, transcripts, or
           conversations permanently. Ask sends bounded transcript context only after an
-          explicit action, through the signed-in ChatGPT or Gemini website. Each
-          provider applies its own account, retention, and usage policies.
+          explicit action, through the signed-in ChatGPT, Gemini, or DeepSeek website.
+          Each provider applies its own account, retention, and usage policies.
         </p>
       </section>
 

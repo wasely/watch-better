@@ -10,7 +10,7 @@ WatchBetter is a WXT Manifest V3 extension with five production surfaces:
    state.
 3. `background.ts` validates extension messages and routes work to an exact provider
    frame ID inside the originating YouTube tab.
-4. `web-chat.content.ts` runs only on ChatGPT and Gemini, using the rendered page
+4. `web-chat.content.ts` runs only on ChatGPT, Gemini, and DeepSeek, using the rendered page
    composer and assistant response DOM.
 5. Popup/options surfaces expose status, restore, settings, and provider links.
 
@@ -104,7 +104,7 @@ characters are rejected.
 - `declarativeNetRequest` for YouTube-initiated provider subframes only.
 - `webNavigation` to verify registered provider frames are direct YouTube children.
 - YouTube host access for the panel and captions.
-- ChatGPT/Gemini host access for the user-initiated web-session bridge.
+- Exact ChatGPT/Gemini/DeepSeek host access for the user-initiated web-session bridge.
 
 There is no requested `tabs`, `cookies`, `scripting`, `tabCapture`, clipboard,
 `browsingData`, broad-host, main-frame rewrite, or remote-code permission. Standard
@@ -123,4 +123,4 @@ capture and Web Audio routing remain deliberately excluded.
 - Component: panel states/interactions, Ask providers, popup/options, accessibility.
 - Integration: YouTube lifecycle, stale-load aborts, playback, storage, messaging.
 - Build audit: exact host permissions, no provider API or credential handling.
-- Manual: unpacked extension against live YouTube, ChatGPT, and Gemini pages.
+- Manual: unpacked extension against live YouTube, ChatGPT, Gemini, and DeepSeek pages.

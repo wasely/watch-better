@@ -3,7 +3,7 @@
 ## Goal
 
 Help desktop YouTube viewers navigate captions, ask grounded questions through
-their existing ChatGPT or Gemini web session, and optionally compress long caption
+their existing ChatGPT, Gemini, or DeepSeek web session, and optionally compress long caption
 gaps without replacing YouTube's player or content.
 
 ## P0 requirements
@@ -15,7 +15,7 @@ gaps without replacing YouTube's player or content.
   seek, and follow playback.
 - Build bounded timestamped transcript prompts for entire video, current section,
   or selected rows.
-- Support ChatGPT and Gemini provider selection.
+- Support ChatGPT, Gemini, and DeepSeek provider selection.
 - Embed each official provider webpage inside the Ask tab and use its signed-in web
   session.
 - Send transcript context only after the explicit **Send to AI** action; keep the provider's
@@ -36,14 +36,14 @@ gaps without replacing YouTube's player or content.
 - Keyboard-accessible tabs and controls, visible focus, reduced-motion support,
   narrow panel and 200% zoom layouts.
 - Explicit provider-not-open, sign-in-required, busy, timeout, and response errors.
-- Popup enable/restore actions and options links for ChatGPT/Gemini.
+- Popup enable/restore actions and options links for ChatGPT/Gemini/DeepSeek.
 
 ## Privacy requirements
 
 - No WatchBetter backend, analytics, account, payments, tracking, or remote code.
 - No persistent transcripts, prompts, or conversations by default.
 - Optional transcript cache uses browser session storage with hard size/count bounds.
-- Host access limited to YouTube, ChatGPT, and Gemini.
+- Host access limited to YouTube, ChatGPT, Gemini, and DeepSeek.
 - No cookie, scripting, capture, clipboard, broad-host, or main-frame header changes.
 - Explain that submitted transcript context is handled under the selected provider's
   account and data policies.
@@ -60,5 +60,5 @@ and guaranteed compatibility with unannounced provider UI changes.
 - Built manifest matches the documented permissions.
 - Source and generated package contain no secret, API key, credential store,
   dependency directory, or direct model API endpoint.
-- Manual unpacked-Chrome smoke covers one YouTube video plus signed-in ChatGPT and
-  Gemini turns before a release is called live-verified.
+- Manual unpacked-Chrome smoke covers one YouTube video plus signed-in ChatGPT,
+  Gemini, and DeepSeek turns before a release is called live-verified.

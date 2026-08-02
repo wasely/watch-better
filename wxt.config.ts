@@ -6,7 +6,7 @@ export default defineConfig({
   manifest: {
     name: 'WatchBetter',
     description:
-      'Navigate YouTube transcripts and ask ChatGPT or Gemini from one focused companion.',
+      'Navigate YouTube transcripts and ask ChatGPT, Gemini, or DeepSeek from one focused companion.',
     icons: {
       16: 'icon/16.png',
       32: 'icon/32.png',
@@ -18,6 +18,7 @@ export default defineConfig({
       'https://www.youtube.com/*',
       'https://chatgpt.com/*',
       'https://gemini.google.com/*',
+      'https://chat.deepseek.com/*',
     ],
     action: {
       default_title: 'WatchBetter',

@@ -13,17 +13,17 @@ compact transcript navigator and transcript-grounded Ask panel beside the video.
 
 - Copy every available YouTube caption from the transcript toolbar—no speech-to-text wait.
 - Search, select, copy, and seek through timestamped caption rows.
-- Ask ChatGPT or Google Gemini about bounded timestamped transcript context.
-- Use ChatGPT or Gemini as a live embedded webpage inside WatchBetter—no API key.
+- Ask ChatGPT, Google Gemini, or DeepSeek about bounded timestamped transcript context.
+- Use ChatGPT, Gemini, or DeepSeek as a live embedded webpage inside WatchBetter—no API key.
 - Use each provider's own composer, conversation history, and new-chat controls.
 - Keep loaded provider frames alive across panel tabs, collapse, and YouTube video
-  changes so returning to ChatGPT or Gemini is instant.
+  changes so returning to any prepared provider is instant.
 - Light/dark themes, keyboard navigation, responsive panel layouts, and a compact
   collapsed launcher.
 
 ## How Ask works
 
-1. In WatchBetter's **Ask** tab, choose ChatGPT or Gemini. Opening Ask sends nothing.
+1. In WatchBetter's **Ask** tab, choose ChatGPT, Gemini, or DeepSeek. Opening Ask sends nothing.
 2. WatchBetter loads the provider's real website directly inside the Ask tab.
 3. If embedded sign-in is refused, use the external-tab button, sign in normally,
    and return to YouTube.
@@ -34,7 +34,7 @@ compact transcript navigator and transcript-grounded Ask panel beside the video.
    conversation and new-chat controls stay inside WatchBetter.
 
 WatchBetter never reads browser cookies or tokens, stores an API key, calls a model
-API, or sends analytics. To show the two official sites inside YouTube, WatchBetter
+API, or sends analytics. To show the official provider sites inside YouTube, WatchBetter
 creates a tab- and provider-scoped Chrome session rule immediately before loading a
 verified frame, keeps it only while that YouTube tab needs the provider, and removes
 it when the tab closes or leaves YouTube. It does not
@@ -46,7 +46,7 @@ without notice, so their adapters may need updates.
 - Desktop Chrome or another Chromium browser supporting Manifest V3
 - Node.js 22+
 - npm 10+
-- A ChatGPT and/or Google account for signed-in provider use
+- A signed-in ChatGPT, Google, and/or DeepSeek account for provider use
 
 ## Install for development
 
@@ -78,11 +78,12 @@ Generated browser output and archives are under `.output/`.
 | Permission or host      | Purpose                                                                                |
 | ----------------------- | -------------------------------------------------------------------------------------- |
 | `storage`               | Save settings, optional session transcripts, and embedded-frame routing IDs.           |
-| `declarativeNetRequest` | Briefly permit one prepared ChatGPT/Gemini subframe in the current YouTube tab.        |
+| `declarativeNetRequest` | Permit one prepared provider subframe in the current YouTube tab while it is needed.   |
 | `webNavigation`         | Verify a registered provider is the panel's direct child frame before routing prompts. |
 | `youtube.com`           | Mount the panel and read captions exposed on the current watch page.                   |
 | `chatgpt.com`           | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
 | `gemini.google.com`     | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
+| `chat.deepseek.com`     | Detect the signed-in composer, send an explicit prompt, and read the resulting answer. |
 
 No broad host match, cookie permission, scripting permission, top-level header
 rewrite, browsing-data access, or remote executable code is included.
@@ -92,7 +93,7 @@ rewrite, browsing-data access, or remote executable code is included.
 Transcripts and conversations are not persisted by default. The optional browser
 session cache is bounded and cleared with the browser session. Transcript context
 is sent only after an explicit Ask action, to the provider selected by the user.
-ChatGPT and Gemini then apply their own account, retention, and usage policies.
+ChatGPT, Gemini, and DeepSeek then apply their own account, retention, and usage policies.
 See the full [privacy policy](PRIVACY.md) and [security policy](SECURITY.md).
 
 ## Project map
@@ -108,7 +109,7 @@ See the full [privacy policy](PRIVACY.md) and [security policy](SECURITY.md).
 
 - Desktop YouTube watch pages only; no Shorts, live streams, or mobile support.
 - Available caption tracks only; no speech-to-text fallback.
-- ChatGPT/Gemini web UI automation can require maintenance after provider changes.
+- Provider web UI automation can require maintenance after provider changes.
 - Some authentication flows refuse third-party frames; the full-tab sign-in fallback
   remains available.
 - Jump Cut source is retained for later development but feature-gated out of the
@@ -118,3 +119,7 @@ See the full [privacy policy](PRIVACY.md) and [security policy](SECURITY.md).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Public launch preparation and the remaining
 live release gate are tracked in [docs/CHROME_WEB_STORE.md](docs/CHROME_WEB_STORE.md).
+
+## License
+
+WatchBetter is available under the [MIT License](LICENSE).

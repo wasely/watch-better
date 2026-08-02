@@ -5,7 +5,7 @@ Updated: 2026-08-01
 ## Current state
 
 **Automated release candidate.** WatchBetter's initial product includes Transcript
-and Ask. Jump Cut remains in source but is feature-gated out. Ask displays the real ChatGPT or Gemini webpage inside the
+and Ask. Jump Cut remains in source but is feature-gated out. Ask displays the real ChatGPT, Gemini, or DeepSeek webpage inside the
 YouTube panel; it does not use a model API or collect provider credentials. A live
 unpacked-extension smoke test remains the release gate.
 
@@ -13,7 +13,7 @@ unpacked-extension smoke test remains the release gate.
 
 - Renamed the product, package, UI, storage keys, docs, and build archive to
   WatchBetter.
-- Added compact ChatGPT/Gemini selection and provider readiness states. The
+- Added compact ChatGPT/Gemini/DeepSeek selection and provider readiness states. The
   embedded provider owns its composer, conversation history, and new-chat UI.
 - Keeps each provider iframe mounted after first use across panel tabs, collapse,
   provider switching, and YouTube video changes.
@@ -28,6 +28,8 @@ unpacked-extension smoke test remains the release gate.
 - Sends bounded transcript context only after **Send to AI**. Opening Ask and
   switching providers send nothing. Follow-ups use the provider composer.
 - Retains transcript navigation, search, selection, seek, and SPA lifecycle handling.
+- Keeps the panel height stable when YouTube shrinks its player during page scrolling.
+- Uses a branded collapsed launcher and persistently visible, centered transcript selectors.
 - Retains Jump Cut source and tests for later development without exposing or
   running it in the initial product.
 - Keeps memory-only transcript handling by default, with bounded session caching as
@@ -36,11 +38,11 @@ unpacked-extension smoke test remains the release gate.
 ## Validation results
 
 - Canonical validation passed: Prettier, ESLint, strict TypeScript, 26 Vitest
-  files / 107 tests, and WXT production build.
-- Build: `.output/chrome-mv3/`, 588.74 kB.
-- Package: `.output/watchbetter-0.1.0-chrome.zip`, 228.31 kB reported by WXT.
+  files / 109 tests, coverage, and WXT production build.
+- Build: `.output/chrome-mv3/`, 592.07 kB.
+- Package: `.output/watchbetter-0.1.0-chrome.zip`, 228.92 kB reported by WXT.
 - Built manifest: `storage`, scoped `declarativeNetRequest`, direct-frame
-  `webNavigation`, and exact YouTube, ChatGPT, and Gemini hosts.
+  `webNavigation`, and exact YouTube, ChatGPT, Gemini, and DeepSeek hosts.
 - Browser harness: real ChatGPT frame inspected at dark 320px and light 480px;
   success/loading/error states inspected; measured zero horizontal overflow.
 - Production audit tests reject provider API endpoints, cookie access, credential
@@ -49,7 +51,7 @@ unpacked-extension smoke test remains the release gate.
 ## Remaining release gate
 
 - Reload `.output/chrome-mv3/` in `chrome://extensions`.
-- Sign in at ChatGPT and Gemini, then verify first Ask, follow-up, provider switch,
+- Sign in at ChatGPT, Gemini, and DeepSeek, then verify first Ask, follow-up, provider switch,
   and new-chat behavior against their live sites.
 - Verify caption fetch, selection Ask, seek, SPA navigation, theater/fullscreen,
   popup restore, and console cleanliness on live YouTube.
@@ -58,7 +60,7 @@ unpacked-extension smoke test remains the release gate.
 ## Known product limits
 
 - Requires usable YouTube captions; no speech-to-text fallback.
-- ChatGPT/Gemini embedding depends on their frame behavior, rendered UI, and active
+- Provider embedding depends on each site's frame behavior, rendered UI, and active
   user session. Some sign-in flows require the normal-tab fallback.
 - Jump Cut remains source-only and is not part of the initial product.
 - No Shorts, live streams, mobile, backend, account, sync, analytics, or model API.
