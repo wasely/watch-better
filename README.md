@@ -1,15 +1,11 @@
 # Watch Better
 
-<p align="center">
-  <img src="docs/assets/watchbetter-logo.png" alt="Watch Better logo" width="160" />
-</p>
+![Watch Better logo](src/assets/watchbetter-logo.png)
 
-<p align="center">
-  <a href="https://github.com/wasely/watch-better/releases/download/v0.1.0/watchbetter-0.1.0-chrome.zip"><img src="https://img.shields.io/badge/Download-v0.1.0-2563eb?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Watch Better" /></a>
-  <a href="https://discord.gg/dpx3RhJM9"><img src="https://img.shields.io/badge/Discord-Join-5865f2?style=for-the-badge&logo=discord&logoColor=white" alt="Join the Watch Better Discord" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge" alt="MIT License" /></a>
-  <a href="https://github.com/wasely/watch-better/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/wasely/watch-better/ci.yml?branch=main&style=for-the-badge&label=Build" alt="Build status" /></a>
-</p>
+[![Download Watch Better](https://img.shields.io/badge/Download-v0.1.0-2563eb?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/wasely/watch-better/releases/download/v0.1.0/watchbetter-0.1.0-chrome.zip)
+[![Join the Watch Better Discord](https://img.shields.io/badge/Discord-Join-5865f2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/dpx3RhJM9)
+[![MIT License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
+[![Build status](https://img.shields.io/github/actions/workflow/status/wasely/watch-better/ci.yml?branch=main&style=for-the-badge&label=Build)](https://github.com/wasely/watch-better/actions/workflows/ci.yml)
 
 Watch Better is a Chrome extension for searchable YouTube transcripts and AI video
 analysis. Find timestamped moments, select the useful context, and ask ChatGPT, Gemini,
@@ -43,32 +39,17 @@ These demos play and loop directly on GitHub.
 
 Choose transcript rows and send them when you are ready.
 
-<p align="center">
-  <img src="docs/assets/demos/ask-send-demo.gif" alt="Select transcript context and send it to AI" width="600" />
-</p>
+![Select transcript context and send it to AI](docs/assets/demos/ask-send-demo.gif)
 
 ### 2. Ask beside the video
 
 Continue in ChatGPT or Gemini without losing the video.
 
-<p align="center">
-  <img src="docs/assets/demos/ask-answer-demo.gif" alt="Ask an AI provider beside a YouTube video" width="600" />
-</p>
+![Ask an AI provider beside a YouTube video](docs/assets/demos/ask-answer-demo.gif)
 
 ## Preview
 
-<p align="center">
-  <img src="docs/assets/screenshots/ask-panel-light.webp" alt="Watch Better running beside a YouTube video" width="680" />
-</p>
-
-<details>
-<summary><strong>See the transcript view</strong></summary>
-
-<p align="center">
-  <img src="docs/assets/screenshots/transcript-panel-dark.webp" alt="Watch Better transcript panel in dark mode" width="420" />
-</p>
-
-</details>
+![Watch Better running beside a YouTube video](docs/assets/screenshots/ask-panel-light.webp)
 
 ## Features
 
