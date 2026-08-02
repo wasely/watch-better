@@ -6,8 +6,9 @@
   <img src="docs/assets/watchbetter-logo.png" alt="Watch Better logo" width="180" />
 </p>
 
-Watch Better is a Chrome extension for desktop YouTube watch pages. It adds a
-compact transcript navigator and transcript-grounded Ask panel beside the video.
+Analyze YouTube videos and ask questions in real time with Watch Better, a Chrome
+extension that adds a compact transcript navigator and grounded Ask panel beside
+the video.
 
 ## Features
 
