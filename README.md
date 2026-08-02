@@ -1,12 +1,12 @@
-# WatchBetter
+# Watch Better
 
 [![CI](https://github.com/wasely/watch-better/actions/workflows/ci.yml/badge.svg)](https://github.com/wasely/watch-better/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="docs/assets/watchbetter-logo.png" alt="WatchBetter logo" width="180" />
+  <img src="docs/assets/watchbetter-logo.png" alt="Watch Better logo" width="180" />
 </p>
 
-WatchBetter is a Chrome extension for desktop YouTube watch pages. It adds a
+Watch Better is a Chrome extension for desktop YouTube watch pages. It adds a
 compact transcript navigator and transcript-grounded Ask panel beside the video.
 
 ## Features
@@ -14,27 +14,28 @@ compact transcript navigator and transcript-grounded Ask panel beside the video.
 - Copy every available YouTube caption from the transcript toolbar—no speech-to-text wait.
 - Search, select, copy, and seek through timestamped caption rows.
 - Ask ChatGPT, Google Gemini, or DeepSeek about bounded timestamped transcript context.
-- Use ChatGPT, Gemini, or DeepSeek as a live embedded webpage inside WatchBetter—no API key.
+- Use ChatGPT and Gemini inside Watch Better, or DeepSeek in its normal full tab—no API key.
 - Use each provider's own composer, conversation history, and new-chat controls.
-- Keep loaded provider frames alive across panel tabs, collapse, and YouTube video
-  changes so returning to any prepared provider is instant.
+- Keep loaded ChatGPT and Gemini frames alive across panel tabs, collapse, and
+  YouTube video changes so returning to either prepared provider is instant.
 - Light/dark themes, keyboard navigation, responsive panel layouts, and a compact
   collapsed launcher.
 
 ## How Ask works
 
-1. In WatchBetter's **Ask** tab, choose ChatGPT, Gemini, or DeepSeek. Opening Ask sends nothing.
-2. WatchBetter loads the provider's real website directly inside the Ask tab.
-3. If embedded sign-in is refused, use the external-tab button, sign in normally,
-   and return to YouTube.
+1. In Watch Better's **Ask** tab, choose ChatGPT, Gemini, or DeepSeek. Opening Ask sends nothing.
+2. Watch Better loads ChatGPT or Gemini directly inside Ask. DeepSeek opens in a
+   normal full tab because its security challenge blocks embedded pages.
+3. Sign in on the provider's official site. For ChatGPT or Gemini, use the
+   external-tab button if embedded sign-in is refused, then return to YouTube.
 4. In **Transcript**, optionally select rows, then choose **Send to AI**. This is the
    only action that transfers transcript content; with no selection, it sends the
    full bounded transcript.
-5. Ask follow-up questions with the provider's own composer. Its normal
-   conversation and new-chat controls stay inside WatchBetter.
+5. Ask follow-up questions with the provider's own composer. ChatGPT and Gemini
+   stay inside Watch Better; DeepSeek stays in its full tab.
 
-WatchBetter never reads browser cookies or tokens, stores an API key, calls a model
-API, or sends analytics. To show the official provider sites inside YouTube, WatchBetter
+Watch Better never reads browser cookies or tokens, stores an API key, calls a model
+API, or sends analytics. To show ChatGPT and Gemini inside YouTube, Watch Better
 creates a tab- and provider-scoped Chrome session rule immediately before loading a
 verified frame, keeps it only while that YouTube tab needs the provider, and removes
 it when the tab closes or leaves YouTube. It does not
@@ -58,7 +59,7 @@ npm run build
 Then open `chrome://extensions`, enable **Developer mode**, choose **Load
 unpacked**, and select `.output/chrome-mv3/`.
 
-Open a normal `youtube.com/watch?v=…` page. WatchBetter uses captions exposed by
+Open a normal `youtube.com/watch?v=…` page. Watch Better uses captions exposed by
 that video; it does not invent a transcript when captions are unavailable.
 
 ## Development
@@ -122,4 +123,4 @@ live release gate are tracked in [docs/CHROME_WEB_STORE.md](docs/CHROME_WEB_STOR
 
 ## License
 
-WatchBetter is available under the [MIT License](LICENSE).
+Watch Better is available under the [MIT License](LICENSE).

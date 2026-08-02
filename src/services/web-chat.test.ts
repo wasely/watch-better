@@ -51,6 +51,8 @@ describe('web chat provider contract', () => {
     expect(WEB_CHAT_PROVIDERS.chatgpt.url).toBe('https://chatgpt.com/');
     expect(WEB_CHAT_PROVIDERS.gemini.url).toBe('https://gemini.google.com/app');
     expect(WEB_CHAT_PROVIDERS.deepseek.url).toBe('https://chat.deepseek.com/');
+    expect(WEB_CHAT_PROVIDERS.deepseek.surface).toBe('tab');
+    expect(WEB_CHAT_PROVIDERS.chatgpt.surface).toBe('embedded');
     expect(JSON.stringify(WEB_CHAT_PROVIDERS)).not.toMatch(
       /api\.openai|generativelanguage/,
     );

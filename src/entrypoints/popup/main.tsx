@@ -26,9 +26,9 @@ const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
 const statusMessage = (status: RuntimeStatus): string => {
   if (!status.enabled) return 'Enable the extension to show its YouTube panel.';
   if (!status.supportedPage)
-    return 'Open a desktop YouTube watch page to use WatchBetter.';
+    return 'Open a desktop YouTube watch page to use Watch Better.';
   return status.panelMounted
-    ? 'WatchBetter is mounted on this video.'
+    ? 'Watch Better is mounted on this video.'
     : 'Watch page detected. Restore the panel if it is hidden.';
 };
 
@@ -62,7 +62,7 @@ function Popup() {
       .catch(() => {
         if (!disposed) {
           setHasError(true);
-          setMessage('Could not read WatchBetter status. Try again.');
+          setMessage('Could not read Watch Better status. Try again.');
         }
       });
 
@@ -111,14 +111,14 @@ function Popup() {
           enabled
             ? updatedStatus
               ? statusMessage(updatedStatus)
-              : 'WatchBetter enabled.'
-            : 'WatchBetter disabled. Existing playback remains unchanged.',
+              : 'Watch Better enabled.'
+            : 'Watch Better disabled. Existing playback remains unchanged.',
         );
       } else if (!response.ok) {
         setMessage(response.message);
       }
     } catch {
-      setMessage('Could not update WatchBetter. Try again.');
+      setMessage('Could not update Watch Better. Try again.');
     } finally {
       setBusyAction(null);
     }
@@ -138,7 +138,7 @@ function Popup() {
           setStatus((current) =>
             current ? { ...current, panelMounted: true } : current,
           );
-          setMessage('WatchBetter panel restored.');
+          setMessage('Watch Better panel restored.');
         } else {
           setMessage('Settings opened.');
         }

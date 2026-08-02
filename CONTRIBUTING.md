@@ -1,4 +1,4 @@
-# Contributing to WatchBetter
+# Contributing to Watch Better
 
 Bug fixes, provider compatibility updates, accessibility improvements, and focused
 documentation changes are welcome.

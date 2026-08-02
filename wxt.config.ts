@@ -4,7 +4,7 @@ export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'WatchBetter',
+    name: 'Watch Better',
     description:
       'Navigate YouTube transcripts and ask ChatGPT, Gemini, or DeepSeek from one focused companion.',
     icons: {
@@ -21,7 +21,7 @@ export default defineConfig({
       'https://chat.deepseek.com/*',
     ],
     action: {
-      default_title: 'WatchBetter',
+      default_title: 'Watch Better',
       default_icon: {
         16: 'icon/16.png',
         32: 'icon/32.png',

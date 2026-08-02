@@ -257,7 +257,7 @@ export class TranscriptPromptProvider implements AIProvider {
       request.transcript.videoId,
     )}`;
     const limitation = context.truncated
-      ? '\nCONTEXT LIMITATION\nWatchBetter omitted some transcript content to keep this handoff bounded. Do not imply that missing context was checked. Ask for more context when needed.\n'
+      ? '\nCONTEXT LIMITATION\nWatch Better omitted some transcript content to keep this handoff bounded. Do not imply that missing context was checked. Ask for more context when needed.\n'
       : '';
     const text = [
       'You are helping a creator or researcher analyze a YouTube video.',

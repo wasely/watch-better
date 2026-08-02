@@ -60,6 +60,7 @@ interface ProviderFrameProps {
   readonly provider: WebChatProviderId;
   readonly status: WebChatProviderStatus['state'];
   readonly onPrepareWebChat?: AskPanelProps['onPrepareWebChat'];
+  readonly onOpenWebChat?: AskPanelProps['onOpenWebChat'];
 }
 
 const createFrameSessionId = (): string =>
@@ -83,12 +84,14 @@ function ProviderFrame({
   provider,
   status,
   onPrepareWebChat,
+  onOpenWebChat,
 }: ProviderFrameProps) {
   const definition = WEB_CHAT_PROVIDERS[provider];
   const [sessionId] = useState(() => `${provider}:${createFrameSessionId()}`);
   const [prepared, setPrepared] = useState(!onPrepareWebChat);
   const [timedOut, setTimedOut] = useState(false);
   const [preparationError, setPreparationError] = useState('');
+  const [tabError, setTabError] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bindingTimersRef = useRef<readonly number[]>([]);
   const prepareRef = useRef(onPrepareWebChat);
@@ -98,6 +101,7 @@ function ProviderFrame({
   }, [onPrepareWebChat]);
 
   useEffect(() => {
+    if (definition.surface !== 'embedded') return;
     const prepare = prepareRef.current;
     if (!prepare) return;
     let disposed = false;
@@ -114,13 +118,14 @@ function ProviderFrame({
     return () => {
       disposed = true;
     };
-  }, [provider, sessionId]);
+  }, [definition.surface, provider, sessionId]);
 
   useEffect(() => {
+    if (definition.surface !== 'embedded') return;
     if (status === 'ready' || status === 'sign-in-required') return;
     const timer = window.setTimeout(() => setTimedOut(true), 20_000);
     return () => window.clearTimeout(timer);
-  }, [status]);
+  }, [definition.surface, status]);
 
   useEffect(
     () => () => {
@@ -154,6 +159,44 @@ function ProviderFrame({
     : timedOut && !ready
       ? `${definition.displayName} is taking longer than expected. Open it in a full tab if sign-in is required.`
       : '';
+
+  if (definition.surface === 'tab') {
+    const openInTab = () => {
+      if (!onOpenWebChat) return;
+      setTabError('');
+      void Promise.resolve(onOpenWebChat(provider)).catch((error: unknown) => {
+        setTabError(
+          error instanceof Error ? error.message : 'Could not open DeepSeek.',
+        );
+      });
+    };
+    return (
+      <div
+        aria-hidden={!active}
+        className={`ct-provider-frame ct-provider-frame--${status}`}
+        data-provider={provider}
+        hidden={!active}
+      >
+        <div className="ct-provider-frame__state">
+          <strong>DeepSeek works in a full tab</strong>
+          <p>
+            DeepSeek blocks embedded panels with a security challenge. Open its normal
+            tab, then Send to AI adds transcript context there.
+          </p>
+          <button
+            className="ct-provider-frame__open"
+            disabled={!onOpenWebChat}
+            onClick={openInTab}
+            type="button"
+          >
+            Open DeepSeek
+            <Icon name="external" />
+          </button>
+          {tabError ? <p role="alert">{tabError}</p> : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -340,6 +383,7 @@ export function AskPanel({
             <ProviderFrame
               active={selectedProvider === providerId}
               key={providerId}
+              onOpenWebChat={onOpenWebChat}
               onPrepareWebChat={onPrepareWebChat}
               provider={providerId}
               status={providerStatuses[providerId]?.state ?? 'not-open'}

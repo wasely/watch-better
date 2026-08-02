@@ -65,8 +65,8 @@ describe('WatchBetterApp foundation shell', () => {
     fireEvent.change(search, { target: { value: 'evidence' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse WatchBetter' }));
-    fireEvent.click(screen.getByRole('button', { name: /Expand WatchBetter/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Watch Better' }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand Watch Better/ }));
 
     expect(screen.getByPlaceholderText('Search transcript')).toHaveValue('evidence');
   });
@@ -128,7 +128,7 @@ describe('WatchBetterApp foundation shell', () => {
       <WatchBetterApp collapsed onCollapsedChange={onCollapsedChange} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Expand WatchBetter/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand Watch Better/ }));
     expect(onCollapsedChange).toHaveBeenCalledWith(false);
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
 
@@ -142,9 +142,9 @@ describe('WatchBetterApp foundation shell', () => {
     const user = userEvent.setup();
     render(<WatchBetterApp />);
 
-    await user.click(screen.getByRole('button', { name: 'Collapse WatchBetter' }));
+    await user.click(screen.getByRole('button', { name: 'Collapse Watch Better' }));
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    const launcher = screen.getByRole('button', { name: /Expand WatchBetter/ });
+    const launcher = screen.getByRole('button', { name: /Expand Watch Better/ });
     await waitFor(() => expect(launcher).toHaveFocus());
 
     await user.click(launcher);
@@ -159,7 +159,9 @@ describe('WatchBetterApp foundation shell', () => {
     const onOpenSettings = vi.fn();
     render(<WatchBetterApp onOpenSettings={onOpenSettings} />);
 
-    await user.click(screen.getByRole('button', { name: 'Open WatchBetter settings' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Open Watch Better settings' }),
+    );
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 });

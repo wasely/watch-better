@@ -86,4 +86,19 @@ describe('OptionsView', () => {
     expect(onOpenWebChat).toHaveBeenNthCalledWith(2, 'gemini');
     expect(onOpenWebChat).toHaveBeenNthCalledWith(3, 'deepseek');
   });
+
+  it('opens Chrome extension management from the settings header', () => {
+    const onManageExtension = vi.fn();
+    render(
+      <OptionsView
+        onChange={() => undefined}
+        onManageExtension={onManageExtension}
+        settings={DEFAULT_SETTINGS}
+        status="Settings loaded"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manage extension' }));
+    expect(onManageExtension).toHaveBeenCalledOnce();
+  });
 });

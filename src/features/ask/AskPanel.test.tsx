@@ -77,7 +77,7 @@ describe('AskPanel', () => {
     expect(await screen.findByText('Tab opening failed.')).toBeVisible();
   });
 
-  it('switches provider frames and binds each prepared session', async () => {
+  it('embeds supported providers and routes DeepSeek through a full tab', async () => {
     const user = userEvent.setup();
     const onPrepareWebChat = vi.fn<NonNullable<AskPanelProps['onPrepareWebChat']>>(() =>
       Promise.resolve(),
@@ -120,15 +120,11 @@ describe('AskPanel', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /DeepSeek/ }));
-    expect(screen.getByTitle('DeepSeek embedded chat')).toHaveAttribute(
-      'src',
-      expect.stringMatching(
-        /^https:\/\/chat\.deepseek\.com\/#watchbetter-frame=deepseek%3A/,
-      ),
-    );
-    await waitFor(() =>
-      expect(onPrepareWebChat).toHaveBeenCalledWith('deepseek', expect.any(String)),
-    );
+    expect(screen.queryByTitle('DeepSeek embedded chat')).not.toBeInTheDocument();
+    expect(screen.getByText('DeepSeek works in a full tab')).toBeVisible();
+    expect(
+      onPrepareWebChat.mock.calls.some(([provider]) => provider === 'deepseek'),
+    ).toBe(false);
 
     await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
     expect(screen.getByTitle('ChatGPT embedded chat')).toBe(chatGptFrame);

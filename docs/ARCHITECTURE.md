@@ -2,14 +2,14 @@
 
 ## Runtime surfaces
 
-WatchBetter is a WXT Manifest V3 extension with five production surfaces:
+Watch Better is a WXT Manifest V3 extension with five production surfaces:
 
 1. `youtube.content.tsx` mounts one React Shadow Root panel on supported YouTube
    watch pages.
 2. `WatchBetterRuntime.tsx` owns settings, transcript, playback, Ask, and jump-cut
    state.
-3. `background.ts` validates extension messages and routes work to an exact provider
-   frame ID inside the originating YouTube tab.
+3. `background.ts` validates extension messages and routes work to an exact ChatGPT
+   or Gemini frame, or to the user's explicit DeepSeek tab.
 4. `web-chat.content.ts` runs only on ChatGPT, Gemini, and DeepSeek, using the rendered page
    composer and assistant response DOM.
 5. Popup/options surfaces expose status, restore, settings, and provider links.
@@ -23,22 +23,21 @@ accounts.
 YouTube captions -> normalized transcript -> bounded timestamped prompt
                                             |
                                             v
-Transcript Ask -> typed background prompt -> embedded signed-in provider frame
-                                                 |
-                                                 v
-User follow-ups -> provider's own composer -> conversation stays in frame
+Transcript Ask -> typed background prompt -> ChatGPT/Gemini verified frame
+                                      \----> DeepSeek normal full tab
 ```
 
 The transcript **Send to AI** action starts a clean provider conversation with
 bounded context. Opening Ask or switching providers sends nothing.
-Follow-ups and new chats use the provider's own controls inside that frame. Switching
-providers lazily loads its separate frame once; both provider frames then stay mounted
-across panel tabs, collapse, and YouTube video changes.
+Follow-ups and new chats use the provider's own controls. Switching between ChatGPT
+and Gemini lazily loads each frame once; both frames stay mounted across panel tabs,
+collapse, and YouTube video changes. DeepSeek stays in its normal tab because its
+security challenge rejects embedded pages.
 
 No provider credential, cookie, token, or API key crosses this flow. No direct model
 API is called.
 
-Before mounting a provider URL, the YouTube panel creates a one-use frame session
+Before mounting ChatGPT or Gemini, the YouTube panel creates a one-use frame session
 ID and registers it with the background worker. After load, the panel sends that
 binding into the iframe. The provider content script returns the same binding, and
 the background accepts it only when `webNavigation` confirms a direct child frame
@@ -52,7 +51,7 @@ registrations are rejected.
 response extraction, and generation-state detection. `web-chat.content.ts` polls for
 a stable rendered answer with a three-minute timeout.
 
-The iframe, frame-bypass script, and adapter are intentionally limited to:
+The iframe and frame-bypass path are intentionally limited to:
 
 - `https://chatgpt.com/*`
 - `https://gemini.google.com/*`
@@ -61,7 +60,8 @@ A Chrome session rule removes anti-frame response headers and frame-identifying
 fetch headers only for one prepared provider in one YouTube tab. It remains active
 for that provider frame's navigations and is removed when the tab closes, leaves a
 supported YouTube page, or explicitly resets the frame. Provider UI changes can
-break selectors. WatchBetter can open the provider in a normal tab for sign-in.
+break selectors. Watch Better can open the provider in a normal tab for sign-in.
+DeepSeek always uses its normal full tab and the same strict content-script adapter.
 
 ## YouTube lifecycle
 
@@ -72,10 +72,10 @@ The extension never deletes or reparents YouTube or third-party content.
 
 ## Storage
 
-- Local: validated WatchBetter settings only.
+- Local: validated Watch Better settings only.
 - Memory: default transcript cache and current Ask UI state.
 - Session storage: optional bounded transcript cache (three documents; two million
-  serialized characters per document) plus non-sensitive provider frame IDs.
+  serialized characters per document) plus non-sensitive ChatGPT/Gemini frame IDs.
 
 Version 2 settings use `watchbetter:settings:v2`. No conversations or provider
 secrets are stored.
@@ -86,7 +86,7 @@ Public extension requests are strict discriminated unions:
 
 - runtime status/enable
 - panel status/restore
-- settings update/open
+- settings update/open/manage
 - `webchat:open`
 - `webchat:frame-prepare`
 - `webchat:frame-ready`

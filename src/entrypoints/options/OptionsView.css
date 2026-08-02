@@ -9,9 +9,10 @@
   --options-muted: #667281;
   --options-accent: #252a31;
   --options-accent-soft: rgb(15 17 21 / 8%);
+  --options-shadow: 0 18px 48px rgb(15 23 42 / 8%);
 
-  width: min(720px, calc(100% - 32px));
-  padding-block: 36px;
+  width: min(820px, calc(100% - 32px));
+  padding-block: 40px 52px;
   margin-inline: auto;
   color: var(--options-text);
   font-family: 'Segoe UI', Inter, system-ui, sans-serif;
@@ -28,6 +29,7 @@
   --options-muted: #87919d;
   --options-accent: #e3e6ea;
   --options-accent-soft: rgb(227 230 234 / 11%);
+  --options-shadow: 0 22px 54px rgb(0 0 0 / 24%);
 }
 
 .ct-options *,
@@ -49,18 +51,31 @@
 .ct-options__header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  background: var(--options-surface);
+  border: 1px solid var(--options-border);
+  border-radius: 16px;
+  box-shadow: var(--options-shadow);
+}
+
+.ct-options__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
   gap: 14px;
-  margin-bottom: 20px;
 }
 
 .ct-options__logo {
   display: block;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   object-fit: contain;
   border: 1px solid color-mix(in srgb, var(--options-accent) 30%, var(--options-border));
-  border-radius: 7px;
+  border-radius: 10px;
 }
 
 .ct-options h1,
@@ -70,10 +85,21 @@
 }
 
 .ct-options h1 {
-  margin-bottom: 3px;
+  margin-bottom: 4px;
   color: var(--options-strong);
-  font-size: 18px;
-  line-height: 23px;
+  font-size: 22px;
+  line-height: 27px;
+  letter-spacing: -0.02em;
+}
+
+.ct-options__eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--options-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .ct-options__header p {
@@ -84,26 +110,39 @@
 }
 
 .ct-options-card {
-  padding: 18px;
-  margin-bottom: 14px;
+  padding: 0 22px;
+  margin-bottom: 16px;
   background: var(--options-surface);
   border: 1px solid var(--options-border);
-  border-radius: 8px;
+  border-radius: 16px;
+  box-shadow: var(--options-shadow);
 }
 
-.ct-options-card h2 {
-  margin-bottom: 12px;
+.ct-options-card__heading {
+  padding: 20px 0 16px;
+}
+
+.ct-options-card__heading h2 {
+  margin-bottom: 4px;
   color: var(--options-strong);
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.ct-options-card__heading p {
+  margin-bottom: 0;
+  color: var(--options-muted);
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .ct-options-row {
   display: flex;
-  min-height: 58px;
+  min-height: 70px;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding-block: 9px;
+  padding-block: 14px;
   border-top: 1px solid var(--options-divider);
 }
 
@@ -142,6 +181,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ct-options .ct-button {
@@ -155,6 +195,20 @@
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.ct-options .ct-button--manage {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 13px;
+}
+
+.ct-options .ct-button--manage svg {
+  width: 13px;
+  height: 13px;
 }
 
 .ct-options .ct-button:hover:not(:disabled) {
@@ -182,21 +236,28 @@
 }
 
 .ct-options-privacy {
-  padding: 10px 12px;
-  margin: 10px 0 0;
+  padding: 14px 16px;
+  margin: 16px 0 22px;
   color: var(--options-muted);
   background: var(--options-input);
   border: 1px solid var(--options-border);
-  border-radius: 7px;
+  border-radius: 10px;
   font-size: 12px;
   line-height: 18px;
 }
 
 .ct-options__status {
-  min-height: 20px;
-  padding-inline: 4px;
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
   color: var(--options-muted);
+  background: color-mix(in srgb, var(--options-surface) 84%, transparent);
+  border: 1px solid var(--options-border);
+  border-radius: 10px;
   font-size: 12px;
+  text-align: center;
 }
 
 @media (max-width: 560px) {
@@ -207,10 +268,18 @@
 
   .ct-options__header {
     align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px;
   }
 
   .ct-options-card {
-    padding: 14px;
+    padding-inline: 18px;
+  }
+
+  .ct-options .ct-button--manage {
+    width: 100%;
+    justify-content: center;
   }
 
   .ct-options-row {

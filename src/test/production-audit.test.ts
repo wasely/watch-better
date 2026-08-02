@@ -54,6 +54,11 @@ describe('production privacy and permission audit', () => {
     expect(read('src/entrypoints/web-chat-frame-bypass.content.ts')).toContain(
       '#watchbetter-frame=',
     );
+    expect(read('src/entrypoints/web-chat-frame-bypass.content.ts')).not.toContain(
+      'chat.deepseek.com',
+    );
+    expect(read('src/services/web-chat.ts')).toContain("surface: 'tab'");
+    expect(background).toContain('sendToProviderPage(tab.id, 0');
   });
 
   it('has no direct provider API or credential handling', () => {

@@ -1,4 +1,8 @@
-import { WEB_CHAT_PROVIDERS, type WebChatProviderId } from '@/services/web-chat';
+import {
+  WEB_CHAT_PROVIDERS,
+  type EmbeddedWebChatProviderId,
+  type WebChatProviderId,
+} from '@/services/web-chat';
 
 export const frameRuleId = (tabId: number, providerId: WebChatProviderId): number => {
   let hash = 2_166_136_261;
@@ -9,7 +13,10 @@ export const frameRuleId = (tabId: number, providerId: WebChatProviderId): numbe
   return 1_000_000 + ((hash >>> 0) % 1_000_000_000);
 };
 
-export const buildFrameRule = (tabId: number, providerId: WebChatProviderId) => ({
+export const buildFrameRule = (
+  tabId: number,
+  providerId: EmbeddedWebChatProviderId,
+) => ({
   id: frameRuleId(tabId, providerId),
   priority: 1,
   action: {

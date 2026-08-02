@@ -147,10 +147,10 @@ export function WatchBetterApp({
     >
       {collapsed ? (
         <button
-          aria-label={`Expand WatchBetter. ${status.label}.`}
+          aria-label={`Expand Watch Better. ${status.label}.`}
           className="ct-launcher"
           onClick={() => setPanelCollapsed(false)}
-          title={`Expand WatchBetter — ${status.label}`}
+          title={`Expand Watch Better — ${status.label}`}
           type="button"
         >
           <span className="ct-launcher__brand" aria-hidden="true">
@@ -170,7 +170,7 @@ export function WatchBetterApp({
       ) : null}
 
       <section
-        aria-label="WatchBetter video companion"
+        aria-label="Watch Better video companion"
         className="ct-panel"
         hidden={collapsed}
       >
@@ -194,7 +194,7 @@ export function WatchBetterApp({
           </div>
           <div className="ct-header__actions">
             <button
-              aria-label="Open WatchBetter settings"
+              aria-label="Open Watch Better settings"
               className="ct-icon-button"
               disabled={!onOpenSettings}
               onClick={onOpenSettings}
@@ -204,7 +204,7 @@ export function WatchBetterApp({
               <Icon name="settings" />
             </button>
             <button
-              aria-label="Collapse WatchBetter"
+              aria-label="Collapse Watch Better"
               className="ct-icon-button"
               onClick={() => setPanelCollapsed(true)}
               title="Collapse"
@@ -216,7 +216,7 @@ export function WatchBetterApp({
         </header>
 
         <nav
-          aria-label="WatchBetter sections"
+          aria-label="Watch Better sections"
           className={`ct-tabs ct-tabs--${tabs.length}`}
           data-active-tab={activeTab}
           onKeyDown={handleTabKeyDown}

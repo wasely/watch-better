@@ -1,9 +1,5 @@
 export default defineContentScript({
-  matches: [
-    'https://chatgpt.com/*',
-    'https://gemini.google.com/*',
-    'https://chat.deepseek.com/*',
-  ],
+  matches: ['https://chatgpt.com/*', 'https://gemini.google.com/*'],
   allFrames: true,
   runAt: 'document_start',
   world: 'MAIN',

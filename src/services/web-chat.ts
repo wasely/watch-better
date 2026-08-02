@@ -1,4 +1,5 @@
 export type WebChatProviderId = 'chatgpt' | 'gemini' | 'deepseek';
+export type EmbeddedWebChatProviderId = Exclude<WebChatProviderId, 'deepseek'>;
 
 export type WebChatConnectionState =
   'ready' | 'not-open' | 'sign-in-required' | 'loading';
@@ -43,6 +44,7 @@ export type WebChatPageResponse =
 export interface WebChatProviderDefinition {
   readonly id: WebChatProviderId;
   readonly displayName: string;
+  readonly surface: 'embedded' | 'tab';
   readonly url: string;
   readonly tabPatterns: readonly string[];
   readonly composerSelectors: readonly string[];
@@ -61,6 +63,7 @@ export const WEB_CHAT_PROVIDERS: Readonly<
   chatgpt: {
     id: 'chatgpt',
     displayName: 'ChatGPT',
+    surface: 'embedded',
     url: 'https://chatgpt.com/',
     tabPatterns: ['https://chatgpt.com/*'],
     composerSelectors: [
@@ -91,6 +94,7 @@ export const WEB_CHAT_PROVIDERS: Readonly<
   gemini: {
     id: 'gemini',
     displayName: 'Gemini',
+    surface: 'embedded',
     url: 'https://gemini.google.com/app',
     tabPatterns: ['https://gemini.google.com/*'],
     composerSelectors: [
@@ -122,6 +126,7 @@ export const WEB_CHAT_PROVIDERS: Readonly<
   deepseek: {
     id: 'deepseek',
     displayName: 'DeepSeek',
+    surface: 'tab',
     url: 'https://chat.deepseek.com/',
     tabPatterns: ['https://chat.deepseek.com/*'],
     composerSelectors: [
@@ -140,6 +145,11 @@ export const WEB_CHAT_PROVIDERS: Readonly<
 
 export const isWebChatProviderId = (value: unknown): value is WebChatProviderId =>
   value === 'chatgpt' || value === 'gemini' || value === 'deepseek';
+
+export const isEmbeddedWebChatProviderId = (
+  value: WebChatProviderId,
+): value is EmbeddedWebChatProviderId =>
+  WEB_CHAT_PROVIDERS[value].surface === 'embedded';
 
 export const isWebChatSessionId = (value: unknown): value is string =>
   typeof value === 'string' &&

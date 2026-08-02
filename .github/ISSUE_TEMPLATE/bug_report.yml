@@ -1,15 +1,15 @@
 name: Bug report
-description: Report reproducible WatchBetter behavior that is not working correctly.
+description: Report reproducible Watch Better behavior that is not working correctly.
 title: 'bug: '
 labels: [bug]
 body:
   - type: markdown
     attributes:
-      value: Thanks for helping improve WatchBetter. Remove private information from screenshots and logs.
+      value: Thanks for helping improve Watch Better. Remove private information from screenshots and logs.
   - type: input
     id: version
     attributes:
-      label: WatchBetter version
+      label: Watch Better version
       placeholder: 0.1.0
     validations:
       required: true

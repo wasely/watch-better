@@ -1,6 +1,6 @@
 :root {
   color-scheme: light dark;
-  background: #f5f6f8;
+  background: radial-gradient(circle at 50% -20%, #fff 0, transparent 42%), #f5f6f8;
 }
 
 * {
@@ -8,21 +8,24 @@
 }
 
 body {
+  min-width: 300px;
+  min-height: 100vh;
   margin: 0;
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-  background: #f5f6f8;
+  background: radial-gradient(circle at 50% -20%, #fff 0, transparent 42%), #f5f6f8;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  background: #0d0e11;
+  background: radial-gradient(circle at 50% -20%, #252931 0, transparent 42%), #0d0e11;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    background: #0d0e11;
+    background:
+      radial-gradient(circle at 50% -20%, #252931 0, transparent 42%), #0d0e11;
   }
 }

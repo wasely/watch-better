@@ -32,6 +32,7 @@ describe('extension message validation', () => {
     expect(isExtensionRequest({ type: 'webchat:get-status', provider: 'gemini' })).toBe(
       true,
     );
+    expect(isExtensionRequest({ type: 'settings:manage' })).toBe(true);
     expect(
       isExtensionRequest({
         type: 'webchat:frame-prepare',

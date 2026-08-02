@@ -11,6 +11,7 @@ import {
 } from '@/storage/settings-repository';
 import {
   isProviderStartUrl,
+  isEmbeddedWebChatProviderId,
   providerForHostname,
   WEB_CHAT_PROVIDERS,
   type WebChatPageRequest,
@@ -103,7 +104,7 @@ const frameKey = (tabId: number, providerId: WebChatProviderId): string =>
 
 const installFrameRule = async (
   tabId: number,
-  providerId: WebChatProviderId,
+  providerId: 'chatgpt' | 'gemini',
 ): Promise<number> => {
   const ruleId = frameRuleId(tabId, providerId);
   await browser.declarativeNetRequest.updateSessionRules({
@@ -253,10 +254,37 @@ const sendToProviderPage = async (
   }
 };
 
+const waitForProviderTab = async (
+  tabId: number,
+  timeoutMilliseconds = 15_000,
+): Promise<WebChatPageResponse | null> => {
+  const deadline = Date.now() + timeoutMilliseconds;
+  do {
+    const response = await sendToProviderPage(tabId, 0, {
+      type: 'watchbetter:webchat-page-status',
+    });
+    if (response?.ok) return response;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  } while (Date.now() < deadline);
+  return null;
+};
+
 const providerStatus = async (
   providerId: WebChatProviderId,
   tabId: number,
 ): Promise<WebChatProviderStatus> => {
+  const provider = WEB_CHAT_PROVIDERS[providerId];
+  if (provider.surface === 'tab') {
+    const tab = await findProviderTab(provider);
+    if (typeof tab?.id !== 'number') return { provider: providerId, state: 'not-open' };
+    const response = await sendToProviderPage(tab.id, 0, {
+      type: 'watchbetter:webchat-page-status',
+    });
+    return {
+      provider: providerId,
+      state: response?.ok ? 'ready' : 'sign-in-required',
+    };
+  }
   const frame = await loadEmbeddedFrame(tabId, providerId);
   if (!frame) return { provider: providerId, state: 'loading' };
   const response = await sendToProviderPage(tabId, frame.frameId, {
@@ -275,14 +303,41 @@ const sendWebChat = async (
   tabId: number,
 ): Promise<ExtensionResponse> => {
   const provider = WEB_CHAT_PROVIDERS[providerId];
-  const frame = await loadEmbeddedFrame(tabId, providerId);
-  if (!frame)
-    return {
-      ok: false,
-      type: 'error',
-      message: `${provider.displayName} is still loading inside WatchBetter.`,
-    };
-  const response = await sendToProviderPage(tabId, frame.frameId, {
+  let targetTabId = tabId;
+  let targetFrameId: number;
+
+  if (provider.surface === 'tab') {
+    const providerTab = await findProviderTab(provider);
+    if (typeof providerTab?.id !== 'number')
+      return {
+        ok: false,
+        type: 'error',
+        message: `Open ${provider.displayName} in a full tab first.`,
+      };
+    targetTabId = providerTab.id;
+    targetFrameId = 0;
+    if (newConversation && !isProviderStartUrl(provider, providerTab.url)) {
+      await browser.tabs.update(targetTabId, { url: provider.url });
+      if (!(await waitForProviderTab(targetTabId)))
+        return {
+          ok: false,
+          type: 'error',
+          message: `${provider.displayName} did not finish loading. Refresh its tab and try again.`,
+        };
+      newConversation = false;
+    }
+  } else {
+    const frame = await loadEmbeddedFrame(tabId, providerId);
+    if (!frame)
+      return {
+        ok: false,
+        type: 'error',
+        message: `${provider.displayName} is still loading inside Watch Better.`,
+      };
+    targetFrameId = frame.frameId;
+  }
+
+  const response = await sendToProviderPage(targetTabId, targetFrameId, {
     type: 'watchbetter:webchat-page-send',
     message,
     newConversation,
@@ -291,9 +346,7 @@ const sendWebChat = async (
     return {
       ok: false,
       type: 'error',
-      message:
-        response?.message ??
-        `${provider.displayName} is not ready in the embedded window.`,
+      message: response?.message ?? `${provider.displayName} is not ready.`,
     };
   }
   if (response.type !== 'webchat-page:response')
@@ -404,6 +457,12 @@ const handleRequest = async (
           type: 'error',
           message: 'Provider frames can be prepared only from the YouTube panel.',
         };
+      if (!isEmbeddedWebChatProviderId(request.provider))
+        return {
+          ok: false,
+          type: 'error',
+          message: `${WEB_CHAT_PROVIDERS[request.provider].displayName} uses a full tab instead of an embedded frame.`,
+        };
       const ruleId = await installFrameRule(tabId, request.provider);
       try {
         await prepareEmbeddedFrame({
@@ -469,6 +528,12 @@ const handleRequest = async (
     case 'settings:open':
       await browser.runtime.openOptionsPage();
       return { ok: true, type: 'acknowledged' };
+    case 'settings:manage':
+      await browser.tabs.create({
+        url: `chrome://extensions/?id=${browser.runtime.id}`,
+        active: true,
+      });
+      return { ok: true, type: 'acknowledged' };
     case 'panel:restore': {
       const [activeTab] = await browser.tabs.query({
         active: true,
@@ -484,7 +549,7 @@ const handleRequest = async (
         (await sendToTab(activeTab.id, request)) ?? {
           ok: false,
           type: 'error',
-          message: 'WatchBetter is not connected to this tab yet.',
+          message: 'Watch Better is not connected to this tab yet.',
         }
       );
     }

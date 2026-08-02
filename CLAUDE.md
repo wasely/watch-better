@@ -1,4 +1,4 @@
-# WatchBetter
+# Watch Better
 
 Read `docs/STATUS.md`, `docs/MVP_CHECKLIST.md`, and `docs/DECISIONS.md` before selecting work.
 

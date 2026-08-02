@@ -1,4 +1,5 @@
 import { BrandLogo } from '@/components/BrandLogo';
+import { Icon } from '@/components/Icon';
 import { resolveInitialProductTab } from '@/config/product-features';
 import type {
   WatchBetterSettings,
@@ -20,6 +21,7 @@ export interface OptionsViewProps {
   readonly disabled?: boolean;
   readonly onChange: (changes: Partial<WatchBetterSettings>) => void;
   readonly onOpenWebChat?: (provider: WebChatProviderId) => void;
+  readonly onManageExtension?: () => void;
 }
 
 export function OptionsView({
@@ -29,6 +31,7 @@ export function OptionsView({
   disabled = false,
   onChange,
   onOpenWebChat,
+  onManageExtension,
 }: OptionsViewProps) {
   const update = (changes: Partial<WatchBetterSettings>) => {
     onChange(changes);
@@ -37,19 +40,34 @@ export function OptionsView({
   return (
     <main className="ct-options" data-theme={theme}>
       <header className="ct-options__header">
-        <BrandLogo aria-hidden="true" className="ct-options__logo" />
-        <div>
-          <h1>WatchBetter settings</h1>
-          <p>Configure the YouTube companion without storing transcript content.</p>
+        <div className="ct-options__identity">
+          <BrandLogo aria-hidden="true" className="ct-options__logo" />
+          <div>
+            <span className="ct-options__eyebrow">Extension settings</span>
+            <h1>Watch Better</h1>
+            <p>Configure your YouTube companion and signed-in AI sessions.</p>
+          </div>
         </div>
+        <button
+          className="ct-button ct-button--manage"
+          disabled={disabled || !onManageExtension}
+          onClick={onManageExtension}
+          type="button"
+        >
+          Manage extension
+          <Icon name="external" />
+        </button>
       </header>
 
       <section aria-labelledby="general-title" className="ct-options-card">
-        <h2 id="general-title">Panel defaults</h2>
+        <div className="ct-options-card__heading">
+          <h2 id="general-title">Panel defaults</h2>
+          <p>Choose how Watch Better appears when a supported video opens.</p>
+        </div>
         <label className="ct-options-row">
           <span>
             <strong>Extension enabled</strong>
-            <small>Show WatchBetter on supported YouTube videos.</small>
+            <small>Show Watch Better on supported YouTube videos.</small>
           </span>
           <input
             checked={settings.extensionEnabled}
@@ -63,7 +81,7 @@ export function OptionsView({
         <label className="ct-options-row">
           <span>
             <strong>Default tab</strong>
-            <small>Shown when WatchBetter mounts on a video.</small>
+            <small>Shown when Watch Better mounts on a video.</small>
           </span>
           <select
             disabled={disabled}
@@ -110,7 +128,10 @@ export function OptionsView({
       </section>
 
       <section aria-labelledby="transcript-title" className="ct-options-card">
-        <h2 id="transcript-title">Transcript</h2>
+        <div className="ct-options-card__heading">
+          <h2 id="transcript-title">Transcript</h2>
+          <p>Control caption loading, following, and reading density.</p>
+        </div>
         <label className="ct-options-row">
           <span>
             <strong>Load captions automatically</strong>
@@ -161,13 +182,16 @@ export function OptionsView({
       </section>
 
       <section aria-labelledby="handoff-title" className="ct-options-card">
-        <h2 id="handoff-title">AI sessions and privacy</h2>
+        <div className="ct-options-card__heading">
+          <h2 id="handoff-title">AI sessions and privacy</h2>
+          <p>Connect only through the official sites you already use.</p>
+        </div>
         <div className="ct-options-row">
           <span>
             <strong>ChatGPT, Gemini, and DeepSeek</strong>
             <small>
-              Sign in on each official site. WatchBetter embeds the matching live page
-              for grounded questions.
+              ChatGPT and Gemini appear in the panel. DeepSeek opens in a full tab
+              because its security check blocks embedded pages.
             </small>
           </span>
           <div className="ct-options-actions">
@@ -217,7 +241,7 @@ export function OptionsView({
           </select>
         </label>
         <p className="ct-options-privacy">
-          WatchBetter stores no API keys, cookies, analytics, transcripts, or
+          Watch Better stores no API keys, cookies, analytics, transcripts, or
           conversations permanently. Ask sends bounded transcript context only after an
           explicit action, through the signed-in ChatGPT, Gemini, or DeepSeek website.
           Each provider applies its own account, retention, and usage policies.

@@ -60,7 +60,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: true,
       version: '0.1.0',
     },
-    message: 'WatchBetter is mounted on this video.',
+    message: 'Watch Better is mounted on this video.',
     error: false,
   },
   unsupported: {
@@ -71,7 +71,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: false,
       version: '0.1.0',
     },
-    message: 'Open a desktop YouTube watch page to use WatchBetter.',
+    message: 'Open a desktop YouTube watch page to use Watch Better.',
     error: false,
   },
   disabled: {
@@ -100,7 +100,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
   error: {
     label: 'Status error',
     status: null,
-    message: 'Could not read WatchBetter status. Try again.',
+    message: 'Could not read Watch Better status. Try again.',
     error: true,
   },
 };
@@ -248,7 +248,7 @@ function Harness() {
 
   const updatePopupEnabled = (enabled: boolean) => {
     setPopupStatus((current) => (current ? { ...current, enabled } : current));
-    setPopupMessage(enabled ? 'WatchBetter enabled.' : 'WatchBetter disabled.');
+    setPopupMessage(enabled ? 'Watch Better enabled.' : 'Watch Better disabled.');
   };
 
   const restorePopupPanel = () => {
@@ -267,7 +267,7 @@ function Harness() {
     <div className={`harness-page harness-page--${theme}`}>
       <aside aria-label="Harness controls" className="harness-controls">
         <div>
-          <strong>WatchBetter harness</strong>
+          <strong>Watch Better harness</strong>
           <span>MVP fixture suite</span>
         </div>
 

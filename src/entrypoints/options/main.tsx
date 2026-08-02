@@ -95,6 +95,17 @@ function Options() {
     }
   };
 
+  const manageExtension = async () => {
+    setStatus('Opening extension management…');
+    try {
+      const response = await send({ type: 'settings:manage' });
+      if (!response.ok) throw new Error(response.message);
+      setStatus('Extension management opened');
+    } catch {
+      setStatus('Could not open extension management.');
+    }
+  };
+
   const resolvedTheme: OptionsTheme =
     settings.theme === 'system' ? systemTheme : settings.theme;
 
@@ -109,6 +120,7 @@ function Options() {
     <OptionsView
       disabled={!loaded || saving}
       onChange={(next) => void save(next)}
+      onManageExtension={() => void manageExtension()}
       onOpenWebChat={(provider) => void send({ type: 'webchat:open', provider })}
       settings={settings}
       status={status}

@@ -21,7 +21,7 @@ export interface PopupViewProps {
 const statusTitle = (status: RuntimeStatus | null, error: boolean): string => {
   if (error) return 'Status unavailable';
   if (!status) return 'Checking this tab';
-  if (!status.enabled) return 'WatchBetter is disabled';
+  if (!status.enabled) return 'Watch Better is disabled';
   if (!status.supportedPage) return 'Unsupported page';
   return status.panelMounted ? 'Panel visible' : 'Watch page ready';
 };
@@ -68,7 +68,7 @@ export function PopupView({
       <header className="ct-popup__header">
         <BrandLogo aria-hidden="true" className="ct-popup__logo" />
         <div>
-          <strong>WatchBetter</strong>
+          <strong>Watch Better</strong>
           <span>v{status?.version ?? '0.1.0'}</span>
         </div>
       </header>

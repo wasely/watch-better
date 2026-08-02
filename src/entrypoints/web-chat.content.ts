@@ -54,6 +54,12 @@ const startNewConversation = async (
     const composer = firstVisible(definition.composerSelectors);
     if (
       composer &&
+      isProviderStartUrl(definition, location.href) &&
+      composerText(composer) !== ''
+    )
+      fillComposer(composer, '');
+    if (
+      composer &&
       composerText(composer) === '' &&
       (isProviderStartUrl(definition, location.href) ||
         responseTexts(definition).length === 0)

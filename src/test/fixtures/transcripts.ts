@@ -27,7 +27,7 @@ const tutorialLines = [
   'Manual scrolling should suspend automatic following so the interface does not fight you.',
   'An explicit resume control makes that state easy to understand and reverse.',
   'The Ask workflow should build a structured prompt with only the requested context.',
-  'Opening ChatGPT is separate from copying, and WatchBetter never claims to be the model.',
+  'Opening ChatGPT is separate from copying, and Watch Better never claims to be the model.',
   'Every loading or failure state should explain what happened without inventing content.',
   'Once the foundation is predictable, richer analysis can be added without redesigning it.',
   'The final check is simple: can a researcher reach useful evidence faster and trust it?',

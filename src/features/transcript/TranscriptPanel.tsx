@@ -472,7 +472,7 @@ export function TranscriptPanel(props: TranscriptPanelProps) {
     case 'unavailable':
       return (
         <TranscriptStateMessage
-          description="This video does not expose a caption track to the viewer. WatchBetter will not invent transcript text."
+          description="This video does not expose a caption track to the viewer. Watch Better will not invent transcript text."
           icon="captions"
           title="No transcript available"
         />

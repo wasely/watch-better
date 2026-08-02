@@ -304,7 +304,7 @@ export function WatchBetterRuntime({
       isMounted: () => visible,
       restore: async () => {
         if (!settingsRef.current.extensionEnabled)
-          throw new Error('Enable WatchBetter before restoring the panel.');
+          throw new Error('Enable Watch Better before restoring the panel.');
         await patchSettings({ panelCollapsed: false });
       },
     };

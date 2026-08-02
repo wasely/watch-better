@@ -5,9 +5,9 @@ import { BrandLogo } from './BrandLogo';
 
 describe('BrandLogo', () => {
   it('always preserves the complete logo frame', () => {
-    render(<BrandLogo alt="WatchBetter" style={{ objectFit: 'cover' }} />);
+    render(<BrandLogo alt="Watch Better" style={{ objectFit: 'cover' }} />);
 
-    expect(screen.getByRole('img', { name: 'WatchBetter' })).toHaveStyle({
+    expect(screen.getByRole('img', { name: 'Watch Better' })).toHaveStyle({
       objectFit: 'contain',
     });
   });

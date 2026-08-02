@@ -155,7 +155,7 @@ export default defineContentScript({
           return {
             ok: false,
             type: 'error',
-            message: 'WatchBetter is still loading on this page.',
+            message: 'Watch Better is still loading on this page.',
           };
         try {
           await controls.restore();

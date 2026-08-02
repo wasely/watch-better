@@ -9,5 +9,5 @@ Include the affected version, reproduction steps, expected impact, and any safe
 supporting material. Remove cookies, tokens, account details, private transcripts,
 and other personal data.
 
-WatchBetter has no published long-term support schedule. Security fixes target the
+Watch Better has no published long-term support schedule. Security fixes target the
 current default branch and latest published build.

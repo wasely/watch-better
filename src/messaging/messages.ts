@@ -24,6 +24,7 @@ export type ExtensionRequest =
   | { readonly type: 'panel:get-status' }
   | { readonly type: 'panel:restore' }
   | { readonly type: 'settings:open' }
+  | { readonly type: 'settings:manage' }
   | { readonly type: 'webchat:open'; readonly provider: WebChatProviderId }
   | {
       readonly type: 'webchat:frame-prepare';
@@ -124,6 +125,7 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     case 'panel:get-status':
     case 'panel:restore':
     case 'settings:open':
+    case 'settings:manage':
       return hasOnlyKeys('type');
     case 'runtime:set-enabled':
       return typeof candidate.enabled === 'boolean' && hasOnlyKeys('type', 'enabled');
