@@ -13,83 +13,70 @@ const readyStatus: RuntimeStatus = {
 };
 
 const baseProps = {
-  message: 'Watch page detected.',
+  message: 'Ready on this video.',
   onSetEnabled: vi.fn(),
-  onRestorePanel: vi.fn(),
   onOpenSettings: vi.fn(),
 };
 
 describe('PopupView', () => {
-  it('renders a constrained loading state with actions disabled', () => {
-    render(<PopupView {...baseProps} status={null} />);
+  it('renders only the essential controls while loading', () => {
+    render(<PopupView {...baseProps} message="Checking this tab…" status={null} />);
 
-    expect(screen.getByText('Checking this tab')).toBeInTheDocument();
-    expect(screen.getByText('Extension status')).toBeInTheDocument();
+    expect(screen.getByText('Watch Better')).toBeInTheDocument();
+    expect(screen.getByText('Checking this tab…')).toBeInTheDocument();
     expect(screen.getByRole('switch')).toBeDisabled();
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('button', { name: /Restore panel/ })).toBeDisabled();
-    expect(screen.getByText('v0.1.0')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open settings' })).toBeEnabled();
+    expect(screen.queryByText(/v0\.1\.0/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/restore panel/i)).not.toBeInTheDocument();
   });
 
-  it('routes supported-page actions explicitly', () => {
+  it('routes enablement and settings actions', () => {
     const onSetEnabled = vi.fn();
-    const onRestorePanel = vi.fn();
     const onOpenSettings = vi.fn();
     render(
       <PopupView
         {...baseProps}
         onOpenSettings={onOpenSettings}
-        onRestorePanel={onRestorePanel}
         onSetEnabled={onSetEnabled}
         status={readyStatus}
       />,
     );
 
-    expect(screen.getByText('Watch page ready')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('switch', { name: 'Extension enabled' }));
-    fireEvent.click(screen.getByRole('button', { name: /Restore panel/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Settings/ }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Turn Watch Better off' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
 
     expect(onSetEnabled).toHaveBeenCalledWith(false);
-    expect(onRestorePanel).toHaveBeenCalledOnce();
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
-  it('prevents invalid restore actions and reports mounted state', () => {
-    const { rerender } = render(
-      <PopupView {...baseProps} status={{ ...readyStatus, supportedPage: false }} />,
+  it('shows disabled status and enables the extension from one control', () => {
+    const onSetEnabled = vi.fn();
+    render(
+      <PopupView
+        {...baseProps}
+        message="Turn it on to use Watch Better on videos."
+        onSetEnabled={onSetEnabled}
+        status={{ ...readyStatus, enabled: false }}
+      />,
     );
 
-    expect(screen.getByText('Unsupported page')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Restore panel/ })).toBeDisabled();
-
-    rerender(
-      <PopupView {...baseProps} status={{ ...readyStatus, panelMounted: true }} />,
-    );
-    expect(
-      screen.getByText('Panel visible', { selector: '.ct-popup-status strong' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Panel visible/ })).toBeDisabled();
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    const toggle = screen.getByRole('switch', { name: 'Turn Watch Better on' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(toggle);
+    expect(onSetEnabled).toHaveBeenCalledWith(true);
   });
 
-  it('shows disabled and busy states without implying success', () => {
-    const { rerender } = render(
-      <PopupView {...baseProps} status={{ ...readyStatus, enabled: false }} />,
-    );
+  it('disables controls while an action is busy', () => {
+    render(<PopupView {...baseProps} busyAction="settings" status={readyStatus} />);
 
-    expect(screen.getByText('Watch Better is disabled')).toBeInTheDocument();
-    expect(screen.getByText('Extension disabled')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Extension disabled' })).toHaveAttribute(
-      'aria-checked',
-      'false',
-    );
-
-    rerender(<PopupView {...baseProps} busyAction="settings" status={readyStatus} />);
     expect(screen.getByRole('status')).toHaveTextContent('Working…');
-    expect(screen.getByRole('button', { name: /Settings/ })).toBeDisabled();
+    expect(screen.getByRole('switch')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Open settings' })).toBeDisabled();
   });
 
-  it('renders status failures honestly while keeping settings available', () => {
+  it('reports status failures while keeping settings available', () => {
     render(
       <PopupView
         {...baseProps}
@@ -99,9 +86,12 @@ describe('PopupView', () => {
       />,
     );
 
-    expect(screen.getByText('Status unavailable')).toBeInTheDocument();
-    expect(screen.getByText('Enablement could not be read')).toBeInTheDocument();
-    expect(screen.getByRole('switch')).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Settings/ })).toBeEnabled();
+    expect(
+      screen.getByText('Could not read Watch Better status. Try again.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('switch', { name: 'Watch Better status unavailable' }),
+    ).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Open settings' })).toBeEnabled();
   });
 });

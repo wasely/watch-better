@@ -24,17 +24,16 @@ const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
   browser.runtime.sendMessage(request);
 
 const statusMessage = (status: RuntimeStatus): string => {
-  if (!status.enabled) return 'Enable the extension to show its YouTube panel.';
-  if (!status.supportedPage)
-    return 'Open a desktop YouTube watch page to use Watch Better.';
+  if (!status.enabled) return 'Turn it on to use Watch Better on videos.';
+  if (!status.supportedPage) return 'Open a YouTube video to use Watch Better.';
   return status.panelMounted
-    ? 'Watch Better is mounted on this video.'
-    : 'Watch page detected. Restore the panel if it is hidden.';
+    ? 'Ready on this video.'
+    : 'Reload this video to show Watch Better.';
 };
 
 function Popup() {
   const [status, setStatus] = useState<RuntimeStatus | null>(null);
-  const [message, setMessage] = useState('Reading the active tab status…');
+  const [message, setMessage] = useState('Checking this tab…');
   const [hasError, setHasError] = useState(false);
   const [busyAction, setBusyAction] = useState<PopupAction>(null);
   const [themePreference, setThemePreference] = useState<ThemePreference>(
@@ -111,8 +110,8 @@ function Popup() {
           enabled
             ? updatedStatus
               ? statusMessage(updatedStatus)
-              : 'Watch Better enabled.'
-            : 'Watch Better disabled. Existing playback remains unchanged.',
+              : 'Watch Better is on.'
+            : 'Watch Better is off.',
         );
       } else if (!response.ok) {
         setMessage(response.message);
@@ -124,31 +123,15 @@ function Popup() {
     }
   };
 
-  const invoke = async (
-    action: Exclude<PopupAction, 'toggle' | null>,
-    request: ExtensionRequest,
-  ) => {
-    setBusyAction(action);
+  const openSettings = async () => {
+    setBusyAction('settings');
     try {
-      const response = await send(request);
+      const response = await send({ type: 'settings:open' });
       if (!response.ok) {
         setMessage(response.message);
-      } else {
-        if (action === 'restore') {
-          setStatus((current) =>
-            current ? { ...current, panelMounted: true } : current,
-          );
-          setMessage('Watch Better panel restored.');
-        } else {
-          setMessage('Settings opened.');
-        }
       }
     } catch {
-      setMessage(
-        action === 'restore'
-          ? 'Could not restore the panel. Reload the YouTube tab and try again.'
-          : 'Could not open settings. Use the extension management page.',
-      );
+      setMessage('Could not open settings. Use the extension management page.');
     } finally {
       setBusyAction(null);
     }
@@ -159,8 +142,7 @@ function Popup() {
       busyAction={busyAction}
       error={hasError}
       message={message}
-      onOpenSettings={() => void invoke('settings', { type: 'settings:open' })}
-      onRestorePanel={() => void invoke('restore', { type: 'panel:restore' })}
+      onOpenSettings={() => void openSettings()}
       onSetEnabled={(enabled) => void setEnabled(enabled)}
       status={status}
       theme={resolvedTheme}

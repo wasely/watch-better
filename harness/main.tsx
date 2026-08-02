@@ -38,7 +38,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
   loading: {
     label: 'Loading',
     status: null,
-    message: 'Reading the active tab status…',
+    message: 'Checking this tab…',
     error: false,
   },
   supported: {
@@ -49,7 +49,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: false,
       version: '0.1.0',
     },
-    message: 'Watch page detected. Restore the panel if it is hidden.',
+    message: 'Reload this video to show Watch Better.',
     error: false,
   },
   mounted: {
@@ -60,7 +60,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: true,
       version: '0.1.0',
     },
-    message: 'Watch Better is mounted on this video.',
+    message: 'Ready on this video.',
     error: false,
   },
   unsupported: {
@@ -71,7 +71,7 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: false,
       version: '0.1.0',
     },
-    message: 'Open a desktop YouTube watch page to use Watch Better.',
+    message: 'Open a YouTube video to use Watch Better.',
     error: false,
   },
   disabled: {
@@ -82,20 +82,20 @@ const popupFixtures: Readonly<Record<PopupFixtureId, PopupFixture>> = {
       panelMounted: false,
       version: '0.1.0',
     },
-    message: 'Enable the extension to show its YouTube panel.',
+    message: 'Turn it on to use Watch Better on videos.',
     error: false,
   },
   busy: {
-    label: 'Restore in progress',
+    label: 'Settings opening',
     status: {
       enabled: true,
       supportedPage: true,
       panelMounted: false,
       version: '0.1.0',
     },
-    message: 'Waiting for the panel restore request to finish.',
+    message: 'Opening settings…',
     error: false,
-    busyAction: 'restore',
+    busyAction: 'settings',
   },
   error: {
     label: 'Status error',
@@ -249,13 +249,6 @@ function Harness() {
   const updatePopupEnabled = (enabled: boolean) => {
     setPopupStatus((current) => (current ? { ...current, enabled } : current));
     setPopupMessage(enabled ? 'Watch Better enabled.' : 'Watch Better disabled.');
-  };
-
-  const restorePopupPanel = () => {
-    setPopupStatus((current) =>
-      current ? { ...current, panelMounted: true } : current,
-    );
-    setPopupMessage('Panel restore simulated in the fixture.');
   };
 
   const updateOptions = (changes: Partial<WatchBetterSettings>) => {
@@ -479,7 +472,6 @@ function Harness() {
             error={popupFixtures[popupFixtureId].error}
             message={popupMessage}
             onOpenSettings={() => setSurface('options')}
-            onRestorePanel={restorePopupPanel}
             onSetEnabled={updatePopupEnabled}
             status={popupStatus}
             theme={theme}

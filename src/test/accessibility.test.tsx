@@ -51,9 +51,8 @@ describe('fixture accessibility', () => {
     async () => {
       await audit(
         <PopupView
-          message="Watch page detected. Restore the panel if it is hidden."
+          message="Ready on this video."
           onOpenSettings={vi.fn()}
-          onRestorePanel={vi.fn()}
           onSetEnabled={vi.fn()}
           status={{
             enabled: true,
