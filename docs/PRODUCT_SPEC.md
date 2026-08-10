@@ -8,7 +8,7 @@ gaps without replacing YouTube's player or content.
 
 ## P0 requirements
 
-- Mount one panel in normal right-column flow on `youtube.com/watch` pages.
+- Mount one panel in normal flow on `youtube.com/watch` pages and active desktop Shorts.
 - Survive YouTube SPA navigation, player replacement, theater/fullscreen changes,
   extension reloads, and missing captions without duplicate UI.
 - Discover available caption tracks, normalize timestamps, search, select, copy,
@@ -49,9 +49,9 @@ gaps without replacing YouTube's player or content.
 
 ## Out of scope
 
-Shorts, live streams, mobile, no-caption speech-to-text, sponsor/semantic detection,
-video downloading/editing, additional AI providers, background/headless accounts,
-and guaranteed compatibility with unannounced provider UI changes.
+Live streams, mobile, no-caption speech-to-text, sponsor/semantic detection, video
+downloading/editing, additional AI providers, background/headless accounts, and
+guaranteed compatibility with unannounced provider UI changes.
 
 ## Acceptance
 

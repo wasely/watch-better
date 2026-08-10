@@ -119,3 +119,57 @@
     scroll-behavior: auto !important;
   }
 }
+
+@media (prefers-contrast: more) {
+  .watchbetter-root[data-theme='dark'] {
+    --ct-border: #697583;
+    --ct-border-strong: #d5dbe2;
+    --ct-text-muted: #c1c8d0;
+  }
+
+  .watchbetter-root[data-theme='light'] {
+    --ct-border: #596574;
+    --ct-border-strong: #20262e;
+    --ct-text-muted: #3e4855;
+  }
+}
+
+@media (forced-colors: active) {
+  .watchbetter-root {
+    --ct-surface: Canvas;
+    --ct-surface-raised: Canvas;
+    --ct-surface-hover: Highlight;
+    --ct-input: Field;
+    --ct-border: CanvasText;
+    --ct-border-strong: CanvasText;
+    --ct-text-strong: CanvasText;
+    --ct-text: CanvasText;
+    --ct-text-muted: GrayText;
+    --ct-accent: Highlight;
+    --ct-accent-strong: Highlight;
+    --ct-accent-soft: Canvas;
+    --ct-success: LinkText;
+    --ct-warning: LinkText;
+    --ct-error: LinkText;
+    --ct-metal-highlight: Canvas;
+    --ct-metal-mid: CanvasText;
+    --ct-metal-shadow: Canvas;
+    --ct-cool-glow: transparent;
+    --ct-depth-shadow: none;
+    --ct-inset-highlight: none;
+    --ct-shadow: none;
+    --ct-focus: none;
+  }
+
+  .watchbetter-root *,
+  .watchbetter-root *::before,
+  .watchbetter-root *::after {
+    box-shadow: none;
+    text-shadow: none;
+  }
+
+  .watchbetter-root :focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}

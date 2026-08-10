@@ -76,7 +76,7 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 - [~] **MVP-033 · P1 · PRD-003, PRD-004 — Responsive/theater/fullscreen/collapse behavior**
   - Acceptance: approved placement states work without layout damage and persist appropriately.
   - Verify: responsive fixture plus live mode checks.
-  - Status: Selector and harness states pass; live theater/fullscreen check pending.
+  - Status: Selector, harness, and scroll-position regression states pass; live theater/fullscreen check pending.
 
 ## Phase 4 — real transcript
 

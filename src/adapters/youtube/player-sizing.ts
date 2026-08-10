@@ -1,5 +1,4 @@
 export const PLAYER_HEIGHT_PROPERTY = '--watchbetter-player-height';
-export const PLAYER_TOP_OVERLAP_PROPERTY = '--watchbetter-player-top-overlap';
 
 interface PlayerSizeSync {
   readonly sync: () => void;
@@ -15,7 +14,11 @@ export const createYouTubePlayerSizeSync = (
 
   const syncHeight = (allowShrink = false) => {
     const player =
-      document.querySelector('#movie_player') ?? document.querySelector('ytd-player');
+      document.querySelector(
+        'ytd-reel-video-renderer[is-active] .html5-video-player',
+      ) ??
+      document.querySelector('#movie_player') ??
+      document.querySelector('ytd-player');
     if (player !== observedPlayer) {
       observer.disconnect();
       observedPlayer = player;
@@ -29,13 +32,6 @@ export const createYouTubePlayerSizeSync = (
     if (!shouldUpdateHeight) return;
     lockedHeight = height;
     host.style.setProperty(PLAYER_HEIGHT_PROPERTY, `${height}px`);
-
-    const masthead = document.querySelector('#masthead-container');
-    const mastheadBottom = masthead?.getBoundingClientRect().bottom ?? 0;
-    const overlap = Math.max(0, mastheadBottom - (playerRect?.top ?? mastheadBottom));
-    if (overlap > 0)
-      host.style.setProperty(PLAYER_TOP_OVERLAP_PROPERTY, `${overlap}px`);
-    else host.style.removeProperty(PLAYER_TOP_OVERLAP_PROPERTY);
   };
 
   const observer = new ResizeObserver(() => syncHeight(false));
@@ -48,7 +44,6 @@ export const createYouTubePlayerSizeSync = (
       observer.disconnect();
       document.defaultView?.removeEventListener('resize', onViewportResize);
       host.style.removeProperty(PLAYER_HEIGHT_PROPERTY);
-      host.style.removeProperty(PLAYER_TOP_OVERLAP_PROPERTY);
       observedPlayer = null;
       lockedHeight = 0;
     },

@@ -5,6 +5,7 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'Watch Better',
+    minimum_chrome_version: '111',
     description:
       'Navigate YouTube transcripts and ask ChatGPT, Gemini, or DeepSeek from one focused companion.',
     icons: {

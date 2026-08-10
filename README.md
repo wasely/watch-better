@@ -20,6 +20,10 @@ or DeepSeek without losing your place in the video.
 
 ## Install in Chrome
 
+Watch Better supports Chrome 111 or newer on desktop Windows, macOS, Linux, and
+ChromeOS. The same extension package works across those operating systems. Chrome
+for Android and iOS does not install Chrome extensions.
+
 1. Download `watchbetter-0.1.0-chrome.zip` from the
    [latest release](https://github.com/wasely/watch-better/releases/latest).
 2. Extract the ZIP somewhere you will keep it.
@@ -187,7 +191,8 @@ watch-better/
 
 ## Current limits
 
-- Desktop YouTube watch pages only; no Shorts, live streams, or mobile support.
+- Chrome 111+ desktop YouTube watch pages and Shorts; no live streams or mobile Chrome
+  extension support.
 - Uses available caption tracks only; there is no speech-to-text fallback.
 - Provider web interfaces and embedded sign-in rules can change.
 - Jump Cut code is retained for later development but disabled in the current product.

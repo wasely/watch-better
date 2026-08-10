@@ -184,6 +184,23 @@ export function WatchBetterRuntime({
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      !settingsLoaded ||
+      !settings.extensionEnabled ||
+      page.kind === 'unsupported' ||
+      !page.videoId
+    )
+      return;
+    void send({ type: 'webchat:preload', provider: 'deepseek' });
+  }, [
+    page.generation,
+    page.kind,
+    page.videoId,
+    settings.extensionEnabled,
+    settingsLoaded,
+  ]);
+
   const patchSettings = useCallback(async (changes: Partial<WatchBetterSettings>) => {
     setSettings((current) => ({ ...current, ...changes }));
     const response = await send({ type: 'settings:update', changes });
@@ -249,7 +266,7 @@ export function WatchBetterRuntime({
   );
 
   useEffect(() => {
-    if (!settingsLoaded || page.kind !== 'watch' || !page.videoId) return;
+    if (!settingsLoaded || page.kind === 'unsupported' || !page.videoId) return;
     const videoId = page.videoId;
     if (!settings.extensionEnabled) return;
     if (!settings.autoLoadTranscript) {
@@ -292,7 +309,7 @@ export function WatchBetterRuntime({
   const visible =
     settingsLoaded &&
     settings.extensionEnabled &&
-    page.kind === 'watch' &&
+    page.kind !== 'unsupported' &&
     Boolean(page.videoId);
 
   useEffect(() => {

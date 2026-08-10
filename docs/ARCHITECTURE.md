@@ -5,7 +5,7 @@
 Watch Better is a WXT Manifest V3 extension with five production surfaces:
 
 1. `youtube.content.tsx` mounts one React Shadow Root panel on supported YouTube
-   watch pages.
+   watch pages and Shorts.
 2. `WatchBetterRuntime.tsx` owns settings, transcript, playback, Ask, and jump-cut
    state.
 3. `background.ts` validates extension messages and routes work to an exact ChatGPT
@@ -67,7 +67,8 @@ DeepSeek always uses its normal full tab and the same strict content-script adap
 
 One controller owns each YouTube SPA generation. It aborts stale transcript loads,
 resets video-scoped selection, reconnects after video-element replacement, keeps one
-extension host first in the right rail, and unmounts outside supported watch pages.
+extension host first in the watch-page right rail or active Short details area, and
+unmounts outside supported video pages.
 The extension never deletes or reparents YouTube or third-party content.
 
 ## Storage

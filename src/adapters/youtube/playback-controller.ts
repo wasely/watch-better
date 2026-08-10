@@ -85,9 +85,13 @@ export class HtmlVideoPlaybackController implements PlaybackController {
   }
 
   #connect(): void {
-    const next = this.documentRef.querySelector<HTMLVideoElement>(
-      'video.html5-main-video, #movie_player video, video',
-    );
+    const next =
+      this.documentRef.querySelector<HTMLVideoElement>(
+        'ytd-reel-video-renderer[is-active] video.html5-main-video',
+      ) ??
+      this.documentRef.querySelector<HTMLVideoElement>(
+        'video.html5-main-video, #movie_player video, video',
+      );
     if (next === this.#video) {
       this.#publish();
       return;

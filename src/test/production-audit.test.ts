@@ -27,6 +27,7 @@ describe('production privacy and permission audit', () => {
 
   it('requests storage, scoped frame rules, and only supported hosts', () => {
     const config = read('wxt.config.ts');
+    expect(config).toContain("minimum_chrome_version: '111'");
     expect(config).toContain(
       "permissions: ['storage', 'declarativeNetRequest', 'webNavigation']",
     );
@@ -38,6 +39,14 @@ describe('production privacy and permission audit', () => {
     expect(config).not.toMatch(
       /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|browsingData|webRequest/,
     );
+  });
+
+  it('declares cross-platform and high-contrast release safeguards', () => {
+    const workflow = read('.github/workflows/ci.yml');
+    const tokens = read('src/styles/tokens.css');
+    expect(workflow).toContain('os: [ubuntu-latest, windows-latest, macos-latest]');
+    expect(tokens).toContain('@media (prefers-contrast: more)');
+    expect(tokens).toContain('@media (forced-colors: active)');
   });
 
   it('limits anti-frame rules to one prepared tab and provider frame', () => {

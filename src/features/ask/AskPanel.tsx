@@ -201,9 +201,10 @@ function ProviderFrame({
   return (
     <div
       aria-hidden={!active}
-      className={`ct-provider-frame ct-provider-frame--${status}`}
+      className={`ct-provider-frame ct-provider-frame--${status}${
+        active ? '' : ' ct-provider-frame--inactive'
+      }`}
       data-provider={provider}
-      hidden={!active}
     >
       {prepared ? (
         <iframe
@@ -246,7 +247,7 @@ export function AskPanel({
     useState<WebChatProviderId>('chatgpt');
   const [mountedProviders, setMountedProviders] = useState<
     ReadonlySet<WebChatProviderId>
-  >(() => new Set(['chatgpt']));
+  >(() => new Set(['chatgpt', 'gemini']));
   const [primeState, setPrimeState] = useState<PrimeState>({ kind: 'idle' });
   const [handledRequestId, setHandledRequestId] = useState(0);
 

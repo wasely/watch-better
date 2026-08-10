@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  createYouTubePlayerSizeSync,
-  PLAYER_HEIGHT_PROPERTY,
-  PLAYER_TOP_OVERLAP_PROPERTY,
-} from './player-sizing';
+import { createYouTubePlayerSizeSync, PLAYER_HEIGHT_PROPERTY } from './player-sizing';
 
 describe('YouTube player size sync', () => {
   afterEach(() => {
@@ -12,7 +8,7 @@ describe('YouTube player size sync', () => {
     document.body.replaceChildren();
   });
 
-  it('keeps the panel height mapped to live player resizes', () => {
+  it('keeps panel height stable without shifting content as the player scrolls', () => {
     let onResize: () => void = () => {};
     const observe = vi.fn();
     const disconnect = vi.fn();
@@ -29,17 +25,12 @@ describe('YouTube player size sync', () => {
     vi.stubGlobal('ResizeObserver', ResizeObserverMock);
     const player = document.createElement('div');
     player.id = 'movie_player';
-    const masthead = document.createElement('div');
-    masthead.id = 'masthead-container';
-    document.body.append(masthead);
     document.body.append(player);
     const host = document.createElement('div');
     let playerHeight = 720;
+    let playerTop = 20;
     vi.spyOn(player, 'getBoundingClientRect').mockImplementation(
-      () => ({ height: playerHeight, top: 20 }) as DOMRect,
-    );
-    vi.spyOn(masthead, 'getBoundingClientRect').mockImplementation(
-      () => ({ bottom: 56 }) as DOMRect,
+      () => ({ height: playerHeight, top: playerTop }) as DOMRect,
     );
 
     const sizeSync = createYouTubePlayerSizeSync(document, host);
@@ -47,7 +38,12 @@ describe('YouTube player size sync', () => {
 
     expect(observe).toHaveBeenCalledWith(player);
     expect(host.style.getPropertyValue(PLAYER_HEIGHT_PROPERTY)).toBe('720px');
-    expect(host.style.getPropertyValue(PLAYER_TOP_OVERLAP_PROPERTY)).toBe('36px');
+    const styleBeforeScroll = host.style.cssText;
+
+    playerTop = -500;
+    sizeSync.sync();
+    expect(host.style.getPropertyValue(PLAYER_HEIGHT_PROPERTY)).toBe('720px');
+    expect(host.style.cssText).toBe(styleBeforeScroll);
 
     playerHeight = 405.5;
     onResize();
@@ -59,6 +55,31 @@ describe('YouTube player size sync', () => {
     sizeSync.dispose();
     expect(disconnect).toHaveBeenCalled();
     expect(host.style.getPropertyValue(PLAYER_HEIGHT_PROPERTY)).toBe('');
-    expect(host.style.getPropertyValue(PLAYER_TOP_OVERLAP_PROPERTY)).toBe('');
+  });
+
+  it('uses the active Short player for its panel height', () => {
+    const observe = vi.fn();
+    class ResizeObserverMock {
+      observe = observe;
+      disconnect = vi.fn();
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+    const short = document.createElement('ytd-reel-video-renderer');
+    short.setAttribute('is-active', '');
+    const player = document.createElement('div');
+    player.className = 'html5-video-player';
+    short.append(player);
+    document.body.append(short);
+    vi.spyOn(player, 'getBoundingClientRect').mockReturnValue({
+      height: 640,
+    } as DOMRect);
+    const host = document.createElement('div');
+
+    const sizeSync = createYouTubePlayerSizeSync(document, host);
+    sizeSync.sync();
+
+    expect(observe).toHaveBeenCalledWith(player);
+    expect(host.style.getPropertyValue(PLAYER_HEIGHT_PROPERTY)).toBe('640px');
+    sizeSync.dispose();
   });
 });

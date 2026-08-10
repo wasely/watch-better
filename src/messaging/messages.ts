@@ -26,6 +26,7 @@ export type ExtensionRequest =
   | { readonly type: 'settings:open' }
   | { readonly type: 'settings:manage' }
   | { readonly type: 'webchat:open'; readonly provider: WebChatProviderId }
+  | { readonly type: 'webchat:preload'; readonly provider: WebChatProviderId }
   | {
       readonly type: 'webchat:frame-prepare';
       readonly provider: WebChatProviderId;
@@ -132,6 +133,7 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     case 'settings:update':
       return isSettingsPatch(candidate.changes) && hasOnlyKeys('type', 'changes');
     case 'webchat:open':
+    case 'webchat:preload':
     case 'webchat:frame-reset':
     case 'webchat:get-status':
       return isWebChatProviderId(candidate.provider) && hasOnlyKeys('type', 'provider');

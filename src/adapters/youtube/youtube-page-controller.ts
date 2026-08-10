@@ -1,4 +1,6 @@
-export type YouTubePageKind = 'watch' | 'unsupported';
+import { parseYouTubeVideoUrl, type YouTubePageKind } from './youtube-url';
+
+export type { YouTubePageKind } from './youtube-url';
 
 export interface YouTubePageSnapshot {
   readonly kind: YouTubePageKind;
@@ -15,18 +17,10 @@ export interface YouTubePageController {
 }
 
 const readPage = (url: string, generation: number): YouTubePageSnapshot => {
-  try {
-    const parsed = new URL(url);
-    const videoId = parsed.pathname === '/watch' ? parsed.searchParams.get('v') : null;
-    return {
-      kind: videoId ? 'watch' : 'unsupported',
-      url,
-      videoId,
-      generation,
-    };
-  } catch {
-    return { kind: 'unsupported', url, videoId: null, generation };
-  }
+  const page = parseYouTubeVideoUrl(url);
+  return page
+    ? { ...page, url, generation }
+    : { kind: 'unsupported', url, videoId: null, generation };
 };
 
 /** Owns YouTube SPA URL observation without polling or page-owned state. */

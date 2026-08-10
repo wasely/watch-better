@@ -93,8 +93,17 @@ describe('AskPanel', () => {
     await waitFor(() =>
       expect(onPrepareWebChat).toHaveBeenCalledWith('chatgpt', expect.any(String)),
     );
+    await waitFor(() =>
+      expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
+    );
     const chatGptFrame = await screen.findByTitle<HTMLIFrameElement>(
       'ChatGPT embedded chat',
+    );
+    expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
+      'src',
+      expect.stringMatching(
+        /^https:\/\/gemini\.google\.com\/app#watchbetter-frame=gemini%3A/,
+      ),
     );
     const frameWindow = chatGptFrame.contentWindow;
     if (!frameWindow) throw new Error('Expected an iframe window.');
@@ -115,9 +124,9 @@ describe('AskPanel', () => {
         /^https:\/\/gemini\.google\.com\/app#watchbetter-frame=gemini%3A/,
       ),
     );
-    await waitFor(() =>
-      expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
-    );
+    expect(
+      onPrepareWebChat.mock.calls.filter(([provider]) => provider === 'gemini'),
+    ).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: /DeepSeek/ }));
     expect(screen.queryByTitle('DeepSeek embedded chat')).not.toBeInTheDocument();
@@ -258,6 +267,6 @@ describe('AskPanel', () => {
     );
 
     expect(await screen.findByText('ChatGPT frame unavailable')).toBeVisible();
-    expect(screen.getByText('Binding failed.')).toBeVisible();
+    expect(screen.getAllByText('Binding failed.')[0]).toBeVisible();
   });
 });

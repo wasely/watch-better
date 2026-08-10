@@ -29,6 +29,8 @@ searchable transcript and an explicit transcript-to-AI workflow.
 ## Release gate
 
 - Fresh `npm ci`, `npm run validate`, and `npm run zip` pass.
+- CI validation passes on Windows, macOS, and Linux with the pinned Node/npm
+  dependency graph.
 - Load the production build from `.output/chrome-mv3/` in a clean Chrome profile.
 - Verify ChatGPT/Gemini frame load, DeepSeek full-tab routing, sign-in fallback,
   explicit single send, provider switching, and errors.
@@ -37,6 +39,14 @@ searchable transcript and an explicit transcript-to-AI workflow.
 - Inspect the packaged manifest and archive; include no source maps, credentials,
   private data, test output, or unrelated files.
 - Confirm the listing privacy disclosures match `PRIVACY.md` and actual behavior.
+
+## Supported-platform disclosure
+
+- Chrome 111+ on supported desktop Windows, macOS, Linux, and ChromeOS.
+- One OS-neutral MV3 ZIP; no native binaries or OS-specific runtime paths.
+- Chrome on Android and iOS does not install Chrome extensions and is not supported.
+- Before public promotion, spot-check the live unpacked build on Windows, macOS, and
+  Linux; on Linux cover the available Wayland or X11 session and record which one ran.
 
 Do not begin paid promotion until the submitted build is approved and the public
 store URL works from a clean browser profile.

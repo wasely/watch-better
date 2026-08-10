@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { HtmlVideoPlaybackController } from './playback-controller';
 
@@ -12,6 +12,35 @@ const videoElement = (time: number, duration = 100) => {
 };
 
 describe('HtmlVideoPlaybackController', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it('uses the video in the active Short instead of an off-screen reel', () => {
+    const inactiveShort = document.createElement('ytd-reel-video-renderer');
+    const inactiveVideo = videoElement(4);
+    inactiveShort.append(inactiveVideo);
+    const activeShort = document.createElement('ytd-reel-video-renderer');
+    activeShort.setAttribute('is-active', '');
+    const activeVideo = videoElement(18);
+    activeShort.append(activeVideo);
+    document.body.append(inactiveShort, activeShort);
+
+    expect(
+      document.querySelector(
+        'ytd-reel-video-renderer[is-active] video.html5-main-video',
+      ),
+    ).toBe(activeVideo);
+
+    const controller = new HtmlVideoPlaybackController(document);
+
+    expect(controller.snapshot.currentTimeSeconds).toBe(18);
+    controller.seek(24);
+    expect(activeVideo.currentTime).toBe(24);
+    expect(inactiveVideo.currentTime).toBe(4);
+    controller.dispose();
+  });
+
   it('seeks, changes rate, and reconnects after video replacement', async () => {
     const first = videoElement(10);
     document.body.append(first);

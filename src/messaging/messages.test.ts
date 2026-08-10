@@ -32,6 +32,16 @@ describe('extension message validation', () => {
     expect(isExtensionRequest({ type: 'webchat:get-status', provider: 'gemini' })).toBe(
       true,
     );
+    expect(isExtensionRequest({ type: 'webchat:preload', provider: 'deepseek' })).toBe(
+      true,
+    );
+    expect(
+      isExtensionRequest({
+        type: 'webchat:preload',
+        provider: 'deepseek',
+        transcript: 'hidden data',
+      }),
+    ).toBe(false);
     expect(isExtensionRequest({ type: 'settings:manage' })).toBe(true);
     expect(
       isExtensionRequest({

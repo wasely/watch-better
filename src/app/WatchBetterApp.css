@@ -12,7 +12,6 @@
   overflow: hidden;
   width: 100%;
   height: var(--watchbetter-player-height, clamp(526px, calc(100vh - 214px), 706px));
-  padding-top: var(--watchbetter-player-top-overlap, 0px);
   min-width: 0;
   grid-template-rows: auto auto minmax(0, 1fr);
   color: var(--ct-text);

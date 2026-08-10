@@ -40,12 +40,13 @@
 
 ## Live YouTube matrix
 
-Use only normal desktop prerecorded watch pages:
+Use normal desktop prerecorded watch pages and Shorts:
 
 - human captions;
 - automatic captions;
 - multiple languages;
 - captions unavailable/disabled;
+- captioned Short and Short-to-Short SPA navigation;
 - short and two-hour video;
 - rapid SPA transitions;
 - history back/forward;

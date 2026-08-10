@@ -222,6 +222,12 @@ describe('WatchBetterRuntime integration', () => {
     );
 
     await screen.findByText('First evidence for one.');
+    await waitFor(() =>
+      expect(browserState.sendMessage).toHaveBeenCalledWith({
+        type: 'webchat:preload',
+        provider: 'deepseek',
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Seek to 0:08' }));
     expect(playback.snapshot.currentTimeSeconds).toBe(8);
 
@@ -273,6 +279,33 @@ describe('WatchBetterRuntime integration', () => {
         provider: 'chatgpt',
       }),
     );
+  });
+
+  it('loads a Short transcript as a supported video surface', async () => {
+    const pageController = new FakePageController();
+    pageController.snapshot = {
+      kind: 'shorts',
+      url: 'https://www.youtube.com/shorts/short-one',
+      videoId: 'short-one',
+      generation: 1,
+    };
+    const listTracks = vi.fn(() => Promise.resolve([track]));
+    const provider: TranscriptProvider = {
+      listTracks,
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    render(
+      <WatchBetterRuntime
+        pageController={pageController}
+        playback={new FakePlayback()}
+        transcriptProvider={provider}
+      />,
+    );
+
+    await screen.findByText('First evidence for short-one.');
+    expect(listTracks).toHaveBeenCalledWith('short-one', expect.any(AbortSignal));
   });
 
   it('loads the transcript selected from the language panel', async () => {

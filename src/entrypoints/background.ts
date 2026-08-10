@@ -1,5 +1,7 @@
 import { browser } from 'wxt/browser';
 
+import { isSupportedYouTubeVideoUrl } from '@/adapters/youtube/youtube-url';
+
 import {
   isExtensionRequest,
   type ExtensionRequest,
@@ -55,20 +57,8 @@ interface WebChatFrameRegistry {
   readonly frames: Record<string, EmbeddedFrameRecord>;
 }
 
-const isSupportedWatchUrl = (url: string | undefined): boolean => {
-  if (!url) return false;
-
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.hostname === 'www.youtube.com' &&
-      parsed.pathname === '/watch' &&
-      parsed.searchParams.has('v')
-    );
-  } catch {
-    return false;
-  }
-};
+const isSupportedWatchUrl = (url: string | undefined): boolean =>
+  Boolean(url && isSupportedYouTubeVideoUrl(url));
 
 const sendToTab = async (
   tabId: number,
@@ -239,6 +229,18 @@ const openProviderTab = async (
   const created = await browser.tabs.create({ url: provider.url, active: true });
   if (typeof created.id !== 'number')
     throw new Error(`Could not open ${provider.displayName}.`);
+  return created.id;
+};
+
+const preloadProviderTab = async (
+  provider: WebChatProviderDefinition,
+): Promise<number> => {
+  const existing = await findProviderTab(provider);
+  if (typeof existing?.id === 'number') return existing.id;
+
+  const created = await browser.tabs.create({ url: provider.url, active: false });
+  if (typeof created.id !== 'number')
+    throw new Error(`Could not preload ${provider.displayName}.`);
   return created.id;
 };
 
@@ -449,6 +451,23 @@ const handleRequest = async (
     case 'webchat:open':
       await openProviderTab(WEB_CHAT_PROVIDERS[request.provider]);
       return { ok: true, type: 'acknowledged' };
+    case 'webchat:preload': {
+      if (youtubeSenderTabId(sender) === null || sender.frameId !== 0)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Provider preloading is available only from the YouTube panel.',
+        };
+      const provider = WEB_CHAT_PROVIDERS[request.provider];
+      if (provider.surface !== 'tab')
+        return {
+          ok: false,
+          type: 'error',
+          message: `${provider.displayName} loads inside Watch Better.`,
+        };
+      await preloadProviderTab(provider);
+      return { ok: true, type: 'acknowledged' };
+    }
     case 'webchat:frame-prepare': {
       const tabId = youtubeSenderTabId(sender);
       if (tabId === null || sender.frameId !== 0)
@@ -543,7 +562,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Open a desktop YouTube watch page first.',
+          message: 'Open a desktop YouTube video or Short first.',
         };
       return (
         (await sendToTab(activeTab.id, request)) ?? {

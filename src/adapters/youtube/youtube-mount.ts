@@ -1,21 +1,21 @@
-export const isYouTubeWatchUrl = (url: string): boolean => {
-  try {
-    const parsed = new URL(url);
-    return parsed.pathname === '/watch' && Boolean(parsed.searchParams.get('v'));
-  } catch {
-    return false;
-  }
-};
+import { isSupportedYouTubeVideoUrl, parseYouTubeVideoUrl } from './youtube-url';
+
+export const isYouTubeWatchUrl = isSupportedYouTubeVideoUrl;
 
 export const isYouTubeTheaterMode = (documentRef: Document): boolean =>
   Boolean(documentRef.querySelector('ytd-watch-flexy[theater]'));
+
+const resolveYouTubeShortsMountTarget = (documentRef: Document): Element =>
+  documentRef.body;
 
 /** Returns a normal-flow mount target and never replaces existing content. */
 export const resolveYouTubeMountTarget = (
   documentRef: Document,
   url: string,
 ): Element | null => {
-  if (!isYouTubeWatchUrl(url)) return null;
+  const page = parseYouTubeVideoUrl(url);
+  if (!page) return null;
+  if (page.kind === 'shorts') return resolveYouTubeShortsMountTarget(documentRef);
   if (isYouTubeTheaterMode(documentRef))
     return (
       documentRef.querySelector('ytd-watch-flexy #below') ??

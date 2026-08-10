@@ -5,6 +5,7 @@ import { createShadowRootUi } from 'wxt/utils/content-script-ui/shadow-root';
 
 import { HtmlVideoPlaybackController } from '@/adapters/youtube/playback-controller';
 import { createYouTubePlayerSizeSync } from '@/adapters/youtube/player-sizing';
+import { applyYouTubePanelHostLayout } from '@/adapters/youtube/youtube-panel-layout';
 import {
   isYouTubeTheaterMode,
   placeYouTubePanelFirst,
@@ -72,11 +73,14 @@ export default defineContentScript({
       position: 'inline',
       anchor: currentMountTarget,
       append: 'first',
+      inheritStyles: true,
       isolateEvents: true,
       onMount(container, _shadow, host) {
         host.dataset.watchbetterRoot = 'true';
         host.style.width = '100%';
         host.style.marginBottom = '12px';
+        const target = currentMountTarget();
+        if (target) applyYouTubePanelHostLayout(host, target, location.href, document);
         playerSizeSync = createYouTubePlayerSizeSync(document, host);
         playerSizeSync.sync();
         const runtime: MountedRuntime = {
@@ -110,7 +114,10 @@ export default defineContentScript({
         return;
       }
       if (!ui.shadowHost.isConnected) ui.mount();
-      else placeYouTubePanelFirst(target, ui.shadowHost);
+      else {
+        placeYouTubePanelFirst(target, ui.shadowHost);
+        applyYouTubePanelHostLayout(ui.shadowHost, target, location.href, document);
+      }
       playerSizeSync?.sync();
       const theaterMode = isTheaterMode();
       if (mounted && theaterMode !== lastTheaterMode) {

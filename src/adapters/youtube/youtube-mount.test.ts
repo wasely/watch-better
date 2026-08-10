@@ -7,10 +7,36 @@ import {
 } from './youtube-mount';
 
 describe('YouTube mount selection', () => {
-  it('accepts only watch URLs with a video id', () => {
+  it('accepts watch URLs and Shorts with a video id', () => {
     expect(isYouTubeWatchUrl('https://www.youtube.com/watch?v=abc')).toBe(true);
+    expect(isYouTubeWatchUrl('https://www.youtube.com/shorts/abc')).toBe(true);
     expect(isYouTubeWatchUrl('https://www.youtube.com/watch')).toBe(false);
     expect(isYouTubeWatchUrl('https://www.youtube.com/results?v=abc')).toBe(false);
+  });
+
+  it('always uses the bounded dock instead of Shorts page-wide details', () => {
+    document.body.innerHTML = `
+      <ytd-shorts>
+        <div id="shorts-container">
+          <ytd-reel-video-renderer is-active>
+            <div id="details"><div id="short-title">Short title</div></div>
+          </ytd-reel-video-renderer>
+        </div>
+      </ytd-shorts>`;
+
+    expect(
+      resolveYouTubeMountTarget(document, 'https://www.youtube.com/shorts/abc'),
+    ).toBe(document.body);
+    expect(document.querySelector('#short-title')).toHaveTextContent('Short title');
+    expect(document.querySelector('#shorts-container')).not.toBe(document.body);
+  });
+
+  it('uses the body as the Shorts dock target when no reel is rendered yet', () => {
+    document.body.innerHTML = '<div id="shorts-player"></div>';
+
+    expect(
+      resolveYouTubeMountTarget(document, 'https://www.youtube.com/shorts/abc'),
+    ).toBe(document.body);
   });
 
   it('prefers the right rail and preserves existing neighbors', () => {

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BrowserYouTubePageController } from './youtube-page-controller';
 
 describe('BrowserYouTubePageController', () => {
-  it('emits enter, video change, and leave exactly once per URL', async () => {
+  it('emits watch, Shorts, and leave transitions exactly once per URL', async () => {
     history.replaceState({}, '', '/');
     const controller = new BrowserYouTubePageController(window);
     const listener = vi.fn();
@@ -28,15 +28,24 @@ describe('BrowserYouTubePageController', () => {
     await Promise.resolve();
     expect(controller.snapshot).toMatchObject({ videoId: 'beta', generation: 2 });
 
+    history.pushState({}, '', '/shorts/gamma');
+    document.dispatchEvent(new Event('yt-navigate-finish'));
+    await Promise.resolve();
+    expect(controller.snapshot).toMatchObject({
+      kind: 'shorts',
+      videoId: 'gamma',
+      generation: 3,
+    });
+
     history.pushState({}, '', '/results?search_query=test');
     document.dispatchEvent(new Event('yt-navigate-finish'));
     await Promise.resolve();
     expect(controller.snapshot).toMatchObject({
       kind: 'unsupported',
       videoId: null,
-      generation: 3,
+      generation: 4,
     });
-    expect(listener).toHaveBeenCalledTimes(4);
+    expect(listener).toHaveBeenCalledTimes(5);
     controller.dispose();
   });
 });
