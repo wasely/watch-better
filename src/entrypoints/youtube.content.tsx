@@ -47,6 +47,9 @@ export default defineContentScript({
       mounted.root.render(
         <StrictMode>
           <WatchBetterRuntime
+            onAskFocusChange={(focused) => {
+              ui.shadowHost.toggleAttribute('data-watchbetter-focus', focused);
+            }}
             onControls={(next) => {
               controls = next;
             }}
@@ -95,6 +98,7 @@ export default defineContentScript({
         return runtime;
       },
       onRemove(runtime) {
+        ui.shadowHost.removeAttribute('data-watchbetter-focus');
         controls = null;
         runtimeVisible = false;
         runtime?.root.unmount();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { Icon } from '@/components/Icon';
 import type { AIContextScope, AIProvider } from '@/features/ask/ai-provider';
@@ -47,6 +47,8 @@ export interface AskPanelProps {
     provider: WebChatProviderId,
     sessionId: string,
   ) => void | Promise<void>;
+  readonly focused?: boolean;
+  readonly onFocusedChange?: (focused: boolean) => void;
 }
 
 type PrimeState =
@@ -242,6 +244,8 @@ export function AskPanel({
   onSendWebChat,
   onOpenWebChat,
   onPrepareWebChat,
+  focused = false,
+  onFocusedChange,
 }: AskPanelProps) {
   const [selectedProvider, setSelectedProvider] =
     useState<WebChatProviderId>('chatgpt');
@@ -250,6 +254,8 @@ export function AskPanel({
   >(() => new Set(['chatgpt', 'gemini']));
   const [primeState, setPrimeState] = useState<PrimeState>({ kind: 'idle' });
   const [handledRequestId, setHandledRequestId] = useState(0);
+  const [focusSettling, setFocusSettling] = useState(false);
+  const focusButtonRef = useRef<HTMLButtonElement>(null);
 
   const providerDefinition = WEB_CHAT_PROVIDERS[selectedProvider];
   const providerStatus = providerStatuses[selectedProvider]?.state ?? 'not-open';
@@ -320,6 +326,28 @@ export function AskPanel({
     selectedProvider,
   ]);
 
+  useEffect(() => {
+    if (!focused) return;
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onFocusedChange?.(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    focusButtonRef.current?.focus();
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [focused, onFocusedChange]);
+
+  useLayoutEffect(() => {
+    if (!focused) {
+      setFocusSettling(false);
+      return;
+    }
+    setFocusSettling(true);
+    const timer = window.setTimeout(() => setFocusSettling(false), 450);
+    return () => window.clearTimeout(timer);
+  }, [focused, selectedProvider]);
+
   const selectProvider = (providerId: WebChatProviderId) => {
     if (providerId === selectedProvider || primeSending) return;
     setMountedProviders((current) => {
@@ -346,83 +374,106 @@ export function AskPanel({
   };
 
   return (
-    <div className="ct-ask">
-      <div className="ct-provider-toolbar">
-        <div
-          aria-label="AI provider"
-          className="ct-provider-picker"
-          data-provider={selectedProvider}
-          role="group"
-        >
-          {PROVIDER_IDS.map((providerId) => (
-            <button
-              aria-pressed={selectedProvider === providerId}
-              disabled={primeSending}
-              key={providerId}
-              onClick={() => selectProvider(providerId)}
-              type="button"
-            >
-              {WEB_CHAT_PROVIDERS[providerId].displayName}
-            </button>
-          ))}
+    <div className={`ct-ask${focused ? ' ct-ask--focused' : ''}`}>
+      <div
+        aria-label={focused ? 'Focused AI session' : undefined}
+        aria-modal={focused || undefined}
+        className="ct-ask__surface"
+        role={focused ? 'dialog' : undefined}
+      >
+        <div className="ct-provider-toolbar">
+          <div
+            aria-label="AI provider"
+            className="ct-provider-picker"
+            data-provider={selectedProvider}
+            role="group"
+          >
+            {PROVIDER_IDS.map((providerId) => (
+              <button
+                aria-pressed={selectedProvider === providerId}
+                disabled={primeSending}
+                key={providerId}
+                onClick={() => selectProvider(providerId)}
+                type="button"
+              >
+                {WEB_CHAT_PROVIDERS[providerId].displayName}
+              </button>
+            ))}
+          </div>
+
+          <button
+            aria-label={`Open ${providerDefinition.displayName} in full tab`}
+            className="ct-provider-toolbar__external"
+            onClick={openProviderTab}
+            title="Open full tab"
+            type="button"
+          >
+            <Icon name="external" />
+          </button>
+          <button
+            aria-label={focused ? 'Exit focused AI view' : 'Focus AI view'}
+            className="ct-provider-toolbar__focus"
+            onClick={() => onFocusedChange?.(!focused)}
+            ref={focusButtonRef}
+            title={focused ? 'Exit focused view (Esc)' : 'Focus this AI session'}
+            type="button"
+          >
+            <Icon name={focused ? 'close' : 'expand'} />
+          </button>
         </div>
 
-        <button
-          aria-label={`Open ${providerDefinition.displayName} in full tab`}
-          className="ct-provider-toolbar__external"
-          onClick={openProviderTab}
-          title="Open full tab"
-          type="button"
-        >
-          <Icon name="external" />
-        </button>
-      </div>
+        <div className="ct-provider-stage" data-testid="provider-frame">
+          {PROVIDER_IDS.filter((providerId) => mountedProviders.has(providerId)).map(
+            (providerId) => (
+              <ProviderFrame
+                active={selectedProvider === providerId}
+                key={providerId}
+                onOpenWebChat={onOpenWebChat}
+                onPrepareWebChat={onPrepareWebChat}
+                provider={providerId}
+                status={providerStatuses[providerId]?.state ?? 'not-open'}
+              />
+            ),
+          )}
 
-      <div className="ct-provider-stage" data-testid="provider-frame">
-        {PROVIDER_IDS.filter((providerId) => mountedProviders.has(providerId)).map(
-          (providerId) => (
-            <ProviderFrame
-              active={selectedProvider === providerId}
-              key={providerId}
-              onOpenWebChat={onOpenWebChat}
-              onPrepareWebChat={onPrepareWebChat}
-              provider={providerId}
-              status={providerStatuses[providerId]?.state ?? 'not-open'}
-            />
-          ),
-        )}
-
-        {primeState.kind === 'sending' ? (
-          <div className="ct-provider-frame__notice" role="status">
-            Sending transcript to {providerDefinition.displayName}…
-          </div>
-        ) : null}
-        {waitingForProvider ? (
-          <div className="ct-provider-frame__notice" role="status">
-            Waiting for {providerDefinition.displayName}…
-          </div>
-        ) : null}
-        {primeState.kind === 'sent' ? (
-          <div className="ct-provider-frame__notice" role="status">
-            Transcript sent to {providerDefinition.displayName}.
-          </div>
-        ) : null}
-        {primeState.kind === 'error' ? (
-          <div
-            className="ct-provider-frame__notice ct-provider-frame__notice--error"
-            role="alert"
-          >
-            {primeState.message}
-          </div>
-        ) : null}
-        {signInMessage ? (
-          <div
-            className="ct-provider-frame__notice ct-provider-frame__notice--error"
-            role="alert"
-          >
-            {signInMessage}
-          </div>
-        ) : null}
+          {primeState.kind === 'sending' ? (
+            <div className="ct-provider-frame__notice" role="status">
+              Sending transcript to {providerDefinition.displayName}…
+            </div>
+          ) : null}
+          {waitingForProvider ? (
+            <div className="ct-provider-frame__notice" role="status">
+              Waiting for {providerDefinition.displayName}…
+            </div>
+          ) : null}
+          {primeState.kind === 'sent' ? (
+            <div className="ct-provider-frame__notice" role="status">
+              Transcript sent to {providerDefinition.displayName}.
+            </div>
+          ) : null}
+          {primeState.kind === 'error' ? (
+            <div
+              className="ct-provider-frame__notice ct-provider-frame__notice--error"
+              role="alert"
+            >
+              {primeState.message}
+            </div>
+          ) : null}
+          {signInMessage ? (
+            <div
+              className="ct-provider-frame__notice ct-provider-frame__notice--error"
+              role="alert"
+            >
+              {signInMessage}
+            </div>
+          ) : null}
+          {focusSettling ? (
+            <div className="ct-provider-frame__focus-loading" role="status">
+              <span aria-hidden="true" />
+              <strong>Preparing your workspace…</strong>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

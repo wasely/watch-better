@@ -18,6 +18,9 @@ unpacked-extension smoke test remains the release gate.
   Each provider owns its composer, conversation history, and new-chat UI.
 - Keeps each ChatGPT/Gemini iframe mounted after first use across panel tabs, collapse,
   provider switching, and YouTube video changes.
+- Adds a focused AI overlay for the active session: the expand control opens a larger,
+  background-blurring workspace; Escape or the close control returns to the panel without
+  remounting the provider frame or losing that session.
 - Starts both embedded provider frames when Watch Better opens, so ChatGPT and Gemini
   are ready before either provider is selected. It also opens or reuses a background
   DeepSeek tab on supported YouTube pages without moving focus or sending transcript data.

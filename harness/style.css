@@ -166,6 +166,18 @@ select {
   transition: width 140ms ease;
 }
 
+.harness-panel-host {
+  width: 100%;
+}
+
+.harness-panel-host--focus {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
 .harness-neighbor {
   display: grid;
   gap: 9px;

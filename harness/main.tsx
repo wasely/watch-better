@@ -132,7 +132,9 @@ const initialScenario: HarnessScenarioId =
     ? (requestedScenario as HarnessScenarioId)
     : 'tutorial';
 const requestedTab = harnessParams.get('tab');
-const initialTab: PanelTab = requestedTab === 'ask' ? requestedTab : 'transcript';
+const focusedMode = harnessParams.get('mode') === 'focus';
+const initialTab: PanelTab =
+  requestedTab === 'ask' || focusedMode ? 'ask' : 'transcript';
 const requestedSurface = harnessParams.get('surface');
 const initialSurface: HarnessSurface =
   requestedSurface === 'popup' || requestedSurface === 'options'
@@ -152,6 +154,7 @@ const providerFrameState =
       ? ('sign-in-required' as const)
       : ('ready' as const);
 const initialCollapsed = harnessParams.get('collapsed') === '1';
+const initialAskFocused = harnessParams.get('focus') === '1' || focusedMode;
 
 function NeighborCard() {
   return (
@@ -190,6 +193,7 @@ function Harness() {
   const [selectedTrackId, setSelectedTrackId] = useState('en-human');
   const [activeIndex, setActiveIndex] = useState(4);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [askFocused, setAskFocused] = useState(initialAskFocused);
   const [neighborFirst, setNeighborFirst] = useState(false);
   const [instance, setInstance] = useState(0);
 
@@ -402,64 +406,70 @@ function Harness() {
           </div>
           <aside className="harness-column" style={{ width }}>
             {neighborFirst ? <NeighborCard /> : null}
-            <WatchBetterApp
-              ask={{
-                transcript:
-                  transcriptState.kind === 'ready' ? transcriptState.document : null,
-                selectedSegmentIds: askSelectedSegmentIds,
-                currentTimeSeconds: activeSegment?.startSeconds ?? null,
-                initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
-                providerStatuses: {
-                  chatgpt: {
-                    provider: 'chatgpt',
-                    state: providerFrameState,
+            <div
+              className={`harness-panel-host${askFocused ? ' harness-panel-host--focus' : ''}`}
+            >
+              <WatchBetterApp
+                ask={{
+                  transcript:
+                    transcriptState.kind === 'ready' ? transcriptState.document : null,
+                  selectedSegmentIds: askSelectedSegmentIds,
+                  currentTimeSeconds: activeSegment?.startSeconds ?? null,
+                  initialScope: scenario === 'selected' ? 'selection' : 'entire-video',
+                  providerStatuses: {
+                    chatgpt: {
+                      provider: 'chatgpt',
+                      state: providerFrameState,
+                    },
+                    gemini: { provider: 'gemini', state: 'ready' },
+                    deepseek: { provider: 'deepseek', state: 'ready' },
                   },
-                  gemini: { provider: 'gemini', state: 'ready' },
-                  deepseek: { provider: 'deepseek', state: 'ready' },
-                },
-                onSendWebChat: ({ provider }) =>
-                  Promise.resolve({
-                    provider,
-                    responseId: `web_${provider}_fixture`,
-                    text: 'The video supports this point at [00:08] and adds context at [00:24].',
-                  }),
-                onOpenWebChat: () =>
-                  openShouldFail
-                    ? Promise.reject(new Error('Fixture tab failure.'))
-                    : Promise.resolve(),
-                onPrepareWebChat: () =>
-                  frameShouldFail
-                    ? Promise.reject(new Error('Fixture frame binding failure.'))
-                    : Promise.resolve(),
-              }}
-              activeTab={panelTab}
-              collapsed={collapsed}
-              key={`${instance}-${scenario}`}
-              onCollapsedChange={setCollapsed}
-              onOpenSettings={() => setSurface('options')}
-              onTabChange={setPanelTab}
-              theme={theme}
-              transcript={{
-                state: transcriptState,
-                activeSegmentId: activeSegment?.id ?? null,
-                initialQuery: scenario === 'search' ? 'evidence' : '',
-                ...(selectedFixtureIds
-                  ? { initialSelectedSegmentIds: selectedFixtureIds }
-                  : {}),
-                onSendToAI: () => undefined,
-                onCopy: () => Promise.resolve(),
-                onEnableTranscript: () => changeScenario('tutorial'),
-                onRetry: () => changeScenario('tutorial'),
-                onSeek: (segment) => {
-                  if (transcriptState.kind !== 'ready') return;
-                  const index = transcriptState.document.segments.findIndex(
-                    (candidate) => candidate.id === segment.id,
-                  );
-                  if (index >= 0) setActiveIndex(index);
-                },
-                onTrackChange: setSelectedTrackId,
-              }}
-            />
+                  onSendWebChat: ({ provider }) =>
+                    Promise.resolve({
+                      provider,
+                      responseId: `web_${provider}_fixture`,
+                      text: 'The video supports this point at [00:08] and adds context at [00:24].',
+                    }),
+                  onOpenWebChat: () =>
+                    openShouldFail
+                      ? Promise.reject(new Error('Fixture tab failure.'))
+                      : Promise.resolve(),
+                  onPrepareWebChat: () =>
+                    frameShouldFail
+                      ? Promise.reject(new Error('Fixture frame binding failure.'))
+                      : Promise.resolve(),
+                }}
+                activeTab={panelTab}
+                collapsed={collapsed}
+                initialAskFocused={askFocused}
+                key={`${instance}-${scenario}`}
+                onAskFocusChange={setAskFocused}
+                onCollapsedChange={setCollapsed}
+                onOpenSettings={() => setSurface('options')}
+                onTabChange={setPanelTab}
+                theme={theme}
+                transcript={{
+                  state: transcriptState,
+                  activeSegmentId: activeSegment?.id ?? null,
+                  initialQuery: scenario === 'search' ? 'evidence' : '',
+                  ...(selectedFixtureIds
+                    ? { initialSelectedSegmentIds: selectedFixtureIds }
+                    : {}),
+                  onSendToAI: () => undefined,
+                  onCopy: () => Promise.resolve(),
+                  onEnableTranscript: () => changeScenario('tutorial'),
+                  onRetry: () => changeScenario('tutorial'),
+                  onSeek: (segment) => {
+                    if (transcriptState.kind !== 'ready') return;
+                    const index = transcriptState.document.segments.findIndex(
+                      (candidate) => candidate.id === segment.id,
+                    );
+                    if (index >= 0) setActiveIndex(index);
+                  },
+                  onTrackChange: setSelectedTrackId,
+                }}
+              />
+            </div>
             {!neighborFirst ? <NeighborCard /> : null}
           </aside>
         </main>

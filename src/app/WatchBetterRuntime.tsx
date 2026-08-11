@@ -57,6 +57,7 @@ export interface WatchBetterRuntimeProps {
   readonly theaterMode?: boolean;
   readonly onControls?: (controls: WatchBetterRuntimeControls | null) => void;
   readonly onVisibilityChange?: (visible: boolean) => void;
+  readonly onAskFocusChange?: (focused: boolean) => void;
 }
 
 const errorState = (error: unknown): TranscriptViewState => {
@@ -78,6 +79,7 @@ export function WatchBetterRuntime({
   theaterMode = false,
   onControls,
   onVisibilityChange,
+  onAskFocusChange,
 }: WatchBetterRuntimeProps) {
   const repository = useMemo(() => new SettingsRepository(), []);
   const cache = useMemo(() => new TranscriptCache(), []);
@@ -313,6 +315,10 @@ export function WatchBetterRuntime({
     Boolean(page.videoId);
 
   useEffect(() => {
+    if (!visible) onAskFocusChange?.(false);
+  }, [onAskFocusChange, visible]);
+
+  useEffect(() => {
     onVisibilityChange?.(visible);
   }, [onVisibilityChange, visible]);
 
@@ -346,6 +352,7 @@ export function WatchBetterRuntime({
       onCollapsedChange={(panelCollapsed) =>
         void patchSettings({ panelCollapsed }).catch(() => undefined)
       }
+      {...(onAskFocusChange ? { onAskFocusChange } : {})}
       onOpenSettings={async () => {
         const response = await send({ type: 'settings:open' });
         if (!response.ok) throw new Error(response.message);

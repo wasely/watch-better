@@ -25,12 +25,14 @@ export interface WatchBetterAppProps {
   readonly initialTab?: PanelTab;
   readonly activeTab?: PanelTab;
   readonly initialCollapsed?: boolean;
+  readonly initialAskFocused?: boolean;
   readonly collapsed?: boolean;
   readonly transcript?: TranscriptPanelProps;
   readonly ask?: AskPanelProps;
   readonly onTabChange?: (tab: PanelTab) => void;
   readonly onCollapsedChange?: (collapsed: boolean) => void;
   readonly onOpenSettings?: () => void;
+  readonly onAskFocusChange?: (focused: boolean) => void;
   readonly transcriptFontSize?: TranscriptFontSize;
 }
 
@@ -65,18 +67,21 @@ export function WatchBetterApp({
   initialTab = 'transcript',
   activeTab: controlledActiveTab,
   initialCollapsed = false,
+  initialAskFocused = false,
   collapsed: controlledCollapsed,
   transcript,
   ask,
   onTabChange,
   onCollapsedChange,
   onOpenSettings,
+  onAskFocusChange,
   transcriptFontSize = 'standard',
 }: WatchBetterAppProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<PanelTab>(() =>
     resolveInitialProductTab(initialTab),
   );
   const [internalCollapsed, setInternalCollapsed] = useState(initialCollapsed);
+  const [askFocused, setAskFocused] = useState(initialAskFocused);
   const activeTab = resolveInitialProductTab(controlledActiveTab ?? internalActiveTab);
   const collapsed = controlledCollapsed ?? internalCollapsed;
   const id = useId();
@@ -108,9 +113,19 @@ export function WatchBetterApp({
   };
 
   const setPanelCollapsed = (nextCollapsed: boolean) => {
+    if (nextCollapsed && askFocused) {
+      setAskFocused(false);
+      onAskFocusChange?.(false);
+    }
     collapseFocusTarget.current = nextCollapsed;
     if (controlledCollapsed === undefined) setInternalCollapsed(nextCollapsed);
     onCollapsedChange?.(nextCollapsed);
+  };
+
+  const setAskFocus = (nextFocused: boolean) => {
+    if (nextFocused === askFocused) return;
+    setAskFocused(nextFocused);
+    onAskFocusChange?.(nextFocused);
   };
 
   const handleTabKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -140,6 +155,7 @@ export function WatchBetterApp({
   return (
     <div
       className="watchbetter-root"
+      data-ask-focus={askFocused}
       data-collapsed={collapsed}
       data-theme={theme}
       data-transcript-font-size={transcriptFontSize}
@@ -270,7 +286,7 @@ export function WatchBetterApp({
           role="tabpanel"
           tabIndex={activeTab === 'ask' ? 0 : -1}
         >
-          <AskPanel {...askProps} />
+          <AskPanel {...askProps} focused={askFocused} onFocusedChange={setAskFocus} />
         </div>
       </section>
     </div>

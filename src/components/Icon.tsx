@@ -9,6 +9,7 @@ export type IconName =
   | 'close'
   | 'copy'
   | 'external'
+  | 'expand'
   | 'follow'
   | 'message'
   | 'search'
@@ -38,6 +39,12 @@ const paths: Record<IconName, ReactNode> = {
     <>
       <path d="M14 5h5v5M19 5l-8 8" />
       <path d="M18 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+    </>
+  ),
+  expand: (
+    <>
+      <path d="M8 4H4v4M16 4h4v4M20 16v4h-4M4 16v4h4" />
+      <path d="m4 8 5-5M20 8l-5-5M20 16l-5 5M4 16l5 5" />
     </>
   ),
   follow: (

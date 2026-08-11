@@ -63,6 +63,36 @@ describe('AskPanel', () => {
     expect(onOpenWebChat).toHaveBeenCalledWith('chatgpt');
   });
 
+  it('opens a focused AI view without remounting the active provider frame', async () => {
+    const user = userEvent.setup();
+    const onFocusedChange = vi.fn();
+    const { rerender } = render(
+      <AskPanel
+        onFocusedChange={onFocusedChange}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    const frame = screen.getByTitle('ChatGPT embedded chat');
+    await user.click(screen.getByRole('button', { name: 'Focus AI view' }));
+    expect(onFocusedChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <AskPanel
+        focused
+        onFocusedChange={onFocusedChange}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+    expect(screen.getByText('Preparing your workspace…')).toBeVisible();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onFocusedChange).toHaveBeenLastCalledWith(false);
+    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(frame);
+  });
+
   it('shows full-tab failures without adding more controls', async () => {
     const user = userEvent.setup();
     render(

@@ -93,6 +93,24 @@ describe('WatchBetterApp foundation shell', () => {
     expect(screen.getByTitle('ChatGPT embedded chat')).toBe(frame);
   });
 
+  it('expands the Ask session as a focused overlay without remounting its frame', () => {
+    const onAskFocusChange = vi.fn();
+    render(
+      <WatchBetterApp
+        activeTab="ask"
+        onAskFocusChange={onAskFocusChange}
+        transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }}
+      />,
+    );
+    const frame = screen.getByTitle('ChatGPT embedded chat');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Focus AI view' }));
+
+    expect(onAskFocusChange).toHaveBeenCalledWith(true);
+    expect(screen.getByRole('dialog', { name: 'Focused AI session' })).toBeVisible();
+    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(frame);
+  });
+
   it('supports controlled tab state and reports requested changes', () => {
     const onTabChange = vi.fn();
     const { rerender } = render(

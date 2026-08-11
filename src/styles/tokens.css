@@ -5,6 +5,16 @@
   contain: layout style;
 }
 
+:host([data-watchbetter-focus]) {
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  contain: style;
+}
+
 .watchbetter-root {
   --ct-space-1: 2px;
   --ct-space-2: 4px;
