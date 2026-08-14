@@ -422,7 +422,6 @@ function Harness() {
                       state: providerFrameState,
                     },
                     gemini: { provider: 'gemini', state: 'ready' },
-                    deepseek: { provider: 'deepseek', state: 'ready' },
                   },
                   onSendWebChat: ({ provider }) =>
                     Promise.resolve({

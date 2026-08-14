@@ -10,6 +10,7 @@ import type {
   YouTubePageSnapshot,
 } from '@/adapters/youtube/youtube-page-controller';
 import { resolveInitialProductTab } from '@/config/product-features';
+import type { DetachedVideoContext } from '@/features/detach/detached-video';
 import type {
   TranscriptDocument,
   TranscriptProvider,
@@ -29,7 +30,10 @@ import {
   SETTINGS_STORAGE_KEY,
 } from '@/storage/settings-repository';
 import { TranscriptCache } from '@/storage/transcript-cache';
-import type { WebChatProviderId, WebChatProviderStatus } from '@/services/web-chat';
+import {
+  type WebChatProviderId,
+  type WebChatProviderStatus,
+} from '@/services/web-chat';
 
 import { WatchBetterApp, type ResolvedTheme } from './WatchBetterApp';
 
@@ -41,6 +45,21 @@ const EMPTY_PLAYBACK: PlaybackSnapshot = {
   adActive: false,
   supported: false,
 };
+
+const MAX_SETTINGS_LOAD_ATTEMPTS = 3;
+
+/**
+ * Chrome tears down a content script's extension APIs when the extension reloads while
+ * the tab stays open. Nothing recovers except reloading the tab, so say so plainly.
+ */
+const isExtensionContextLost = (error: unknown): boolean =>
+  error instanceof Error &&
+  /extension context invalidated|extension context was invalidated/i.test(
+    error.message,
+  );
+
+const CONTEXT_LOST_MESSAGE =
+  'Watch Better was reloaded. Refresh this tab to reconnect the panel.';
 
 const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
   browser.runtime.sendMessage(request);
@@ -58,6 +77,12 @@ export interface WatchBetterRuntimeProps {
   readonly onControls?: (controls: WatchBetterRuntimeControls | null) => void;
   readonly onVisibilityChange?: (visible: boolean) => void;
   readonly onAskFocusChange?: (focused: boolean) => void;
+  readonly presentation?: 'panel' | 'floating';
+  readonly initialTab?: PanelTab;
+  readonly initialWebChatProvider?: WebChatProviderId;
+  readonly videoTitle?: string;
+  readonly onDetach?: (context: DetachedVideoContext) => void | Promise<void>;
+  readonly onClose?: () => void;
 }
 
 const errorState = (error: unknown): TranscriptViewState => {
@@ -80,12 +105,19 @@ export function WatchBetterRuntime({
   onControls,
   onVisibilityChange,
   onAskFocusChange,
+  presentation = 'panel',
+  initialTab,
+  initialWebChatProvider = 'chatgpt',
+  videoTitle,
+  onDetach,
+  onClose,
 }: WatchBetterRuntimeProps) {
   const repository = useMemo(() => new SettingsRepository(), []);
   const cache = useMemo(() => new TranscriptCache(), []);
   const [settings, setSettings] = useState<WatchBetterSettings>(DEFAULT_SETTINGS);
   const settingsRef = useRef(settings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [contextLost, setContextLost] = useState(false);
   const [page, setPage] = useState<YouTubePageSnapshot>(pageController.snapshot);
   const [playbackState, setPlaybackState] = useState<PlaybackSnapshot>(
     playback.snapshot ?? EMPTY_PLAYBACK,
@@ -94,7 +126,7 @@ export function WatchBetterRuntime({
     kind: 'loading',
   });
   const [activeTab, setActiveTab] = useState<PanelTab>(() =>
-    resolveInitialProductTab(DEFAULT_SETTINGS.defaultTab),
+    resolveInitialProductTab(initialTab ?? DEFAULT_SETTINGS.defaultTab),
   );
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<
     ReadonlySet<TranscriptSegmentId>
@@ -103,15 +135,29 @@ export function WatchBetterRuntime({
     Partial<Record<WebChatProviderId, WebChatProviderStatus>>
   >({});
   const [sendRequestId, setSendRequestId] = useState(0);
+  const [selectedWebChatProvider, setSelectedWebChatProvider] =
+    useState<WebChatProviderId>(initialWebChatProvider);
+  const [providerSessionIds, setProviderSessionIds] = useState<
+    Partial<Record<WebChatProviderId, string>>
+  >({});
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
   const loadAbortRef = useRef<AbortController | null>(null);
   const loadGenerationRef = useRef(0);
+  const pageRef = useRef(page);
+  const resolveDefaultTab = useCallback(
+    (defaultTab: PanelTab) => resolveInitialProductTab(initialTab ?? defaultTab),
+    [initialTab],
+  );
 
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
   useEffect(() => {
     const query = matchMedia('(prefers-color-scheme: dark)');
@@ -122,28 +168,60 @@ export function WatchBetterRuntime({
 
   useEffect(() => {
     const unsubscribe = pageController.subscribe((next) => {
+      const changedVideo =
+        next.videoId !== pageRef.current.videoId || next.kind !== pageRef.current.kind;
+      pageRef.current = next;
       setPage(next);
-      setSelectedSegmentIds(new Set());
-      setActiveTab(resolveInitialProductTab(settingsRef.current.defaultTab));
+      if (changedVideo) {
+        setSelectedSegmentIds(new Set());
+        setActiveTab(resolveDefaultTab(settingsRef.current.defaultTab));
+      }
     });
     pageController.start();
     return () => {
       unsubscribe();
       pageController.dispose();
     };
-  }, [pageController]);
+  }, [pageController, resolveDefaultTab]);
 
   useEffect(() => playback.subscribe(setPlaybackState), [playback]);
 
   useEffect(() => {
     let disposed = false;
+    let attempt = 0;
+    let retryTimer: number | null = null;
+
+    /**
+     * The panel stays hidden until settings resolve, so a rejected load used to hide it
+     * for the life of the tab. Retry transient failures, then fall back to defaults so
+     * the panel always appears.
+     */
     const sync = () => {
-      void repository.load().then((next) => {
-        if (disposed) return;
-        setSettings(next);
-        setActiveTab(resolveInitialProductTab(next.defaultTab));
-        setSettingsLoaded(true);
-      });
+      void repository
+        .load()
+        .then((next) => {
+          if (disposed) return;
+          attempt = 0;
+          setSettings(next);
+          setActiveTab(resolveDefaultTab(next.defaultTab));
+          setSettingsLoaded(true);
+        })
+        .catch((error: unknown) => {
+          if (disposed) return;
+          attempt += 1;
+          console.warn(
+            `[watchbetter] could not read settings (attempt ${attempt})`,
+            error,
+          );
+          if (attempt <= MAX_SETTINGS_LOAD_ATTEMPTS) {
+            retryTimer = window.setTimeout(sync, attempt * 400);
+            return;
+          }
+          console.warn('[watchbetter] falling back to default settings');
+          setSettings(DEFAULT_SETTINGS);
+          setActiveTab(resolveDefaultTab(DEFAULT_SETTINGS.defaultTab));
+          setSettingsLoaded(true);
+        });
     };
     const onStorageChange = (
       changes: Record<string, { readonly newValue?: unknown }>,
@@ -155,21 +233,36 @@ export function WatchBetterRuntime({
     sync();
     return () => {
       disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
       browser.storage.onChanged.removeListener(onStorageChange);
     };
-  }, [repository]);
+  }, [repository, resolveDefaultTab]);
 
   useEffect(() => {
     let disposed = false;
     const refresh = () => {
-      for (const provider of ['chatgpt', 'gemini', 'deepseek'] as const)
-        void send({ type: 'webchat:get-status', provider }).then((response) => {
-          if (disposed || !response.ok || response.type !== 'webchat:status') return;
+      for (const provider of ['chatgpt', 'gemini'] as const) {
+        const sessionId = providerSessionIds[provider];
+        if (!sessionId) {
           setProviderStatuses((current) => ({
             ...current,
-            [provider]: { provider, state: response.state },
+            [provider]: { provider, state: 'loading' },
           }));
-        });
+          continue;
+        }
+        void send({ type: 'webchat:get-status', provider, sessionId })
+          .then((response) => {
+            if (disposed || !response.ok || response.type !== 'webchat:status') return;
+            setProviderStatuses((current) => ({
+              ...current,
+              [provider]: { provider, state: response.state },
+            }));
+          })
+          .catch((error: unknown) => {
+            if (disposed) return;
+            if (isExtensionContextLost(error)) setContextLost(true);
+          });
+      }
     };
     const onVisibilityChange = () => {
       if (!document.hidden) refresh();
@@ -184,24 +277,7 @@ export function WatchBetterRuntime({
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, []);
-
-  useEffect(() => {
-    if (
-      !settingsLoaded ||
-      !settings.extensionEnabled ||
-      page.kind === 'unsupported' ||
-      !page.videoId
-    )
-      return;
-    void send({ type: 'webchat:preload', provider: 'deepseek' });
-  }, [
-    page.generation,
-    page.kind,
-    page.videoId,
-    settings.extensionEnabled,
-    settingsLoaded,
-  ]);
+  }, [providerSessionIds]);
 
   const patchSettings = useCallback(async (changes: Partial<WatchBetterSettings>) => {
     setSettings((current) => ({ ...current, ...changes }));
@@ -296,6 +372,16 @@ export function WatchBetterRuntime({
 
   const transcriptDocument: TranscriptDocument | null =
     transcript.kind === 'ready' ? transcript.document : null;
+  const resolvedVideoTitle =
+    (
+      transcriptDocument?.videoTitle ??
+      videoTitle ??
+      document.title.replace(/\s*-\s*YouTube$/, '')
+    )
+      .replace(/[\r\n]+/g, ' ')
+      .replaceAll(String.fromCharCode(0), ' ')
+      .trim()
+      .slice(0, 300) || `YouTube video ${page.videoId ?? ''}`.trim();
 
   const activeSegmentId = useMemo(() => {
     if (!transcriptDocument) return null;
@@ -306,6 +392,10 @@ export function WatchBetterRuntime({
     return index < 0 ? null : (transcriptDocument.segments[index]?.id ?? null);
   }, [playbackState.currentTimeSeconds, transcriptDocument]);
 
+  const displayedTranscript: TranscriptViewState = contextLost
+    ? { kind: 'error', message: CONTEXT_LOST_MESSAGE }
+    : transcript;
+
   const theme: ResolvedTheme =
     settings.theme === 'system' ? systemTheme : settings.theme;
   const visible =
@@ -313,6 +403,10 @@ export function WatchBetterRuntime({
     settings.extensionEnabled &&
     page.kind !== 'unsupported' &&
     Boolean(page.videoId);
+  const detachableVideo =
+    page.videoId && (page.kind === 'watch' || page.kind === 'shorts')
+      ? { videoId: page.videoId, videoKind: page.kind }
+      : null;
 
   useEffect(() => {
     if (!visible) onAskFocusChange?.(false);
@@ -348,20 +442,43 @@ export function WatchBetterRuntime({
   return (
     <WatchBetterApp
       activeTab={activeTab}
-      collapsed={settings.panelCollapsed || theaterMode}
-      onCollapsedChange={(panelCollapsed) =>
-        void patchSettings({ panelCollapsed }).catch(() => undefined)
+      allowCollapse={presentation === 'panel'}
+      collapsed={
+        presentation === 'floating' ? false : settings.panelCollapsed || theaterMode
       }
+      {...(presentation === 'panel'
+        ? {
+            onCollapsedChange: (panelCollapsed: boolean) =>
+              void patchSettings({ panelCollapsed }).catch(() => undefined),
+          }
+        : {})}
       {...(onAskFocusChange ? { onAskFocusChange } : {})}
       onOpenSettings={async () => {
         const response = await send({ type: 'settings:open' });
         if (!response.ok) throw new Error(response.message);
       }}
       onTabChange={setActiveTab}
+      {...(presentation === 'panel' && detachableVideo && onDetach
+        ? {
+            onDetach: async () => {
+              await onDetach({
+                videoId: detachableVideo.videoId,
+                videoKind: detachableVideo.videoKind,
+                videoUrl: page.url,
+                videoTitle: resolvedVideoTitle,
+                generation: page.generation,
+                provider: selectedWebChatProvider,
+              });
+            },
+          }
+        : {})}
+      {...(presentation === 'floating' && onClose ? { onClose } : {})}
+      presentation={presentation}
       theme={theme}
       transcriptFontSize={settings.transcriptFontSize}
+      {...(presentation === 'floating' ? { videoTitle: resolvedVideoTitle } : {})}
       transcript={{
-        state: transcript,
+        state: displayedTranscript,
         activeSegmentId,
         autoFollow: settings.autoFollowTranscript,
         onSeek: (segment) => playback.seek(segment.startSeconds),
@@ -384,7 +501,15 @@ export function WatchBetterRuntime({
         selectedSegmentIds,
         currentTimeSeconds: playbackState.currentTimeSeconds,
         providerStatuses,
+        selectedProvider: selectedWebChatProvider,
         sendRequestId,
+        onProviderChange: setSelectedWebChatProvider,
+        onProviderSessionChange: (provider, sessionId) =>
+          setProviderSessionIds((current) =>
+            current[provider] === sessionId
+              ? current
+              : { ...current, [provider]: sessionId },
+          ),
         onSendWebChat: async (request) => {
           const response = await send({ type: 'webchat:send', ...request });
           if (!response.ok) throw new Error(response.message);
@@ -407,6 +532,14 @@ export function WatchBetterRuntime({
           }));
           const response = await send({
             type: 'webchat:frame-prepare',
+            provider,
+            sessionId,
+          });
+          if (!response.ok) throw new Error(response.message);
+        },
+        onResetWebChat: async (provider, sessionId) => {
+          const response = await send({
+            type: 'webchat:frame-reset',
             provider,
             sessionId,
           });

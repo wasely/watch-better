@@ -182,4 +182,32 @@ describe('WatchBetterApp foundation shell', () => {
     );
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
+
+  it('detaches a video and supports floating-card chrome', async () => {
+    const user = userEvent.setup();
+    const onDetach = vi.fn(() => Promise.resolve());
+    const onClose = vi.fn();
+    render(
+      <WatchBetterApp
+        allowCollapse={false}
+        onClose={onClose}
+        onDetach={onDetach}
+        presentation="floating"
+        videoTitle="Independent video workspace"
+      />,
+    );
+
+    expect(screen.getByText('Independent video workspace')).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: 'Collapse Watch Better' }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Detach Watch Better for this video' }),
+    );
+    expect(onDetach).toHaveBeenCalledOnce();
+    await user.click(
+      screen.getByRole('button', { name: 'Close detached Watch Better' }),
+    );
+    expect(onClose).toHaveBeenCalledOnce();
+  });
 });

@@ -1,20 +1,20 @@
 # Status
 
-Updated: 2026-08-10
+Updated: 2026-08-13
 
 ## Current state
 
 **Automated release candidate.** Watch Better's initial product includes Transcript
 and Ask. Jump Cut remains in source but is feature-gated out. Ask embeds ChatGPT
-and Gemini; DeepSeek uses its normal full tab because its security challenge blocks
-embedded pages. No model API or provider credential collection is used. A live
+and Gemini; both run inside the panel and Watch Better never opens a browser tab or
+window on its own. No model API or provider credential collection is used. A live
 unpacked-extension smoke test remains the release gate.
 
 ## Implemented
 
 - Renamed every user-facing product label to Watch Better while preserving stable
   package, repository, file, and storage identifiers.
-- Added compact ChatGPT/Gemini/DeepSeek selection and provider readiness states.
+- Added compact ChatGPT/Gemini selection and provider readiness states.
   Each provider owns its composer, conversation history, and new-chat UI.
 - Keeps each ChatGPT/Gemini iframe mounted after first use across panel tabs, collapse,
   provider switching, and YouTube video changes.
@@ -22,14 +22,13 @@ unpacked-extension smoke test remains the release gate.
   background-blurring workspace; Escape or the close control returns to the panel without
   remounting the provider frame or losing that session.
 - Starts both embedded provider frames when Watch Better opens, so ChatGPT and Gemini
-  are ready before either provider is selected. It also opens or reuses a background
-  DeepSeek tab on supported YouTube pages without moving focus or sending transcript data.
-- Embeds ChatGPT/Gemini and routes messages to the exact verified frame. DeepSeek
-  routes only to its normal full tab. Provider login remains in the browser; Watch Better does not read cookies,
-  tokens, passwords, or API keys.
+  are ready before either provider is selected. No provider tab is ever opened.
+- Embeds ChatGPT/Gemini and routes messages to the exact verified frame. Provider
+  login remains in the browser; Watch Better does not read cookies, tokens,
+  passwords, or API keys.
 - Uses a tab- and provider-scoped session rule only for verified ChatGPT/Gemini frames,
   preserves it across provider navigation, and removes it when the YouTube tab
-  closes, leaves the supported page, or resets; top-level pages are unchanged.
+  closes or leaves YouTube; top-level pages are unchanged.
 - Uses one-use frame session bindings plus direct-child `webNavigation`
   verification before routing provider status or prompt messages.
 - Sends bounded transcript context only after **Send to AI**. Opening Ask and
@@ -37,6 +36,17 @@ unpacked-extension smoke test remains the release gate.
 - Retains transcript navigation, search, selection, seek, and SPA lifecycle handling.
 - Supports desktop YouTube Shorts: active-reel playback, sizing, transcript loading,
   and a normal-flow details-panel mount all share the Short video ID.
+- Resolves Short captions from matching active-page metadata, then YouTube's player
+  response, then watch-page metadata; failed player requests fall through cleanly.
+- Lets unavailable videos retry caption discovery without reloading the page.
+- Detaches the exact mounted watch/Short runtime into a draggable card inside the
+  current YouTube tab, preserving its transcript, provider iframe, and in-flight answer.
+- Immediately creates a fresh normal rail runtime; later videos can be detached into
+  additional independently movable cards.
+- Pins every card to its original video and keys provider routing by tab, provider,
+  and session. Closing removes only that card's frame routes.
+- Detached timestamp actions open the pinned source separately instead of hijacking
+  the video currently being browsed.
 - Keeps the panel height stable when YouTube shrinks its player during page scrolling.
 - Keeps the panel content fixed in its normal page position while scrolling instead of
   adding player-to-masthead overlap as top padding.
@@ -50,38 +60,47 @@ unpacked-extension smoke test remains the release gate.
 
 ## Validation results
 
-- Canonical validation passed: Prettier, ESLint, strict TypeScript, 27 Vitest
-  files / 119 tests, coverage, and WXT production build.
-- Coverage: 61.09% statements, 57.80% branches, 66.38% functions, 63.76% lines.
-- Build: `.output/chrome-mv3/`, 597.38 kB.
-- Package: `.output/watchbetter-0.1.0-chrome.zip`, 229.94 kB reported by WXT.
+- Canonical validation passed: Prettier, ESLint, strict TypeScript, 29 Vitest
+  files / 135 tests, and WXT production build.
+- Coverage: 60.06% statements, 59.60% branches, 64.80% functions, 62.53% lines.
+- Build: `.output/chrome-mv3/`, 612.64 kB.
+- Package: `.output/watchbetter-0.1.0-chrome.zip`, 234.23 kB reported by WXT.
 - Built manifest: `storage`, scoped `declarativeNetRequest`, direct-frame
-  `webNavigation`, and exact YouTube, ChatGPT, Gemini, and DeepSeek hosts.
+  `webNavigation`, and exact YouTube, ChatGPT, and Gemini hosts.
 - Browser harness: Settings inspected at desktop and narrow widths with zero
-  horizontal overflow; DeepSeek full-tab state inspected in the 402px panel.
+  horizontal overflow.
 - Production audit tests reject provider API endpoints, cookie access, credential
-  handling, broad host access, and excess permissions.
+  handling, broad host access, excess permissions, and any self-opened browser tab
+  or window outside the two explicit user actions.
+- `src/test/youtube-content-lifecycle.test.tsx` covers the previously untested
+  content-script lifecycle: rail mount order, detach onto `<body>`, card survival
+  across simulated SPA navigation, several independent cards, and no `tabs.create`.
 
 ## Remaining release gate
 
 - Reload `.output/chrome-mv3/` in `chrome://extensions`.
-- Sign in at ChatGPT, Gemini, and DeepSeek, then verify embedded ChatGPT/Gemini,
-  full-tab DeepSeek, provider switch, first Ask, follow-up, and new-chat behavior.
+- Sign in at ChatGPT and Gemini, then verify embedded frames, provider switch,
+  first Ask, follow-up, and new-chat behavior.
 - Verify caption fetch, selection Ask, seek, SPA navigation, theater/fullscreen,
-  popup restore, and console cleanliness on live YouTube.
+  popup restore, two simultaneous detached cards, source-tab navigation, card close
+  cleanup, and console cleanliness on live YouTube.
+- Confirm a detached card stays put, keeps its position, and opens no tab while
+  browsing on to other videos; its timestamps seek only when the tab is showing
+  that card's own video.
 - Provider DOM can change; failures remain explicit and retryable.
 
 ## Known product limits
 
 - Requires usable YouTube captions; no speech-to-text fallback.
 - ChatGPT/Gemini embedding depends on each site's frame behavior, rendered UI, and
-  active user session. DeepSeek intentionally uses a normal tab.
+  active user session.
 - Jump Cut remains source-only and is not part of the initial product.
 - No live streams, mobile, backend, account, sync, analytics, or model API.
 
 ## Shorts verification
 
-- Automated route, mount, active-video, sizing, runtime, and transcript tests pass.
+- Automated route, mount, active-video, sizing, runtime, direct caption, sparse
+  metadata, player fallback, watch fallback, and transcript tests pass.
 - Harness screenshots were visually inspected at 320px dark and 480px light panel widths.
 - A live Short smoke test remains part of the unpacked-extension release gate.
 

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   extractInnertubeApiKey,
@@ -6,6 +6,10 @@ import {
   parseJson3Transcript,
   YouTubeTranscriptProvider,
 } from './youtube-transcript-provider';
+
+afterEach(() => {
+  for (const script of document.scripts) script.remove();
+});
 
 describe('YouTubeTranscriptProvider', () => {
   it('extracts balanced bootstrap JSON', () => {
@@ -95,6 +99,247 @@ describe('YouTubeTranscriptProvider', () => {
     });
     expect(transcript.segments[0]?.text).toBe('Evidence.');
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('fmt=json3');
+  });
+
+  it('loads caption metadata directly from the active Short', async () => {
+    history.replaceState({}, '', '/shorts/short-1');
+    const script = document.createElement('script');
+    script.textContent = `var ytInitialPlayerResponse = ${JSON.stringify({
+      videoDetails: {
+        videoId: 'short-1',
+        title: 'Captioned Short',
+        lengthSeconds: '28',
+      },
+      captions: {
+        playerCaptionsTracklistRenderer: {
+          captionTracks: [
+            {
+              baseUrl: 'https://www.youtube.com/api/timedtext?v=short-1&lang=en',
+              languageCode: 'en',
+              name: { simpleText: 'English (automatic)' },
+              vssId: 'a.en',
+              kind: 'asr',
+            },
+          ],
+        },
+      },
+    })};`;
+    document.head.append(script);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          events: [
+            {
+              tStartMs: 0,
+              dDurationMs: 1_200,
+              segs: [{ utf8: 'Short captions work.' }],
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const provider = new YouTubeTranscriptProvider(document, fetchMock);
+    const signal = new AbortController().signal;
+
+    const tracks = await provider.listTracks('short-1', signal);
+    const transcript = await provider.load(
+      { videoId: 'short-1', trackId: tracks[0]?.id ?? null },
+      signal,
+    );
+
+    expect(transcript).toMatchObject({
+      videoId: 'short-1',
+      videoTitle: 'Captioned Short',
+      durationSeconds: 28,
+    });
+    expect(transcript.segments[0]?.text).toBe('Short captions work.');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/timedtext');
+  });
+
+  it('asks the player API for Short captions missing from page metadata', async () => {
+    history.replaceState({}, '', '/shorts/short-2');
+    const script = document.createElement('script');
+    script.textContent = `var ytcfg = { set: function () {} }; ytcfg.set({"INNERTUBE_API_KEY":"public-key"}); var ytInitialPlayerResponse = ${JSON.stringify(
+      {
+        videoDetails: { videoId: 'short-2', title: 'Sparse Short' },
+      },
+    )};`;
+    document.head.append(script);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            videoDetails: {
+              videoId: 'short-2',
+              title: 'Recovered Short',
+              lengthSeconds: '19',
+            },
+            captions: {
+              playerCaptionsTracklistRenderer: {
+                captionTracks: [
+                  {
+                    baseUrl:
+                      'https://www.youtube.com/api/timedtext?v=short-2&lang=en&client=android',
+                    languageCode: 'en',
+                    name: { simpleText: 'English' },
+                    vssId: 'a.en',
+                    kind: 'asr',
+                  },
+                ],
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            events: [
+              {
+                tStartMs: 500,
+                dDurationMs: 1_000,
+                segs: [{ utf8: 'Recovered captions.' }],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    const provider = new YouTubeTranscriptProvider(document, fetchMock);
+    const signal = new AbortController().signal;
+
+    const tracks = await provider.listTracks('short-2', signal);
+    const transcript = await provider.load(
+      { videoId: 'short-2', trackId: tracks[0]?.id ?? null },
+      signal,
+    );
+
+    expect(transcript.segments[0]?.text).toBe('Recovered captions.');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/youtubei/v1/player');
+    const playerRequest = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    const playerPayload: unknown =
+      typeof playerRequest?.body === 'string' ? JSON.parse(playerRequest.body) : null;
+    expect(playerPayload).toMatchObject({
+      videoId: 'short-2',
+    });
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/api/timedtext');
+  });
+
+  it('falls back to watch metadata when the Short player request fails', async () => {
+    history.replaceState({}, '', '/shorts/short-3');
+    const script = document.createElement('script');
+    script.textContent =
+      'var ytcfg = { set: function () {} }; ytcfg.set({"INNERTUBE_API_KEY":"public-key"});';
+    document.head.append(script);
+    const watchBootstrap = `var ytInitialPlayerResponse = ${JSON.stringify({
+      videoDetails: { videoId: 'short-3', title: 'Watch fallback Short' },
+      captions: {
+        playerCaptionsTracklistRenderer: {
+          captionTracks: [
+            {
+              baseUrl: 'https://www.youtube.com/api/timedtext?v=short-3&lang=en',
+              languageCode: 'en',
+              name: { simpleText: 'English' },
+              vssId: '.en',
+            },
+          ],
+        },
+      },
+    })};`;
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('player request failed'))
+      .mockResolvedValueOnce(new Response(watchBootstrap, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            events: [
+              {
+                tStartMs: 0,
+                dDurationMs: 1_000,
+                segs: [{ utf8: 'Watch fallback works.' }],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    const provider = new YouTubeTranscriptProvider(document, fetchMock);
+    const signal = new AbortController().signal;
+
+    const tracks = await provider.listTracks('short-3', signal);
+    const transcript = await provider.load(
+      { videoId: 'short-3', trackId: tracks[0]?.id ?? null },
+      signal,
+    );
+
+    expect(transcript.segments[0]?.text).toBe('Watch fallback works.');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/watch?v=short-3');
+  });
+
+  it('recovers Short captions through a player key found on the watch page', async () => {
+    history.replaceState({}, '', '/shorts/short-4');
+    const sparseWatchBootstrap = `var ytcfg = { set: function () {} }; ytcfg.set({"INNERTUBE_API_KEY":"watch-key"}); var ytInitialPlayerResponse = ${JSON.stringify(
+      {
+        videoDetails: { videoId: 'short-4', title: 'Sparse watch page' },
+      },
+    )};`;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(sparseWatchBootstrap, { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            videoDetails: { videoId: 'short-4', title: 'API Short' },
+            captions: {
+              playerCaptionsTracklistRenderer: {
+                captionTracks: [
+                  {
+                    baseUrl:
+                      'https://www.youtube.com/api/timedtext?v=short-4&lang=es&client=android',
+                    languageCode: 'es',
+                    name: { simpleText: 'Spanish (automatic)' },
+                    vssId: 'a.es',
+                    kind: 'asr',
+                  },
+                ],
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            events: [
+              {
+                tStartMs: 250,
+                dDurationMs: 1_000,
+                segs: [{ utf8: 'Subtítulos recuperados.' }],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+    const provider = new YouTubeTranscriptProvider(document, fetchMock);
+    const signal = new AbortController().signal;
+
+    const tracks = await provider.listTracks('short-4', signal);
+    const transcript = await provider.load(
+      { videoId: 'short-4', trackId: tracks[0]?.id ?? null },
+      signal,
+    );
+
+    expect(tracks[0]).toMatchObject({ languageCode: 'es', isAutomatic: true });
+    expect(transcript.segments[0]?.text).toBe('Subtítulos recuperados.');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/watch?v=short-4');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/youtubei/v1/player');
   });
 
   it('invokes browser fetch with its Window receiver', async () => {

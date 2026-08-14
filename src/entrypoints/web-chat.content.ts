@@ -71,16 +71,13 @@ const startNewConversation = async (
 };
 
 export default defineContentScript({
-  matches: [
-    'https://chatgpt.com/*',
-    'https://gemini.google.com/*',
-    'https://chat.deepseek.com/*',
-  ],
+  matches: ['https://chatgpt.com/*', 'https://gemini.google.com/*'],
   allFrames: true,
   runAt: 'document_idle',
   main() {
     const definition = providerForHostname(location.hostname);
     if (!definition) return;
+    const watchBetterOrigin = new URL(browser.runtime.getURL('/')).origin;
     let activeSend = false;
     let boundSessionId: string | null = null;
 
@@ -93,8 +90,13 @@ export default defineContentScript({
         })
         .catch(() => undefined);
 
-    const bindToYouTubePanel = (event: MessageEvent<unknown>) => {
-      if (event.origin !== 'https://www.youtube.com') return;
+    const bindToWatchBetterPanel = (event: MessageEvent<unknown>) => {
+      if (event.source !== window.parent) return;
+      if (
+        event.origin !== 'https://www.youtube.com' &&
+        event.origin !== watchBetterOrigin
+      )
+        return;
       if (!isWebChatFrameBinding(event.data)) return;
       if (event.data.provider !== definition.id) return;
       boundSessionId = event.data.sessionId;
@@ -197,7 +199,7 @@ export default defineContentScript({
     // WebExtension message listeners may return a promise response.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     browser.runtime.onMessage.addListener(respond);
-    window.addEventListener('message', bindToYouTubePanel);
+    window.addEventListener('message', bindToWatchBetterPanel);
     window.addEventListener('load', () => {
       if (boundSessionId) void announceReady(boundSessionId);
     });

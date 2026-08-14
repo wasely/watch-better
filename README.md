@@ -8,8 +8,9 @@
 [![Build status](https://img.shields.io/github/actions/workflow/status/wasely/watch-better/ci.yml?branch=main&style=for-the-badge&label=Build)](https://github.com/wasely/watch-better/actions/workflows/ci.yml)
 
 Watch Better is a Chrome extension for searchable YouTube transcripts and AI video
-analysis. Find timestamped moments, select the useful context, and ask ChatGPT, Gemini,
-or DeepSeek without losing your place in the video.
+analysis. Find timestamped moments, select the useful context, and ask ChatGPT or
+Gemini without losing your place in the video. Detach the exact panel into a movable
+card inside the YouTube page, then keep browsing while the response runs.
 
 <p align="center">
   <a href="#install-in-chrome">Install</a> ·
@@ -20,7 +21,7 @@ or DeepSeek without losing your place in the video.
 
 ## Install in Chrome
 
-Watch Better supports Chrome 111 or newer on desktop Windows, macOS, Linux, and
+Watch Better supports Chrome 133 or newer on desktop Windows, macOS, Linux, and
 ChromeOS. The same extension package works across those operating systems. Chrome
 for Android and iOS does not install Chrome extensions.
 
@@ -62,7 +63,10 @@ Continue in ChatGPT or Gemini without losing the video.
 - Select specific transcript lines or use the bounded full transcript.
 - Copy captions or send context only after an explicit action.
 - Use ChatGPT and Gemini inside the panel with your signed-in sessions.
-- Open DeepSeek in a normal tab because its security challenge blocks embedded pages.
+- Detach the exact video/AI session into a draggable card inside the same YouTube
+  page—never a new tab or window.
+- Keep multiple detached cards alive while the normal rail panel starts fresh for
+  each newly opened video.
 - Switch between light and dark themes, resize the panel, or collapse it to a launcher.
 - Configure transcript behavior, default tab, caching, and appearance from one settings page.
 
@@ -72,13 +76,13 @@ Long videos often contain a few minutes you actually need. Watch Better helps yo
 those minutes, choose the exact context, and ask a focused question without turning the
 video into another tab-management job.
 
-| Task                   | Common manual workflow                       | Watch Better                                                         |
-| ---------------------- | -------------------------------------------- | -------------------------------------------------------------------- |
-| Find the useful moment | Scrub the video or scan a long transcript    | Search timestamped rows and jump straight to the video moment        |
-| Prepare AI context     | Copy and clean a large transcript by hand    | Select exact rows or use the bounded full transcript                 |
-| Ask a provider         | Switch between YouTube and a separate AI tab | Keep ChatGPT or Gemini beside the video; use a prepared DeepSeek tab |
-| Connect AI             | Configure another service or API workflow    | Use your existing signed-in provider session; no API key             |
-| Control sharing        | Manually track what was pasted               | Nothing is sent until you choose **Send to AI**                      |
+| Task                   | Common manual workflow                       | Watch Better                                                  |
+| ---------------------- | -------------------------------------------- | ------------------------------------------------------------- |
+| Find the useful moment | Scrub the video or scan a long transcript    | Search timestamped rows and jump straight to the video moment |
+| Prepare AI context     | Copy and clean a large transcript by hand    | Select exact rows or use the bounded full transcript          |
+| Ask a provider         | Switch between YouTube and a separate AI tab | Keep ChatGPT or Gemini beside the video, in the page          |
+| Connect AI             | Configure another service or API workflow    | Use your existing signed-in provider session; no API key      |
+| Control sharing        | Manually track what was pasted               | Nothing is sent until you choose **Send to AI**               |
 
 ### How it compares
 
@@ -91,7 +95,6 @@ This is a workflow comparison, not a claim that one tool fits everybody.
 | Jump from transcript     | Yes                                     | Yes                     | Yes                                | Available in transcript tools |
 | Choose exact rows for AI | Yes                                     | No built-in AI handoff  | Not advertised                     | Not advertised                |
 | AI interface in panel    | ChatGPT and Gemini                      | No                      | Summary tools and AI integrations  | Built-in AI workspace         |
-| DeepSeek workflow        | Prepared prompt opens in a normal tab   | No                      | Not advertised                     | Not advertised                |
 | API key needed           | No—uses your signed-in provider session | No                      | No for the extension               | No for the web app            |
 
 “Not advertised” means we could not verify the feature on the product's public page;
@@ -107,19 +110,21 @@ flowchart LR
     C --> D{Provider}
     D --> E[ChatGPT in panel]
     D --> F[Gemini in panel]
-    D --> G[DeepSeek in full tab]
 ```
 
 ## How Ask works
 
-1. Open **Ask** and choose ChatGPT, Gemini, or DeepSeek. Nothing is sent yet.
+1. Open **Ask** and choose ChatGPT or Gemini. Nothing is sent yet.
 2. Sign in on the provider's official website if needed.
 3. In **Transcript**, optionally select the rows you want to reference.
 4. Choose **Send to AI**. With no selection, Watch Better sends the bounded transcript.
 5. Continue the conversation using the provider's own interface.
+6. Use the header detach button to turn that exact panel into a movable card. Drag
+   its header anywhere in YouTube; the normal rail gets a fresh panel for the next
+   video. Detach again to keep multiple cards.
 
-ChatGPT and Gemini run inside Watch Better. DeepSeek opens in a full tab. Provider
-interfaces can change without notice, so their adapters may occasionally need updates.
+ChatGPT and Gemini both run inside Watch Better. Provider interfaces can change
+without notice, so their adapters may occasionally need updates.
 
 ## Development
 
@@ -146,15 +151,14 @@ production extension build. `npm run zip` creates the install archive in `.outpu
 
 ## Permissions
 
-| Permission or host      | Purpose                                                                            |
-| ----------------------- | ---------------------------------------------------------------------------------- |
-| `storage`               | Save settings, optional session transcripts, and embedded-frame routing IDs.       |
-| `declarativeNetRequest` | Permit one prepared provider subframe in the current YouTube tab while needed.     |
-| `webNavigation`         | Verify the registered provider is the panel's direct child before routing prompts. |
-| `youtube.com`           | Mount Watch Better and read captions exposed by the current watch page.            |
-| `chatgpt.com`           | Use the signed-in composer after an explicit send action.                          |
-| `gemini.google.com`     | Use the signed-in composer after an explicit send action.                          |
-| `chat.deepseek.com`     | Use the signed-in composer in a full tab after an explicit send action.            |
+| Permission or host      | Purpose                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `storage`               | Save settings, optional session transcripts, and embedded-frame routing IDs.         |
+| `declarativeNetRequest` | Permit one prepared provider subframe in a YouTube panel or detached workspace.      |
+| `webNavigation`         | Verify the registered provider is Watch Better's direct child before prompt routing. |
+| `youtube.com`           | Mount Watch Better and read captions exposed by the current watch page.              |
+| `chatgpt.com`           | Use the signed-in composer after an explicit send action.                            |
+| `gemini.google.com`     | Use the signed-in composer after an explicit send action.                            |
 
 Watch Better has no cookie, browsing-data, broad host, or remote-code permission.
 
@@ -162,7 +166,8 @@ Watch Better has no cookie, browsing-data, broad host, or remote-code permission
 
 Watch Better stores no API keys and sends no analytics. Transcripts and conversations
 are not persisted by default. The optional browser-session transcript cache is bounded
-and cleared with the browser session. Transcript context is transferred only after you
+and cleared with the browser session. Detached cards stay only in the current YouTube
+tab and browser memory. Transcript context is transferred only after you
 choose **Send to AI**; the selected provider then applies its own account, retention,
 and usage policies.
 
@@ -178,6 +183,7 @@ watch-better/
 │   │   ├── transcript/    # Search, select, copy, and seek
 │   │   ├── ask/           # Provider choice and prompt flow
 │   │   ├── settings/      # User preferences
+│   │   ├── detach/        # Movable in-page per-video cards
 │   │   └── skip/          # Disabled Jump Cut prototype
 │   ├── services/          # Clipboard and signed-in web-chat adapters
 │   ├── storage/           # Settings and bounded transcript cache
@@ -191,7 +197,7 @@ watch-better/
 
 ## Current limits
 
-- Chrome 111+ desktop YouTube watch pages and Shorts; no live streams or mobile Chrome
+- Chrome 133+ desktop YouTube watch pages and Shorts; no live streams or mobile Chrome
   extension support.
 - Uses available caption tracks only; there is no speech-to-text fallback.
 - Provider web interfaces and embedded sign-in rules can change.

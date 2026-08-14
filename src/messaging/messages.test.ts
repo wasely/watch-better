@@ -29,19 +29,22 @@ describe('extension message validation', () => {
         prompt: 'hidden data',
       }),
     ).toBe(false);
-    expect(isExtensionRequest({ type: 'webchat:get-status', provider: 'gemini' })).toBe(
-      true,
-    );
-    expect(isExtensionRequest({ type: 'webchat:preload', provider: 'deepseek' })).toBe(
-      true,
-    );
     expect(
       isExtensionRequest({
-        type: 'webchat:preload',
-        provider: 'deepseek',
-        transcript: 'hidden data',
+        type: 'webchat:get-status',
+        provider: 'gemini',
+        sessionId: 'gemini:frame-1',
       }),
-    ).toBe(false);
+    ).toBe(true);
+    expect(isExtensionRequest({ type: 'webchat:get-status', provider: 'gemini' })).toBe(
+      false,
+    );
+    expect(isExtensionRequest({ type: 'webchat:preload', provider: 'chatgpt' })).toBe(
+      false,
+    );
+    expect(isExtensionRequest({ type: 'webchat:open', provider: 'deepseek' })).toBe(
+      false,
+    );
     expect(isExtensionRequest({ type: 'settings:manage' })).toBe(true);
     expect(
       isExtensionRequest({
@@ -61,12 +64,17 @@ describe('extension message validation', () => {
       isExtensionRequest({ type: 'webchat:frame-ready', provider: 'chatgpt' }),
     ).toBe(false);
     expect(
-      isExtensionRequest({ type: 'webchat:frame-reset', provider: 'gemini' }),
+      isExtensionRequest({
+        type: 'webchat:frame-reset',
+        provider: 'gemini',
+        sessionId: 'gemini:frame-1',
+      }),
     ).toBe(true);
     expect(
       isExtensionRequest({
         type: 'webchat:send',
         provider: 'chatgpt',
+        sessionId: 'chatgpt:frame-1',
         message: 'Use the transcript.',
         newConversation: true,
       }),
@@ -75,6 +83,15 @@ describe('extension message validation', () => {
       isExtensionRequest({
         type: 'webchat:send',
         provider: 'chatgpt',
+        message: 'Use the transcript.',
+        newConversation: true,
+      }),
+    ).toBe(false);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:send',
+        provider: 'chatgpt',
+        sessionId: 'chatgpt:frame-1',
         message: '',
         newConversation: true,
       }),

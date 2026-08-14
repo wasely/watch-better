@@ -27,9 +27,7 @@ have automated coverage; a live Short smoke test remains required before release
    YouTube's Terms restrict automated access, reproduction/use of Content, and
    interference with security/use-limiting features absent permission or an
    applicable legal exception
-   ([YouTube Terms](https://www.youtube.com/t/terms)). DeepSeek's Terms also
-   restrict automated capture/copy of Service content
-   ([DeepSeek Terms](https://cdn.deepseek.com/policies/en-US/deepseek-terms-of-use.html)).
+   ([YouTube Terms](https://www.youtube.com/t/terms)).
    Obtain written authorization or counsel's approval for each shipped provider;
    otherwise do not publish that integration. The ChatGPT response-scraping path
    is the clearest blocker.
@@ -58,6 +56,10 @@ to install, while the manifest key prevents incompatible installs
 [container queries in Chrome 105](https://developer.chrome.com/blog/new-in-chrome-105),
 [`color-mix()` support](https://developer.chrome.com/docs/css-ui/css-color-mix),
 [minimum Chrome version](https://developer.chrome.com/docs/extensions/reference/manifest/minimum-chrome-version)).
+
+Implementation note (2026-08-13): the shipped minimum is now Chrome 133 because
+exact iframe-preserving detach uses `Element.moveBefore()`. This supersedes the
+original Chrome 111 research floor.
 
 Run at least one clean-profile end-to-end pass per row. Use the latest stable
 Chrome available on each OS and record Chrome/OS version, display server, browser
@@ -161,7 +163,7 @@ and require a small live canary suite before every release.
 - Treat video title/URL/captions, selected transcript, prompt, and provider response
   as user data/website content even when processed locally. Declare handling and
   sharing consistently in the listing Privacy tab, listing copy, in-product send
-  disclosure, and privacy policy; name ChatGPT/OpenAI, Gemini/Google, and DeepSeek
+  disclosure, and privacy policy; name ChatGPT/OpenAI and Gemini/Google
   as recipients. Local-only processing still requires disclosure
   ([Chrome user-data FAQ](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq),
   [privacy-policy requirements](https://developer.chrome.com/docs/webstore/program-policies/privacy)).

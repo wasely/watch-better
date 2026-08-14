@@ -8,7 +8,7 @@ before submitting version 0.1.0.
 **Short description**
 
 Search, copy, and navigate YouTube transcripts, then send selected context to
-ChatGPT, Gemini, or DeepSeek from a focused companion panel.
+ChatGPT or Gemini from a focused companion panel.
 
 **Single purpose**
 
@@ -21,9 +21,9 @@ searchable transcript and an explicit transcript-to-AI workflow.
 - Capture real extension screenshots after the live test; do not use harness-only
   or generated screenshots as product evidence.
 - Provide an accurate support URL and this repository's `PRIVACY.md` URL.
-- Disclose YouTube, ChatGPT, Gemini, DeepSeek, storage, `declarativeNetRequest`, and
+- Disclose YouTube, ChatGPT, Gemini, storage, `declarativeNetRequest`, and
   `webNavigation` access exactly as documented in the README.
-- State that ChatGPT/Gemini embedding can require normal-tab sign-in, DeepSeek uses
+- State that ChatGPT/Gemini embedding can require normal-tab sign-in,
   a full tab, and provider interfaces may need compatibility updates.
 
 ## Release gate
@@ -32,7 +32,7 @@ searchable transcript and an explicit transcript-to-AI workflow.
 - CI validation passes on Windows, macOS, and Linux with the pinned Node/npm
   dependency graph.
 - Load the production build from `.output/chrome-mv3/` in a clean Chrome profile.
-- Verify ChatGPT/Gemini frame load, DeepSeek full-tab routing, sign-in fallback,
+- Verify ChatGPT/Gemini frame load, sign-in fallback,
   explicit single send, provider switching, and errors.
 - Verify transcript load, search, selection, copy, seek, SPA navigation, theater,
   fullscreen, 200% zoom, and dark/light themes.
@@ -42,7 +42,7 @@ searchable transcript and an explicit transcript-to-AI workflow.
 
 ## Supported-platform disclosure
 
-- Chrome 111+ on supported desktop Windows, macOS, Linux, and ChromeOS.
+- Chrome 133+ on supported desktop Windows, macOS, Linux, and ChromeOS.
 - One OS-neutral MV3 ZIP; no native binaries or OS-specific runtime paths.
 - Chrome on Android and iOS does not install Chrome extensions and is not supported.
 - Before public promotion, spot-check the live unpacked build on Windows, macOS, and

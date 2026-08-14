@@ -16,6 +16,28 @@ describe('production privacy and permission audit', () => {
       expect(read(path)).not.toMatch(/@\/test|src\/test|fixtures\//);
   });
 
+  it('never opens a browser tab or window on its own', () => {
+    // The pop-out card lives inside the YouTube page. Nothing in the panel, the
+    // content script, or an automatic background path may spawn a tab or window.
+    for (const path of [
+      'src/entrypoints/youtube.content.tsx',
+      'src/app/WatchBetterRuntime.tsx',
+      'src/app/WatchBetterApp.tsx',
+      'src/features/ask/AskPanel.tsx',
+      'src/features/detach/detached-video.ts',
+    ])
+      expect(read(path)).not.toMatch(/tabs\.create|windows\.create|window\.open/);
+
+    const background = read('src/entrypoints/background.ts');
+    // Background tab creation survives only behind explicit user actions.
+    const tabCreations = background.match(/browser\.tabs\.create/g) ?? [];
+    expect(tabCreations).toHaveLength(2);
+    expect(background).toContain("case 'webchat:open'");
+    expect(background).toContain('chrome://extensions/?id=');
+    expect(background).not.toContain('preloadProviderTab');
+    expect(background).not.toContain("case 'webchat:preload'");
+  });
+
   it('limits web chat to explicit typed provider actions', () => {
     const messages = read('src/messaging/messages.ts');
     const background = read('src/entrypoints/background.ts');
@@ -27,14 +49,14 @@ describe('production privacy and permission audit', () => {
 
   it('requests storage, scoped frame rules, and only supported hosts', () => {
     const config = read('wxt.config.ts');
-    expect(config).toContain("minimum_chrome_version: '111'");
+    expect(config).toContain("minimum_chrome_version: '133'");
     expect(config).toContain(
       "permissions: ['storage', 'declarativeNetRequest', 'webNavigation']",
     );
     expect(config).toContain("'https://www.youtube.com/*'");
     expect(config).toContain("'https://chatgpt.com/*'");
     expect(config).toContain("'https://gemini.google.com/*'");
-    expect(config).toContain("'https://chat.deepseek.com/*'");
+    expect(config).not.toContain('chat.deepseek.com');
     expect(config).not.toContain('api.openai.com');
     expect(config).not.toMatch(
       /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|browsingData|webRequest/,
@@ -59,6 +81,8 @@ describe('production privacy and permission audit', () => {
     expect(background).toContain('resetEmbeddedFramesForTab');
     expect(background).not.toContain('removeFrameRule(binding.ruleId)');
     expect(background).toContain('frame.parentFrameId !== 0');
+    expect(background).toContain('`${tabId}:${providerId}:${sessionId}`');
+    expect(background).toContain('loadEmbeddedFrame(tabId, providerId, sessionId)');
     expect(background).not.toMatch(/<all_urls>|main_frame|api\.openai/);
     expect(read('src/entrypoints/web-chat-frame-bypass.content.ts')).toContain(
       '#watchbetter-frame=',
@@ -66,8 +90,7 @@ describe('production privacy and permission audit', () => {
     expect(read('src/entrypoints/web-chat-frame-bypass.content.ts')).not.toContain(
       'chat.deepseek.com',
     );
-    expect(read('src/services/web-chat.ts')).toContain("surface: 'tab'");
-    expect(background).toContain('sendToProviderPage(tab.id, 0');
+    expect(read('src/services/web-chat.ts')).not.toMatch(/deepseek/i);
   });
 
   it('has no direct provider API or credential handling', () => {

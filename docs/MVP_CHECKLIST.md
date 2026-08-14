@@ -83,7 +83,7 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 - [~] **MVP-040 · P0 · PRD-010, PRD-011, PRD-016 — Caption-track provider**
   - Acceptance: available tracks load and normalize behind the provider; aborts/stale requests cannot update UI.
   - Verify: provider/unit/integration tests and representative live videos.
-  - Status: Bootstrap/watch-HTML fallback, JSON3/XML, preference, unavailable, and abort tests pass; representative live captions pending.
+  - Status: Matching active-Short metadata, player-endpoint recovery, watch-HTML fallback, JSON3/XML, preference, unavailable, and abort tests pass; representative live captions pending.
 - [~] **MVP-041 · P0 · PRD-012–PRD-015 — Playback/search/selection/copy integration**
   - Acceptance: seek, active row, follow suspension, literal search, selection, and required clipboard format work with real normalized data.
   - Verify: component/integration tests and live check.
@@ -99,10 +99,14 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: each context/suggestion builds bounded, timestamp-preserving prompts without network calls.
   - Verify: unit snapshot/behavior tests including huge transcripts.
   - Status: Verified 2026-07-29; short/full, selected, current-section, oversized stratified, and topic-relevant prompt tests pass; limitation disclosure is embedded.
-- [~] **MVP-051 · P0 — ChatGPT/Gemini frame + DeepSeek tab bridge**
-  - Acceptance: ChatGPT/Gemini render inside Ask, DeepSeek uses its normal tab, **Send to AI** targets only the selected surface, switching sends nothing, and transmission is explicit and bounded.
+- [~] **MVP-051 · P0 — ChatGPT/Gemini embedded frame bridge**
+  - Acceptance: ChatGPT/Gemini render inside Ask, no provider ever opens a browser tab on its own, **Send to AI** targets only the selected surface, switching sends nothing, and transmission is explicit and bounded.
   - Verify: service/DOM/component/runtime/message tests, manifest/source audit, live signed-in provider checks.
-  - Status: Automated contract, DOM, chaining, priming, permission, and no-credential audits pass; DeepSeek iframe challenge reproduced and removed via full-tab routing; updated live extension check pending.
+  - Status: Automated contract, DOM, chaining, priming, permission, no-credential, and no-new-tab audits pass; DeepSeek removed because it could only work as a separate tab; updated live extension check pending.
+- [~] **MVP-052 · P0 — Movable per-video cards**
+  - Acceptance: each watch page or Short can detach its exact mounted Transcript/Ask session into a draggable card; multiple cards survive source-video navigation while a fresh rail panel follows the new video.
+  - Verify: controller/runtime/session/message/geometry tests, production build, and two-video live smoke.
+  - Status: Exact iframe preservation, static video snapshots, session-specific routing, close cleanup, and card geometry tests pass; two-video live smoke pending.
 
 ## Phase 6 — jump cutter
 

@@ -32,8 +32,17 @@ export interface WatchBetterAppProps {
   readonly onTabChange?: (tab: PanelTab) => void;
   readonly onCollapsedChange?: (collapsed: boolean) => void;
   readonly onOpenSettings?: () => void;
+  readonly onDetach?: () => void | Promise<void>;
+  readonly onClose?: () => void;
   readonly onAskFocusChange?: (focused: boolean) => void;
   readonly transcriptFontSize?: TranscriptFontSize;
+  readonly videoTitle?: string;
+  readonly allowCollapse?: boolean;
+  /** Floating cards minimize to their title bar instead of collapsing to a launcher. */
+  readonly minimized?: boolean;
+  readonly onMinimizedChange?: (minimized: boolean) => void;
+  readonly onToggleMaximized?: () => void;
+  readonly presentation?: 'panel' | 'floating';
 }
 
 const tabs: readonly {
@@ -74,14 +83,23 @@ export function WatchBetterApp({
   onTabChange,
   onCollapsedChange,
   onOpenSettings,
+  onDetach,
+  onClose,
   onAskFocusChange,
   transcriptFontSize = 'standard',
+  videoTitle,
+  allowCollapse = true,
+  presentation = 'panel',
+  minimized = false,
+  onMinimizedChange,
+  onToggleMaximized,
 }: WatchBetterAppProps) {
   const [internalActiveTab, setInternalActiveTab] = useState<PanelTab>(() =>
     resolveInitialProductTab(initialTab),
   );
   const [internalCollapsed, setInternalCollapsed] = useState(initialCollapsed);
   const [askFocused, setAskFocused] = useState(initialAskFocused);
+  const [detachState, setDetachState] = useState<'idle' | 'opening' | 'error'>('idle');
   const activeTab = resolveInitialProductTab(controlledActiveTab ?? internalActiveTab);
   const collapsed = controlledCollapsed ?? internalCollapsed;
   const id = useId();
@@ -128,6 +146,14 @@ export function WatchBetterApp({
     onAskFocusChange?.(nextFocused);
   };
 
+  const detachPanel = () => {
+    if (!onDetach || detachState === 'opening') return;
+    setDetachState('opening');
+    void Promise.resolve(onDetach())
+      .then(() => setDetachState('idle'))
+      .catch(() => setDetachState('error'));
+  };
+
   const handleTabKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
@@ -157,6 +183,8 @@ export function WatchBetterApp({
       className="watchbetter-root"
       data-ask-focus={askFocused}
       data-collapsed={collapsed}
+      data-minimized={minimized}
+      data-presentation={presentation}
       data-theme={theme}
       data-transcript-font-size={transcriptFontSize}
       ref={rootRef}
@@ -197,6 +225,11 @@ export function WatchBetterApp({
             </span>
             <div className="ct-identity__copy">
               <strong>Watch Better</strong>
+              {videoTitle ? (
+                <span className="ct-video-title" title={videoTitle}>
+                  {videoTitle}
+                </span>
+              ) : null}
               {status.readiness !== 'ready' ? (
                 <span
                   className={`ct-status ct-status--${status.readiness}`}
@@ -209,6 +242,22 @@ export function WatchBetterApp({
             </div>
           </div>
           <div className="ct-header__actions">
+            {onDetach ? (
+              <button
+                aria-label="Detach Watch Better for this video"
+                className="ct-icon-button"
+                disabled={detachState === 'opening'}
+                onClick={detachPanel}
+                title={
+                  detachState === 'error'
+                    ? 'Could not detach. Try again.'
+                    : 'Detach into a movable video card'
+                }
+                type="button"
+              >
+                <Icon name="detach" />
+              </button>
+            ) : null}
             <button
               aria-label="Open Watch Better settings"
               className="ct-icon-button"
@@ -219,15 +268,61 @@ export function WatchBetterApp({
             >
               <Icon name="settings" />
             </button>
-            <button
-              aria-label="Collapse Watch Better"
-              className="ct-icon-button"
-              onClick={() => setPanelCollapsed(true)}
-              title="Collapse"
-              type="button"
-            >
-              <Icon name="chevron-down" />
-            </button>
+            {allowCollapse ? (
+              <button
+                aria-label="Collapse Watch Better"
+                className="ct-icon-button"
+                onClick={() => setPanelCollapsed(true)}
+                title="Collapse"
+                type="button"
+              >
+                <Icon name="chevron-down" />
+              </button>
+            ) : null}
+            {presentation === 'floating' && onMinimizedChange ? (
+              <button
+                aria-label={
+                  minimized
+                    ? 'Restore detached Watch Better'
+                    : 'Minimize detached Watch Better'
+                }
+                className="ct-icon-button"
+                onClick={() => onMinimizedChange(!minimized)}
+                title={minimized ? 'Restore' : 'Minimize'}
+                type="button"
+              >
+                <Icon name={minimized ? 'restore' : 'minimize'} />
+              </button>
+            ) : null}
+            {presentation === 'floating' && onToggleMaximized ? (
+              <button
+                aria-label="Maximize or restore detached Watch Better"
+                className="ct-icon-button"
+                onClick={onToggleMaximized}
+                title="Maximize / restore (or double-click this bar)"
+                type="button"
+              >
+                <Icon name="maximize" />
+              </button>
+            ) : null}
+            {presentation === 'floating' && onClose ? (
+              <button
+                aria-label="Close detached Watch Better"
+                className="ct-icon-button"
+                onClick={onClose}
+                title="Close detached card"
+                type="button"
+              >
+                <Icon name="close" />
+              </button>
+            ) : null}
+            <span aria-live="polite" className="ct-sr-only">
+              {detachState === 'opening'
+                ? 'Detaching Watch Better into a movable card.'
+                : detachState === 'error'
+                  ? 'Could not detach Watch Better.'
+                  : ''}
+            </span>
           </div>
         </header>
 
@@ -235,6 +330,7 @@ export function WatchBetterApp({
           aria-label="Watch Better sections"
           className={`ct-tabs ct-tabs--${tabs.length}`}
           data-active-tab={activeTab}
+          hidden={minimized}
           onKeyDown={handleTabKeyDown}
           role="tablist"
         >
@@ -263,7 +359,7 @@ export function WatchBetterApp({
         <div
           aria-labelledby={`${id}-transcript-tab`}
           className="ct-panel__body"
-          hidden={activeTab !== 'transcript'}
+          hidden={minimized || activeTab !== 'transcript'}
           id={`${id}-transcript-panel`}
           role="tabpanel"
           tabIndex={activeTab === 'transcript' ? 0 : -1}
@@ -281,7 +377,7 @@ export function WatchBetterApp({
         <div
           aria-labelledby={`${id}-ask-tab`}
           className="ct-panel__body"
-          hidden={activeTab !== 'ask'}
+          hidden={minimized || activeTab !== 'ask'}
           id={`${id}-ask-panel`}
           role="tabpanel"
           tabIndex={activeTab === 'ask' ? 0 : -1}

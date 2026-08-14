@@ -17,12 +17,13 @@ import './AskPanel.css';
 
 const DEFAULT_PROMPT_PROVIDER = new TranscriptPromptProvider();
 const EMPTY_SELECTION = new Set<TranscriptSegmentId>();
-const PROVIDER_IDS = ['chatgpt', 'gemini', 'deepseek'] as const;
+const PROVIDER_IDS = ['chatgpt', 'gemini'] as const;
 const PRIME_QUESTION =
   'Use this transcript as the source of truth. Get ready to answer my questions about this video, cite useful timestamps, and say when the transcript does not establish an answer.';
 
 export interface ChatTurnRequest {
   readonly provider: WebChatProviderId;
+  readonly sessionId: string;
   readonly message: string;
   readonly newConversation: boolean;
 }
@@ -40,6 +41,8 @@ export interface AskPanelProps {
   readonly initialScope?: AIContextScope;
   readonly provider?: AIProvider;
   readonly providerStatuses?: Partial<Record<WebChatProviderId, WebChatProviderStatus>>;
+  readonly initialProvider?: WebChatProviderId;
+  readonly selectedProvider?: WebChatProviderId;
   readonly sendRequestId?: number;
   readonly onSendWebChat?: (request: ChatTurnRequest) => Promise<ChatTurnResult>;
   readonly onOpenWebChat?: (provider: WebChatProviderId) => void | Promise<void>;
@@ -47,8 +50,17 @@ export interface AskPanelProps {
     provider: WebChatProviderId,
     sessionId: string,
   ) => void | Promise<void>;
+  readonly onResetWebChat?: (
+    provider: WebChatProviderId,
+    sessionId: string,
+  ) => void | Promise<void>;
   readonly focused?: boolean;
   readonly onFocusedChange?: (focused: boolean) => void;
+  readonly onProviderChange?: (provider: WebChatProviderId) => void;
+  readonly onProviderSessionChange?: (
+    provider: WebChatProviderId,
+    sessionId: string,
+  ) => void;
 }
 
 type PrimeState =
@@ -61,8 +73,9 @@ interface ProviderFrameProps {
   readonly active: boolean;
   readonly provider: WebChatProviderId;
   readonly status: WebChatProviderStatus['state'];
+  readonly onSessionReady?: (provider: WebChatProviderId, sessionId: string) => void;
   readonly onPrepareWebChat?: AskPanelProps['onPrepareWebChat'];
-  readonly onOpenWebChat?: AskPanelProps['onOpenWebChat'];
+  readonly onResetWebChat?: AskPanelProps['onResetWebChat'];
 }
 
 const createFrameSessionId = (): string =>
@@ -85,25 +98,45 @@ function ProviderFrame({
   active,
   provider,
   status,
+  onSessionReady,
   onPrepareWebChat,
-  onOpenWebChat,
+  onResetWebChat,
 }: ProviderFrameProps) {
   const definition = WEB_CHAT_PROVIDERS[provider];
   const [sessionId] = useState(() => `${provider}:${createFrameSessionId()}`);
   const [prepared, setPrepared] = useState(!onPrepareWebChat);
   const [timedOut, setTimedOut] = useState(false);
   const [preparationError, setPreparationError] = useState('');
-  const [tabError, setTabError] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const bindingTimersRef = useRef<readonly number[]>([]);
   const prepareRef = useRef(onPrepareWebChat);
+  const resetTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     prepareRef.current = onPrepareWebChat;
   }, [onPrepareWebChat]);
 
   useEffect(() => {
-    if (definition.surface !== 'embedded') return;
+    onSessionReady?.(provider, sessionId);
+  }, [onSessionReady, provider, sessionId]);
+
+  useEffect(() => {
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+    if (!onResetWebChat) return;
+    return () => {
+      resetTimerRef.current = window.setTimeout(() => {
+        resetTimerRef.current = null;
+        void Promise.resolve(onResetWebChat(provider, sessionId)).catch(
+          () => undefined,
+        );
+      }, 0);
+    };
+  }, [onResetWebChat, provider, sessionId]);
+
+  useEffect(() => {
     const prepare = prepareRef.current;
     if (!prepare) return;
     let disposed = false;
@@ -120,14 +153,13 @@ function ProviderFrame({
     return () => {
       disposed = true;
     };
-  }, [definition.surface, provider, sessionId]);
+  }, [provider, sessionId]);
 
   useEffect(() => {
-    if (definition.surface !== 'embedded') return;
     if (status === 'ready' || status === 'sign-in-required') return;
     const timer = window.setTimeout(() => setTimedOut(true), 20_000);
     return () => window.clearTimeout(timer);
-  }, [definition.surface, status]);
+  }, [status]);
 
   useEffect(
     () => () => {
@@ -161,44 +193,6 @@ function ProviderFrame({
     : timedOut && !ready
       ? `${definition.displayName} is taking longer than expected. Open it in a full tab if sign-in is required.`
       : '';
-
-  if (definition.surface === 'tab') {
-    const openInTab = () => {
-      if (!onOpenWebChat) return;
-      setTabError('');
-      void Promise.resolve(onOpenWebChat(provider)).catch((error: unknown) => {
-        setTabError(
-          error instanceof Error ? error.message : 'Could not open DeepSeek.',
-        );
-      });
-    };
-    return (
-      <div
-        aria-hidden={!active}
-        className={`ct-provider-frame ct-provider-frame--${status}`}
-        data-provider={provider}
-        hidden={!active}
-      >
-        <div className="ct-provider-frame__state">
-          <strong>DeepSeek works in a full tab</strong>
-          <p>
-            DeepSeek blocks embedded panels with a security challenge. Open its normal
-            tab, then Send to AI adds transcript context there.
-          </p>
-          <button
-            className="ct-provider-frame__open"
-            disabled={!onOpenWebChat}
-            onClick={openInTab}
-            type="button"
-          >
-            Open DeepSeek
-            <Icon name="external" />
-          </button>
-          {tabError ? <p role="alert">{tabError}</p> : null}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -240,21 +234,31 @@ export function AskPanel({
   initialScope = 'entire-video',
   provider = DEFAULT_PROMPT_PROVIDER,
   providerStatuses = {},
+  initialProvider = 'chatgpt',
+  selectedProvider: controlledSelectedProvider,
   sendRequestId = 0,
   onSendWebChat,
   onOpenWebChat,
   onPrepareWebChat,
+  onResetWebChat,
   focused = false,
   onFocusedChange,
+  onProviderChange,
+  onProviderSessionChange,
 }: AskPanelProps) {
-  const [selectedProvider, setSelectedProvider] =
-    useState<WebChatProviderId>('chatgpt');
+  const [internalSelectedProvider, setInternalSelectedProvider] =
+    useState<WebChatProviderId>(initialProvider);
+  const selectedProvider = controlledSelectedProvider ?? internalSelectedProvider;
   const [mountedProviders, setMountedProviders] = useState<
     ReadonlySet<WebChatProviderId>
-  >(() => new Set(['chatgpt', 'gemini']));
+  >(() => new Set(['chatgpt', 'gemini', initialProvider]));
   const [primeState, setPrimeState] = useState<PrimeState>({ kind: 'idle' });
   const [handledRequestId, setHandledRequestId] = useState(0);
-  const [focusSettling, setFocusSettling] = useState(false);
+  const [providerSessionIds, setProviderSessionIds] = useState<
+    Partial<Record<WebChatProviderId, string>>
+  >({});
+  const [settledFocusProvider, setSettledFocusProvider] =
+    useState<WebChatProviderId | null>(null);
   const focusButtonRef = useRef<HTMLButtonElement>(null);
 
   const providerDefinition = WEB_CHAT_PROVIDERS[selectedProvider];
@@ -262,12 +266,25 @@ export function AskPanel({
   const providerReady = providerStatus === 'ready';
   const primeSending = primeState.kind === 'sending';
   const requestPending = sendRequestId > 0 && handledRequestId !== sendRequestId;
+  const focusSettling = focused && settledFocusProvider !== selectedProvider;
   const waitingForProvider =
     requestPending && !providerReady && providerStatus !== 'sign-in-required';
   const signInMessage =
     requestPending && providerStatus === 'sign-in-required'
       ? `Sign in to ${providerDefinition.displayName} before sending.`
       : '';
+
+  const registerProviderSession = useCallback(
+    (providerId: WebChatProviderId, sessionId: string) => {
+      setProviderSessionIds((current) =>
+        current[providerId] === sessionId
+          ? current
+          : { ...current, [providerId]: sessionId },
+      );
+      onProviderSessionChange?.(providerId, sessionId);
+    },
+    [onProviderSessionChange],
+  );
 
   const buildTranscriptPrompt = useCallback((): string | null => {
     if (!transcript) return null;
@@ -290,6 +307,8 @@ export function AskPanel({
     const message = buildTranscriptPrompt();
     if (!message) return;
     if (!providerReady) return;
+    const sessionId = providerSessionIds[selectedProvider];
+    if (!sessionId) return;
     let disposed = false;
     queueMicrotask(() => {
       if (disposed || handledRequestId === sendRequestId) return;
@@ -297,6 +316,7 @@ export function AskPanel({
       setPrimeState({ kind: 'sending' });
       void onSendWebChat({
         provider: selectedProvider,
+        sessionId,
         message,
         newConversation: true,
       })
@@ -323,6 +343,7 @@ export function AskPanel({
     onSendWebChat,
     sendRequestId,
     providerReady,
+    providerSessionIds,
     selectedProvider,
   ]);
 
@@ -339,14 +360,13 @@ export function AskPanel({
   }, [focused, onFocusedChange]);
 
   useLayoutEffect(() => {
-    if (!focused) {
-      setFocusSettling(false);
-      return;
-    }
-    setFocusSettling(true);
-    const timer = window.setTimeout(() => setFocusSettling(false), 450);
+    if (!focusSettling) return;
+    const timer = window.setTimeout(
+      () => setSettledFocusProvider(selectedProvider),
+      450,
+    );
     return () => window.clearTimeout(timer);
-  }, [focused, selectedProvider]);
+  }, [focusSettling, selectedProvider]);
 
   const selectProvider = (providerId: WebChatProviderId) => {
     if (providerId === selectedProvider || primeSending) return;
@@ -357,7 +377,9 @@ export function AskPanel({
       return next;
     });
     setPrimeState({ kind: 'idle' });
-    setSelectedProvider(providerId);
+    if (controlledSelectedProvider === undefined)
+      setInternalSelectedProvider(providerId);
+    onProviderChange?.(providerId);
   };
 
   const openProviderTab = () => {
@@ -428,8 +450,9 @@ export function AskPanel({
               <ProviderFrame
                 active={selectedProvider === providerId}
                 key={providerId}
-                onOpenWebChat={onOpenWebChat}
                 onPrepareWebChat={onPrepareWebChat}
+                onResetWebChat={onResetWebChat}
+                onSessionReady={registerProviderSession}
                 provider={providerId}
                 status={providerStatuses[providerId]?.state ?? 'not-open'}
               />

@@ -491,8 +491,10 @@ export function TranscriptPanel(props: TranscriptPanelProps) {
     case 'unavailable':
       return (
         <TranscriptStateMessage
-          description="This video does not expose a caption track to the viewer. Watch Better will not invent transcript text."
+          actionLabel="Check again"
+          description="YouTube did not return captions for this video. If captions just became available, check again."
           icon="captions"
+          onAction={props.onRetry}
           title="No transcript available"
         />
       );

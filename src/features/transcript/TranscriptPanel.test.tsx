@@ -19,8 +19,10 @@ describe('TranscriptPanel', () => {
     const { rerender } = render(<TranscriptPanel state={{ kind: 'loading' }} />);
     expect(screen.getByText('Loading transcript')).toBeInTheDocument();
 
-    rerender(<TranscriptPanel state={{ kind: 'unavailable' }} />);
+    rerender(<TranscriptPanel onRetry={onRetry} state={{ kind: 'unavailable' }} />);
     expect(screen.getByText('No transcript available')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Check again' }));
+    expect(onRetry).toHaveBeenCalledOnce();
 
     rerender(<TranscriptPanel state={{ kind: 'disabled' }} />);
     expect(screen.getByText('Transcript loading is off')).toBeInTheDocument();
@@ -33,7 +35,7 @@ describe('TranscriptPanel', () => {
     );
     expect(screen.getByText('Caption request timed out.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(onRetry).toHaveBeenCalledOnce();
+    expect(onRetry).toHaveBeenCalledTimes(2);
   });
 
   it('renders tracks, active state, and seek controls', async () => {

@@ -14,7 +14,6 @@ import {
 const readyStatuses = {
   chatgpt: { provider: 'chatgpt' as const, state: 'ready' as const },
   gemini: { provider: 'gemini' as const, state: 'ready' as const },
-  deepseek: { provider: 'deepseek' as const, state: 'ready' as const },
 };
 
 describe('AskPanel', () => {
@@ -31,7 +30,6 @@ describe('AskPanel', () => {
 
     expect(onSend).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: /Gemini/ }));
-    await user.click(screen.getByRole('button', { name: /DeepSeek/ }));
     await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
     expect(onSend).not.toHaveBeenCalled();
   });
@@ -46,6 +44,30 @@ describe('AskPanel', () => {
     expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New chat' })).not.toBeInTheDocument();
+  });
+
+  it('keeps controlled provider selection stable', async () => {
+    const user = userEvent.setup();
+    const onProviderChange = vi.fn();
+    render(
+      <AskPanel
+        onProviderChange={onProviderChange}
+        providerStatuses={readyStatuses}
+        selectedProvider="gemini"
+        transcript={null}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Gemini' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await user.click(screen.getByRole('button', { name: 'ChatGPT' }));
+    expect(onProviderChange).toHaveBeenCalledWith('chatgpt');
+    expect(screen.getByRole('button', { name: 'Gemini' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('opens the selected provider in a full tab', async () => {
@@ -157,13 +179,6 @@ describe('AskPanel', () => {
     expect(
       onPrepareWebChat.mock.calls.filter(([provider]) => provider === 'gemini'),
     ).toHaveLength(1);
-
-    await user.click(screen.getByRole('button', { name: /DeepSeek/ }));
-    expect(screen.queryByTitle('DeepSeek embedded chat')).not.toBeInTheDocument();
-    expect(screen.getByText('DeepSeek works in a full tab')).toBeVisible();
-    expect(
-      onPrepareWebChat.mock.calls.some(([provider]) => provider === 'deepseek'),
-    ).toBe(false);
 
     await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
     expect(screen.getByTitle('ChatGPT embedded chat')).toBe(chatGptFrame);
@@ -298,5 +313,24 @@ describe('AskPanel', () => {
 
     expect(await screen.findByText('ChatGPT frame unavailable')).toBeVisible();
     expect(screen.getAllByText('Binding failed.')[0]).toBeVisible();
+  });
+
+  it('resets only its exact provider sessions when unmounted', async () => {
+    const onResetWebChat = vi.fn<NonNullable<AskPanelProps['onResetWebChat']>>();
+    const view = render(
+      <AskPanel onResetWebChat={onResetWebChat} transcript={tutorialTranscript} />,
+    );
+    const chatGptSource = screen
+      .getByTitle('ChatGPT embedded chat')
+      .getAttribute('src');
+    const geminiSource = screen.getByTitle('Gemini embedded chat').getAttribute('src');
+    const sessionFrom = (source: string | null) =>
+      decodeURIComponent(source?.split('watchbetter-frame=')[1] ?? '');
+
+    view.unmount();
+
+    await waitFor(() => expect(onResetWebChat).toHaveBeenCalledTimes(2));
+    expect(onResetWebChat).toHaveBeenCalledWith('chatgpt', sessionFrom(chatGptSource));
+    expect(onResetWebChat).toHaveBeenCalledWith('gemini', sessionFrom(geminiSource));
   });
 });

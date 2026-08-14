@@ -4,13 +4,13 @@ Read `docs/STATUS.md`, `docs/MVP_CHECKLIST.md`, and `docs/DECISIONS.md` before s
 
 ## Objective
 
-Build a polished Manifest V3 Chrome extension that mounts transcript navigation, signed-in ChatGPT/Gemini Ask, and conservative pause-compression controls in the right column of desktop YouTube watch pages.
+Build a polished Manifest V3 Chrome extension that mounts transcript navigation, signed-in ChatGPT/Gemini Ask, and conservative pause-compression controls beside desktop YouTube watch pages and Shorts.
 
 ## MVP boundaries
 
-Included: YouTube watch pages, available caption tracks, transcript navigation/search/selection/copy, explicit ChatGPT/Gemini web-session Ask, transcript-gap pause compression, persistent settings, popup status/settings, fixture harness.
+Included: YouTube watch pages and Shorts, available caption tracks, transcript navigation/search/selection/copy, explicit ChatGPT/Gemini web-session Ask, movable in-page per-video cards, transcript-gap pause compression, persistent settings, popup status/settings, fixture harness.
 
-Excluded: semantic skipping, sponsor detection, Shorts/live/mobile/other sites, backend/accounts/payments/analytics, model APIs, provider credential/cookie/token access, bundled secrets, video downloading, cloud sync, no-caption speech-to-text.
+Excluded: semantic skipping, sponsor detection, live/mobile/other sites, backend/accounts/payments/analytics, model APIs, provider credential/cookie/token access, bundled secrets, video downloading, cloud sync, no-caption speech-to-text.
 
 ## Canonical commands
 

@@ -211,14 +211,6 @@ export function OptionsView({
             >
               Open Gemini
             </button>
-            <button
-              className="ct-button"
-              disabled={disabled || !onOpenWebChat}
-              onClick={() => onOpenWebChat?.('deepseek')}
-              type="button"
-            >
-              Open DeepSeek
-            </button>
           </div>
         </div>
         <label className="ct-options-row">

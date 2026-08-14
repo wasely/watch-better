@@ -12,6 +12,10 @@ export type IconName =
   | 'expand'
   | 'follow'
   | 'message'
+  | 'detach'
+  | 'minimize'
+  | 'maximize'
+  | 'restore'
   | 'search'
   | 'settings'
   | 'spark'
@@ -29,6 +33,14 @@ const paths: Record<IconName, ReactNode> = {
   check: <path d="m5 12 4 4L19 6" />,
   'chevron-down': <path d="m6.5 9.25 5.5 5.5 5.5-5.5" strokeWidth="2.15" />,
   close: <path d="m6 6 12 12M18 6 6 18" />,
+  minimize: <path d="M6 17h12" strokeWidth="2.15" />,
+  maximize: <rect x="5" y="5" width="14" height="14" rx="2" />,
+  restore: (
+    <>
+      <rect x="4" y="8" width="12" height="12" rx="2" />
+      <path d="M8 8V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2" />
+    </>
+  ),
   copy: (
     <>
       <rect x="8" y="8" width="11" height="11" rx="2" />
@@ -57,6 +69,12 @@ const paths: Record<IconName, ReactNode> = {
     <>
       <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
       <path d="M8 9h8M8 13h5" />
+    </>
+  ),
+  detach: (
+    <>
+      <rect x="3" y="7" width="12" height="13" rx="2" />
+      <path d="M11 4h9v9M20 4l-9 9" />
     </>
   ),
   search: (

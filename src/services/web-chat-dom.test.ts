@@ -22,13 +22,4 @@ describe('web chat DOM adapter', () => {
     `;
     expect(responseTexts(WEB_CHAT_PROVIDERS.chatgpt)).toEqual(['Answer [01:20]']);
   });
-
-  it('collects DeepSeek markdown responses from the live page contract', () => {
-    document.body.innerHTML = `
-      <div class="ds-message"><div class="ds-markdown ds-assistant-message-main-content">DeepSeek answer [02:10]</div></div>
-    `;
-    expect(responseTexts(WEB_CHAT_PROVIDERS.deepseek)).toEqual([
-      'DeepSeek answer [02:10]',
-    ]);
-  });
 });

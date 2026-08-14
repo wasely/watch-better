@@ -81,10 +81,9 @@ describe('OptionsView', () => {
     expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open ChatGPT' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open Gemini' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Open DeepSeek' }));
+    expect(screen.queryByRole('button', { name: /DeepSeek/ })).not.toBeInTheDocument();
     expect(onOpenWebChat).toHaveBeenNthCalledWith(1, 'chatgpt');
     expect(onOpenWebChat).toHaveBeenNthCalledWith(2, 'gemini');
-    expect(onOpenWebChat).toHaveBeenNthCalledWith(3, 'deepseek');
   });
 
   it('opens Chrome extension management from the settings header', () => {

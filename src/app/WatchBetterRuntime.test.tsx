@@ -25,6 +25,7 @@ const browserState = vi.hoisted(() => {
     storage,
     listeners,
     sendMessage: vi.fn(),
+    localGet: vi.fn((key: string) => Promise.resolve({ [key]: storage[key] })),
   };
 });
 
@@ -33,9 +34,7 @@ vi.mock('wxt/browser', () => ({
     runtime: { sendMessage: browserState.sendMessage },
     storage: {
       local: {
-        get: vi.fn((key: string) =>
-          Promise.resolve({ [key]: browserState.storage[key] }),
-        ),
+        get: browserState.localGet,
         set: vi.fn((values: Record<string, unknown>) => {
           Object.assign(browserState.storage, values);
           return Promise.resolve();
@@ -171,6 +170,10 @@ describe('WatchBetterRuntime integration', () => {
     for (const key of Object.keys(browserState.storage))
       delete browserState.storage[key];
     browserState.storage['watchbetter:settings:v2'] = DEFAULT_SETTINGS;
+    browserState.localGet.mockReset();
+    browserState.localGet.mockImplementation((key: string) =>
+      Promise.resolve({ [key]: browserState.storage[key] }),
+    );
     browserState.sendMessage.mockReset();
     browserState.sendMessage.mockImplementation(
       (request: { type: string; changes?: object; provider?: string }) => {
@@ -222,11 +225,8 @@ describe('WatchBetterRuntime integration', () => {
     );
 
     await screen.findByText('First evidence for one.');
-    await waitFor(() =>
-      expect(browserState.sendMessage).toHaveBeenCalledWith({
-        type: 'webchat:preload',
-        provider: 'deepseek',
-      }),
+    expect(browserState.sendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'webchat:preload' }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Seek to 0:08' }));
     expect(playback.snapshot.currentTimeSeconds).toBe(8);
@@ -281,6 +281,50 @@ describe('WatchBetterRuntime integration', () => {
     );
   });
 
+  it('still shows the panel when settings never load', async () => {
+    // The panel stays hidden until settings resolve, so a permanently rejecting
+    // storage read used to leave the sidebar invisible for the life of the tab.
+    const get = browserState.localGet;
+    get.mockRejectedValue(new Error('Extension context invalidated.'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    try {
+      const provider: TranscriptProvider = {
+        listTracks: vi.fn(() => Promise.resolve([track])),
+        load: vi.fn((request: { videoId: string }) =>
+          Promise.resolve(documentFor(request.videoId)),
+        ),
+      };
+      render(
+        <WatchBetterRuntime
+          pageController={new FakePageController()}
+          playback={new FakePlayback()}
+          transcriptProvider={provider}
+        />,
+      );
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      await waitFor(() =>
+        expect(
+          screen.getByLabelText('Watch Better video companion'),
+        ).toBeInTheDocument(),
+      );
+      expect(get).toHaveBeenCalled();
+      expect(
+        warn.mock.calls.filter(([message]) =>
+          String(message).startsWith('[watchbetter] could not read settings'),
+        ).length,
+      ).toBeGreaterThanOrEqual(3);
+      expect(warn).toHaveBeenCalledWith(
+        '[watchbetter] falling back to default settings',
+      );
+    } finally {
+      vi.useRealTimers();
+      warn.mockRestore();
+    }
+  });
+
   it('loads a Short transcript as a supported video surface', async () => {
     const pageController = new FakePageController();
     pageController.snapshot = {
@@ -306,6 +350,118 @@ describe('WatchBetterRuntime integration', () => {
 
     await screen.findByText('First evidence for short-one.');
     expect(listTracks).toHaveBeenCalledWith('short-one', expect.any(AbortSignal));
+  });
+
+  it('detaches the current runtime with its exact video and provider', async () => {
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track])),
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    const onDetach = vi.fn(() => Promise.resolve());
+    render(
+      <WatchBetterRuntime
+        onDetach={onDetach}
+        pageController={new FakePageController()}
+        playback={new FakePlayback()}
+        transcriptProvider={provider}
+      />,
+    );
+
+    await screen.findByText('First evidence for one.');
+    fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gemini' }));
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Detach Watch Better for this video',
+      }),
+    );
+
+    await waitFor(() =>
+      expect(onDetach).toHaveBeenCalledWith(
+        expect.objectContaining({
+          videoId: 'one',
+          videoKind: 'watch',
+          videoTitle: 'Video one',
+          provider: 'gemini',
+        }),
+      ),
+    );
+  });
+
+  it('renders floating presentation without nested detach or collapse controls', async () => {
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track])),
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    render(
+      <WatchBetterRuntime
+        initialTab="ask"
+        initialWebChatProvider="gemini"
+        pageController={new FakePageController()}
+        playback={new FakePlayback()}
+        presentation="floating"
+        transcriptProvider={provider}
+        videoTitle="Detached video"
+      />,
+    );
+
+    await screen.findByText('First evidence for one.');
+    expect(screen.queryByText('Detached video')).not.toBeInTheDocument();
+    expect(screen.getByText('Video one')).toBeVisible();
+    expect(
+      screen.queryByRole('button', {
+        name: 'Detach Watch Better for this video',
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Collapse Watch Better' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Gemini' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('preserves the exact mounted provider frame when the runtime becomes floating', async () => {
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track])),
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    const pageController = new FakePageController();
+    const playback = new FakePlayback();
+    const view = render(
+      <WatchBetterRuntime
+        initialTab="ask"
+        onDetach={() => undefined}
+        pageController={pageController}
+        playback={playback}
+        transcriptProvider={provider}
+      />,
+    );
+
+    const originalFrame = await screen.findByTitle('ChatGPT embedded chat');
+    view.rerender(
+      <WatchBetterRuntime
+        initialTab="ask"
+        pageController={pageController}
+        playback={playback}
+        presentation="floating"
+        transcriptProvider={provider}
+        videoTitle="Video one"
+      />,
+    );
+
+    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(originalFrame);
   });
 
   it('loads the transcript selected from the language panel', async () => {

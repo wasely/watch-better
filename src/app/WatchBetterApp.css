@@ -6,6 +6,48 @@
   container-type: inline-size;
 }
 
+.watchbetter-root[data-presentation='floating'] {
+  height: 100%;
+}
+
+.watchbetter-root[data-presentation='floating'] .ct-panel {
+  height: 100%;
+  box-shadow:
+    0 24px 72px rgb(0 0 0 / 52%),
+    var(--ct-depth-shadow),
+    var(--ct-inset-highlight),
+    inset 0 -1px 0 rgb(0 0 0 / 28%);
+}
+
+.watchbetter-root[data-presentation='floating'] .ct-header {
+  cursor: grab;
+  user-select: none;
+}
+
+.watchbetter-root[data-presentation='floating'] .ct-header:active {
+  cursor: grabbing;
+}
+
+.watchbetter-root[data-presentation='floating'] .ct-header button {
+  cursor: pointer;
+}
+
+/* Minimized: the card shrinks to its draggable title bar and nothing else. */
+.watchbetter-root[data-presentation='floating'][data-minimized='true'] .ct-panel {
+  height: 100%;
+  grid-template-rows: 1fr;
+}
+
+.watchbetter-root[data-presentation='floating'][data-minimized='true'] .ct-video-title,
+.watchbetter-root[data-presentation='floating'][data-minimized='true'] .ct-status {
+  display: none;
+}
+
+/* Room for the resize handles so edge drags never fight the panel's own scrollbars. */
+.watchbetter-root[data-presentation='floating'] .ct-panel {
+  border-radius: 14px;
+}
+
 .ct-panel {
   position: relative;
   display: grid;
@@ -94,6 +136,7 @@
 }
 
 .ct-identity {
+  flex: 1 1 auto;
   min-width: 0;
   gap: var(--ct-space-5);
 }
@@ -142,6 +185,16 @@
   font-weight: 680;
   letter-spacing: 0.015em;
   line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ct-video-title {
+  overflow: hidden;
+  max-width: min(36cqw, 300px);
+  color: var(--ct-text-muted);
+  font-size: 11px;
+  line-height: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

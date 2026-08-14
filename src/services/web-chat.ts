@@ -1,5 +1,6 @@
-export type WebChatProviderId = 'chatgpt' | 'gemini' | 'deepseek';
-export type EmbeddedWebChatProviderId = Exclude<WebChatProviderId, 'deepseek'>;
+/** Every provider embeds inside the panel; Watch Better never opens provider tabs. */
+export type WebChatProviderId = 'chatgpt' | 'gemini';
+export type EmbeddedWebChatProviderId = WebChatProviderId;
 
 export type WebChatConnectionState =
   'ready' | 'not-open' | 'sign-in-required' | 'loading';
@@ -44,7 +45,6 @@ export type WebChatPageResponse =
 export interface WebChatProviderDefinition {
   readonly id: WebChatProviderId;
   readonly displayName: string;
-  readonly surface: 'embedded' | 'tab';
   readonly url: string;
   readonly tabPatterns: readonly string[];
   readonly composerSelectors: readonly string[];
@@ -63,7 +63,6 @@ export const WEB_CHAT_PROVIDERS: Readonly<
   chatgpt: {
     id: 'chatgpt',
     displayName: 'ChatGPT',
-    surface: 'embedded',
     url: 'https://chatgpt.com/',
     tabPatterns: ['https://chatgpt.com/*'],
     composerSelectors: [
@@ -94,7 +93,6 @@ export const WEB_CHAT_PROVIDERS: Readonly<
   gemini: {
     id: 'gemini',
     displayName: 'Gemini',
-    surface: 'embedded',
     url: 'https://gemini.google.com/app',
     tabPatterns: ['https://gemini.google.com/*'],
     composerSelectors: [
@@ -123,33 +121,10 @@ export const WEB_CHAT_PROVIDERS: Readonly<
       'a[href="/app"]',
     ],
   },
-  deepseek: {
-    id: 'deepseek',
-    displayName: 'DeepSeek',
-    surface: 'tab',
-    url: 'https://chat.deepseek.com/',
-    tabPatterns: ['https://chat.deepseek.com/*'],
-    composerSelectors: [
-      'textarea[placeholder*="Message DeepSeek" i]',
-      'textarea[placeholder*="DeepSeek" i]',
-    ],
-    sendSelectors: [],
-    responseSelectors: ['.ds-message .ds-assistant-message-main-content'],
-    generatingSelectors: [
-      '[role="button"].ds-button--primary[aria-label*="Stop" i]',
-      '[role="button"][aria-label*="Stop generating" i]',
-    ],
-    newConversationSelectors: ['a[href="/"]'],
-  },
 });
 
 export const isWebChatProviderId = (value: unknown): value is WebChatProviderId =>
-  value === 'chatgpt' || value === 'gemini' || value === 'deepseek';
-
-export const isEmbeddedWebChatProviderId = (
-  value: WebChatProviderId,
-): value is EmbeddedWebChatProviderId =>
-  WEB_CHAT_PROVIDERS[value].surface === 'embedded';
+  value === 'chatgpt' || value === 'gemini';
 
 export const isWebChatSessionId = (value: unknown): value is string =>
   typeof value === 'string' &&
@@ -201,7 +176,6 @@ export const providerForHostname = (
   const normalized = hostname.toLocaleLowerCase();
   if (normalized === 'chatgpt.com') return WEB_CHAT_PROVIDERS.chatgpt;
   if (normalized === 'gemini.google.com') return WEB_CHAT_PROVIDERS.gemini;
-  if (normalized === 'chat.deepseek.com') return WEB_CHAT_PROVIDERS.deepseek;
   return null;
 };
 

@@ -6,6 +6,8 @@ import type {
 } from '@/features/transcript/domain';
 import { TranscriptProviderError } from '@/features/transcript/domain';
 
+import { parseYouTubeVideoUrl } from './youtube-url';
+
 type JsonRecord = Record<string, unknown>;
 
 interface CaptionSource {
@@ -89,6 +91,14 @@ export const extractYouTubePlayerResponse = (source: string): JsonRecord | null 
 /** Reads YouTube's public Innertube key from its inline bootstrap configuration. */
 export const extractInnertubeApiKey = (source: string): string | null =>
   source.match(/["']INNERTUBE_API_KEY["']\s*:\s*["']([^"']+)["']/)?.[1] ?? null;
+
+const innertubeApiKeyFromDocument = (documentRef: Document): string | null => {
+  for (const script of documentRef.scripts) {
+    const apiKey = extractInnertubeApiKey(script.textContent ?? '');
+    if (apiKey) return apiKey;
+  }
+  return null;
+};
 
 const cleanCaptionText = (value: string): string =>
   value
@@ -283,11 +293,16 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
         'The requested caption track is unavailable.',
       );
 
-    let segments = await this.#loadCaptionSegments(
-      caption.baseUrl,
-      caption.track.id,
-      signal,
-    );
+    let segments: readonly TranscriptSegment[] = [];
+    try {
+      segments = await this.#loadCaptionSegments(
+        caption.baseUrl,
+        caption.track.id,
+        signal,
+      );
+    } catch (error) {
+      if (signal.aborted) throw error;
+    }
     if (segments.length === 0) {
       const androidCaption = await this.#loadAndroidCaption(
         source.videoId,
@@ -347,49 +362,19 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
     requested: CaptionSource,
     signal: AbortSignal,
   ): Promise<CaptionSource | null> {
-    let innertubeConfig: string | null = null;
-    for (const script of this.documentRef.scripts) {
-      innertubeConfig = extractInnertubeApiKey(script.textContent ?? '');
-      if (innertubeConfig) break;
-    }
-    if (!innertubeConfig) {
+    let apiKey = innertubeApiKeyFromDocument(this.documentRef);
+    if (!apiKey) {
       const watchResponse = await this.#fetch(
         `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
         { credentials: 'include', signal },
       );
-      if (watchResponse.ok)
-        innertubeConfig = extractInnertubeApiKey(await watchResponse.text());
+      if (watchResponse.ok) apiKey = extractInnertubeApiKey(await watchResponse.text());
     }
-    if (!innertubeConfig) return null;
+    if (!apiKey) return null;
 
-    const playerResponse = await this.#fetch(
-      `https://www.youtube.com/youtubei/v1/player?key=${encodeURIComponent(innertubeConfig)}`,
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          videoId,
-          context: {
-            client: {
-              clientName: 'ANDROID',
-              clientVersion: '20.10.38',
-              androidSdkVersion: 30,
-              userAgent:
-                'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
-              hl: 'en',
-              gl: 'US',
-            },
-          },
-        }),
-        signal,
-      },
-    );
-    if (!playerResponse.ok) return null;
-    const payload: unknown = await playerResponse.json();
-    if (!isRecord(payload)) return null;
-    const source = sourceFromResponse(payload, videoId);
+    const source = await this.#loadAndroidSource(videoId, apiKey, signal);
     if (!source) return null;
+    this.#sources.set(videoId, source);
     return (
       source.captions.find(({ track }) => track.id === requested.track.id) ??
       source.captions.find(
@@ -400,6 +385,46 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
     );
   }
 
+  async #loadAndroidSource(
+    videoId: string,
+    apiKey: string,
+    signal: AbortSignal,
+  ): Promise<VideoSource | null> {
+    try {
+      const playerResponse = await this.#fetch(
+        `https://www.youtube.com/youtubei/v1/player?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            videoId,
+            context: {
+              client: {
+                clientName: 'ANDROID',
+                clientVersion: '20.10.38',
+                androidSdkVersion: 30,
+                userAgent:
+                  'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+                hl: 'en',
+                gl: 'US',
+              },
+            },
+          }),
+          signal,
+        },
+      );
+      if (!playerResponse.ok) return null;
+      const payload: unknown = await playerResponse.json();
+      if (!isRecord(payload)) return null;
+      const source = sourceFromResponse(payload, videoId);
+      return source?.videoId === videoId ? source : null;
+    } catch (error) {
+      if (signal.aborted) throw error;
+      return null;
+    }
+  }
+
   async #loadSource(videoId: string, signal: AbortSignal): Promise<VideoSource> {
     const cached = this.#sources.get(videoId);
     if (cached) return cached;
@@ -407,7 +432,9 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
 
     let source: VideoSource | null = null;
     let metadataFound = false;
-    const currentId = new URL(this.documentRef.location.href).searchParams.get('v');
+    let apiKey = innertubeApiKeyFromDocument(this.documentRef);
+    let attemptedPlayerApiKey: string | null = null;
+    const currentId = parseYouTubeVideoUrl(this.documentRef.location.href)?.videoId;
     if (currentId === videoId) {
       for (const script of this.documentRef.scripts) {
         const response = extractYouTubePlayerResponse(script.textContent ?? '');
@@ -420,6 +447,12 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
       }
     }
 
+    if (!source && apiKey) {
+      attemptedPlayerApiKey = apiKey;
+      source = await this.#loadAndroidSource(videoId, apiKey, signal);
+      metadataFound ||= Boolean(source);
+    }
+
     if (!source) {
       const response = await this.#fetch(
         `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`,
@@ -430,9 +463,15 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
           'extraction-failed',
           `YouTube returned page error ${response.status}.`,
         );
-      const playerResponse = extractYouTubePlayerResponse(await response.text());
+      const body = await response.text();
+      apiKey ??= extractInnertubeApiKey(body);
+      const playerResponse = extractYouTubePlayerResponse(body);
       metadataFound ||= Boolean(playerResponse);
       source = playerResponse ? sourceFromResponse(playerResponse, videoId) : null;
+    }
+    if (!source && apiKey && apiKey !== attemptedPlayerApiKey) {
+      source = await this.#loadAndroidSource(videoId, apiKey, signal);
+      metadataFound ||= Boolean(source);
     }
     if (!source)
       throw new TranscriptProviderError(

@@ -26,7 +26,6 @@ export type ExtensionRequest =
   | { readonly type: 'settings:open' }
   | { readonly type: 'settings:manage' }
   | { readonly type: 'webchat:open'; readonly provider: WebChatProviderId }
-  | { readonly type: 'webchat:preload'; readonly provider: WebChatProviderId }
   | {
       readonly type: 'webchat:frame-prepare';
       readonly provider: WebChatProviderId;
@@ -37,11 +36,20 @@ export type ExtensionRequest =
       readonly provider: WebChatProviderId;
       readonly sessionId: string;
     }
-  | { readonly type: 'webchat:frame-reset'; readonly provider: WebChatProviderId }
-  | { readonly type: 'webchat:get-status'; readonly provider: WebChatProviderId }
+  | {
+      readonly type: 'webchat:frame-reset';
+      readonly provider: WebChatProviderId;
+      readonly sessionId: string;
+    }
+  | {
+      readonly type: 'webchat:get-status';
+      readonly provider: WebChatProviderId;
+      readonly sessionId: string;
+    }
   | {
       readonly type: 'webchat:send';
       readonly provider: WebChatProviderId;
+      readonly sessionId: string;
       readonly message: string;
       readonly newConversation: boolean;
     };
@@ -133,10 +141,14 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     case 'settings:update':
       return isSettingsPatch(candidate.changes) && hasOnlyKeys('type', 'changes');
     case 'webchat:open':
-    case 'webchat:preload':
+      return isWebChatProviderId(candidate.provider) && hasOnlyKeys('type', 'provider');
     case 'webchat:frame-reset':
     case 'webchat:get-status':
-      return isWebChatProviderId(candidate.provider) && hasOnlyKeys('type', 'provider');
+      return (
+        isWebChatProviderId(candidate.provider) &&
+        isWebChatSessionId(candidate.sessionId) &&
+        hasOnlyKeys('type', 'provider', 'sessionId')
+      );
     case 'webchat:frame-prepare':
     case 'webchat:frame-ready':
       return (
@@ -147,11 +159,12 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     case 'webchat:send':
       return (
         isWebChatProviderId(candidate.provider) &&
+        isWebChatSessionId(candidate.sessionId) &&
         typeof candidate.message === 'string' &&
         candidate.message.trim().length > 0 &&
         candidate.message.length <= MAX_WEB_CHAT_MESSAGE_CHARACTERS &&
         typeof candidate.newConversation === 'boolean' &&
-        hasOnlyKeys('type', 'provider', 'message', 'newConversation')
+        hasOnlyKeys('type', 'provider', 'sessionId', 'message', 'newConversation')
       );
     default:
       return false;
