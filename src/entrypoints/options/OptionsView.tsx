@@ -188,10 +188,10 @@ export function OptionsView({
         </div>
         <div className="ct-options-row">
           <span>
-            <strong>ChatGPT, Gemini, and DeepSeek</strong>
+            <strong>ChatGPT and Gemini</strong>
             <small>
-              ChatGPT and Gemini appear in the panel. DeepSeek opens in a full tab
-              because its security check blocks embedded pages.
+              Both providers appear inside the panel and use your existing signed-in
+              browser sessions.
             </small>
           </span>
           <div className="ct-options-actions">
@@ -235,8 +235,8 @@ export function OptionsView({
         <p className="ct-options-privacy">
           Watch Better stores no API keys, cookies, analytics, transcripts, or
           conversations permanently. Ask sends bounded transcript context only after an
-          explicit action, through the signed-in ChatGPT, Gemini, or DeepSeek website.
-          Each provider applies its own account, retention, and usage policies.
+          explicit action, through the signed-in ChatGPT or Gemini website. Each
+          provider applies its own account, retention, and usage policies.
         </p>
       </section>
 

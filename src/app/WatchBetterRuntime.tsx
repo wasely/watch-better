@@ -83,6 +83,9 @@ export interface WatchBetterRuntimeProps {
   readonly videoTitle?: string;
   readonly onDetach?: (context: DetachedVideoContext) => void | Promise<void>;
   readonly onClose?: () => void;
+  readonly minimized?: boolean;
+  readonly onMinimizedChange?: (minimized: boolean) => void;
+  readonly onToggleMaximized?: () => void;
 }
 
 const errorState = (error: unknown): TranscriptViewState => {
@@ -107,10 +110,13 @@ export function WatchBetterRuntime({
   onAskFocusChange,
   presentation = 'panel',
   initialTab,
-  initialWebChatProvider = 'chatgpt',
+  initialWebChatProvider = 'gemini',
   videoTitle,
   onDetach,
   onClose,
+  minimized = false,
+  onMinimizedChange,
+  onToggleMaximized,
 }: WatchBetterRuntimeProps) {
   const repository = useMemo(() => new SettingsRepository(), []);
   const cache = useMemo(() => new TranscriptCache(), []);
@@ -472,7 +478,14 @@ export function WatchBetterRuntime({
             },
           }
         : {})}
-      {...(presentation === 'floating' && onClose ? { onClose } : {})}
+      {...(presentation === 'floating'
+        ? {
+            minimized,
+            ...(onClose ? { onClose } : {}),
+            ...(onMinimizedChange ? { onMinimizedChange } : {}),
+            ...(onToggleMaximized ? { onToggleMaximized } : {}),
+          }
+        : {})}
       presentation={presentation}
       theme={theme}
       transcriptFontSize={settings.transcriptFontSize}

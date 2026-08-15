@@ -61,14 +61,14 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 
 ## Phase 3 — YouTube lifecycle
 
-- [~] **MVP-030 · P0 · PRD-001, PRD-003 — Right-column Shadow DOM mount**
+- [x] **MVP-030 · P0 · PRD-001, PRD-003 — Right-column Shadow DOM mount**
   - Acceptance: exactly one normal-flow host mounts above existing secondary content without deleting or covering it.
   - Verify: integration fixture plus live YouTube manual check.
-  - Status: Automated mount/coexistence/no-duplicate tests pass; live YouTube check pending.
-- [~] **MVP-031 · P0 · PRD-002 — Typed page lifecycle controller**
+  - Status: Verified 2026-08-14; automated mount/coexistence/no-duplicate tests and a two-video clean-profile Chrome check pass.
+- [x] **MVP-031 · P0 · PRD-002 — Typed page lifecycle controller**
   - Acceptance: enter/change/leave, abort, cleanup, reload recovery, and no-duplicate behavior pass.
   - Verify: integration tests and multi-video live navigation.
-  - Status: Enter/change/leave, generation, stale-result abort, and cleanup tests pass; live multi-video navigation pending.
+  - Status: Verified 2026-08-14; enter/change/leave, generation, stale-result abort, cleanup, and live search-to-video SPA navigation pass.
 - [~] **MVP-032 · P0 · PRD-002, PRD-012 — Replacement-safe playback controller**
   - Acceptance: seek/time/rate subscriptions reconnect after video replacement and dispose fully.
   - Verify: integration tests and live replacement/navigation check.
@@ -103,10 +103,10 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: ChatGPT/Gemini render inside Ask, no provider ever opens a browser tab on its own, **Send to AI** targets only the selected surface, switching sends nothing, and transmission is explicit and bounded.
   - Verify: service/DOM/component/runtime/message tests, manifest/source audit, live signed-in provider checks.
   - Status: Automated contract, DOM, chaining, priming, permission, no-credential, and no-new-tab audits pass; DeepSeek removed because it could only work as a separate tab; updated live extension check pending.
-- [~] **MVP-052 · P0 — Movable per-video cards**
+- [x] **MVP-052 · P0 — Movable per-video cards**
   - Acceptance: each watch page or Short can detach its exact mounted Transcript/Ask session into a draggable card; multiple cards survive source-video navigation while a fresh rail panel follows the new video.
   - Verify: controller/runtime/session/message/geometry tests, production build, and two-video live smoke.
-  - Status: Exact iframe preservation, static video snapshots, session-specific routing, close cleanup, and card geometry tests pass; two-video live smoke pending.
+  - Status: Verified 2026-08-14; exact iframe preservation, full-height detached layout, minimize/restore/maximize, SPA persistence, two simultaneous live cards, session routing, and close cleanup pass.
 
 ## Phase 6 — jump cutter
 

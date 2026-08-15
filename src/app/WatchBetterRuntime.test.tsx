@@ -197,9 +197,9 @@ describe('WatchBetterRuntime integration', () => {
           return Promise.resolve({
             ok: true,
             type: 'webchat:response',
-            provider: 'chatgpt',
+            provider: request.provider ?? 'gemini',
             text: 'Ready for questions.',
-            responseId: 'web_chatgpt_test',
+            responseId: 'web_chat_test',
           });
         }
         return Promise.resolve({ ok: true, type: 'acknowledged' });
@@ -238,9 +238,9 @@ describe('WatchBetterRuntime integration', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
     expect(sendCount()).toBe(0);
-    fireEvent.click(screen.getByRole('button', { name: /Gemini/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Codex' }));
     expect(sendCount()).toBe(0);
-    fireEvent.click(screen.getByRole('button', { name: /ChatGPT/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Google Gemini' }));
     expect(sendCount()).toBe(0);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
@@ -250,7 +250,7 @@ describe('WatchBetterRuntime integration', () => {
         expect(browserState.sendMessage).toHaveBeenCalledWith(
           expect.objectContaining({
             type: 'webchat:send',
-            provider: 'chatgpt',
+            provider: 'gemini',
             newConversation: true,
           }),
         ),
@@ -263,7 +263,7 @@ describe('WatchBetterRuntime integration', () => {
       'aria-selected',
       'true',
     );
-    expect(screen.getByTitle('ChatGPT embedded chat')).toBeInTheDocument();
+    expect(screen.getByTitle('Gemini embedded chat')).toBeInTheDocument();
     expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
 
     expect(sendCount()).toBe(1);
@@ -272,11 +272,11 @@ describe('WatchBetterRuntime integration', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
     await waitFor(() => expect(sendCount()).toBe(1));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open ChatGPT in full tab' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Gemini in full tab' }));
     await waitFor(() =>
       expect(browserState.sendMessage).toHaveBeenCalledWith({
         type: 'webchat:open',
-        provider: 'chatgpt',
+        provider: 'gemini',
       }),
     );
   });
@@ -371,7 +371,7 @@ describe('WatchBetterRuntime integration', () => {
 
     await screen.findByText('First evidence for one.');
     fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Gemini' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Google Gemini' }));
     fireEvent.click(
       screen.getByRole('button', {
         name: 'Detach Watch Better for this video',
@@ -424,10 +424,50 @@ describe('WatchBetterRuntime integration', () => {
       'aria-selected',
       'true',
     );
-    expect(screen.getByRole('button', { name: 'Gemini' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Google Gemini' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
+  });
+
+  it('forwards floating-card window controls', async () => {
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track])),
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    const onMinimizedChange = vi.fn();
+    const onToggleMaximized = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <WatchBetterRuntime
+        onClose={onClose}
+        onMinimizedChange={onMinimizedChange}
+        onToggleMaximized={onToggleMaximized}
+        pageController={new FakePageController()}
+        playback={new FakePlayback()}
+        presentation="floating"
+        transcriptProvider={provider}
+      />,
+    );
+
+    await screen.findByText('First evidence for one.');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Minimize detached Watch Better' }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Maximize or restore detached Watch Better',
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Close detached Watch Better' }),
+    );
+
+    expect(onMinimizedChange).toHaveBeenCalledWith(true);
+    expect(onToggleMaximized).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('preserves the exact mounted provider frame when the runtime becomes floating', async () => {
@@ -449,7 +489,7 @@ describe('WatchBetterRuntime integration', () => {
       />,
     );
 
-    const originalFrame = await screen.findByTitle('ChatGPT embedded chat');
+    const originalFrame = await screen.findByTitle('Gemini embedded chat');
     view.rerender(
       <WatchBetterRuntime
         initialTab="ask"
@@ -461,7 +501,7 @@ describe('WatchBetterRuntime integration', () => {
       />,
     );
 
-    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(originalFrame);
+    expect(screen.getByTitle('Gemini embedded chat')).toBe(originalFrame);
   });
 
   it('loads the transcript selected from the language panel', async () => {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -29,17 +29,25 @@ describe('AskPanel', () => {
     );
 
     expect(onSend).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: /Gemini/ }));
-    await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
+    const picker = screen.getByRole('group', { name: 'AI provider' });
+    expect(
+      within(picker)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Google Gemini', 'Codex']);
+    await user.click(within(picker).getByRole('button', { name: 'Codex' }));
+    await user.click(within(picker).getByRole('button', { name: 'Google Gemini' }));
     expect(onSend).not.toHaveBeenCalled();
   });
 
   it('shows the provider site without duplicating its composer', () => {
     render(<AskPanel providerStatuses={readyStatuses} transcript={null} />);
 
-    expect(screen.getByTitle('ChatGPT embedded chat')).toHaveAttribute(
+    expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
       'src',
-      expect.stringMatching(/^https:\/\/chatgpt\.com\/#watchbetter-frame=chatgpt%3A/),
+      expect.stringMatching(
+        /^https:\/\/gemini\.google\.com\/app#watchbetter-frame=gemini%3A/,
+      ),
     );
     expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
@@ -58,13 +66,13 @@ describe('AskPanel', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: 'Gemini' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Google Gemini' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
-    await user.click(screen.getByRole('button', { name: 'ChatGPT' }));
+    await user.click(screen.getByRole('button', { name: 'Codex' }));
     expect(onProviderChange).toHaveBeenCalledWith('chatgpt');
-    expect(screen.getByRole('button', { name: 'Gemini' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Google Gemini' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -81,8 +89,8 @@ describe('AskPanel', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Open ChatGPT in full tab' }));
-    expect(onOpenWebChat).toHaveBeenCalledWith('chatgpt');
+    await user.click(screen.getByRole('button', { name: 'Open Gemini in full tab' }));
+    expect(onOpenWebChat).toHaveBeenCalledWith('gemini');
   });
 
   it('opens a focused AI view without remounting the active provider frame', async () => {
@@ -96,7 +104,7 @@ describe('AskPanel', () => {
       />,
     );
 
-    const frame = screen.getByTitle('ChatGPT embedded chat');
+    const frame = screen.getByTitle('Gemini embedded chat');
     await user.click(screen.getByRole('button', { name: 'Focus AI view' }));
     expect(onFocusedChange).toHaveBeenCalledWith(true);
 
@@ -112,7 +120,7 @@ describe('AskPanel', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onFocusedChange).toHaveBeenLastCalledWith(false);
-    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(frame);
+    expect(screen.getByTitle('Gemini embedded chat')).toBe(frame);
   });
 
   it('shows full-tab failures without adding more controls', async () => {
@@ -125,11 +133,11 @@ describe('AskPanel', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: 'Open ChatGPT in full tab' }));
+    await user.click(screen.getByRole('button', { name: 'Open Gemini in full tab' }));
     expect(await screen.findByText('Tab opening failed.')).toBeVisible();
   });
 
-  it('embeds supported providers and routes DeepSeek through a full tab', async () => {
+  it('embeds each supported provider once', async () => {
     const user = userEvent.setup();
     const onPrepareWebChat = vi.fn<NonNullable<AskPanelProps['onPrepareWebChat']>>(() =>
       Promise.resolve(),
@@ -169,7 +177,7 @@ describe('AskPanel', () => {
       'https://chatgpt.com',
     );
 
-    await user.click(screen.getByRole('button', { name: /Gemini/ }));
+    await user.click(screen.getByRole('button', { name: 'Google Gemini' }));
     expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
       'src',
       expect.stringMatching(
@@ -180,7 +188,7 @@ describe('AskPanel', () => {
       onPrepareWebChat.mock.calls.filter(([provider]) => provider === 'gemini'),
     ).toHaveLength(1);
 
-    await user.click(screen.getByRole('button', { name: /ChatGPT/ }));
+    await user.click(screen.getByRole('button', { name: 'Codex' }));
     expect(screen.getByTitle('ChatGPT embedded chat')).toBe(chatGptFrame);
     expect(
       onPrepareWebChat.mock.calls.filter(([provider]) => provider === 'chatgpt'),
@@ -193,7 +201,7 @@ describe('AskPanel', () => {
       .mockResolvedValue({
         text: 'Transcript loaded.',
         responseId: 'web_chatgpt_prime',
-        provider: 'chatgpt',
+        provider: 'gemini',
       });
     render(
       <AskPanel
@@ -206,11 +214,11 @@ describe('AskPanel', () => {
 
     await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
     expect(onSend.mock.calls[0]?.[0]).toMatchObject({
-      provider: 'chatgpt',
+      provider: 'gemini',
       newConversation: true,
     });
     expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
-    expect(screen.getByText('Transcript sent to ChatGPT.')).toBeVisible();
+    expect(screen.getByText('Transcript sent to Gemini.')).toBeVisible();
     expect(screen.queryByText('Transcript loaded.')).not.toBeInTheDocument();
   });
 
@@ -224,7 +232,7 @@ describe('AskPanel', () => {
       .mockResolvedValue({
         text: 'Ready.',
         responseId: 'web_chatgpt_selected',
-        provider: 'chatgpt',
+        provider: 'gemini',
       });
     render(
       <AskPanel
@@ -246,21 +254,21 @@ describe('AskPanel', () => {
       .mockResolvedValue({
         text: 'Ready.',
         responseId: 'web_chatgpt_wait',
-        provider: 'chatgpt',
+        provider: 'gemini',
       });
     const { rerender } = render(
       <AskPanel
         onSendWebChat={onSend}
         sendRequestId={1}
         providerStatuses={{
-          chatgpt: { provider: 'chatgpt', state: 'loading' },
+          gemini: { provider: 'gemini', state: 'loading' },
         }}
         transcript={tutorialTranscript}
       />,
     );
 
     expect(onSend).not.toHaveBeenCalled();
-    expect(screen.getByText('Waiting for ChatGPT…')).toBeVisible();
+    expect(screen.getByText('Waiting for Gemini…')).toBeVisible();
     rerender(
       <AskPanel
         onSendWebChat={onSend}
@@ -280,14 +288,14 @@ describe('AskPanel', () => {
       <AskPanel
         onSendWebChat={onSend}
         providerStatuses={{
-          chatgpt: { provider: 'chatgpt', state: 'sign-in-required' },
+          gemini: { provider: 'gemini', state: 'sign-in-required' },
         }}
         sendRequestId={1}
         transcript={tutorialTranscript}
       />,
     );
 
-    expect(screen.getByText('Sign in to ChatGPT before sending.')).toBeVisible();
+    expect(screen.getByText('Sign in to Gemini before sending.')).toBeVisible();
     expect(onSend).not.toHaveBeenCalled();
 
     rerender(
@@ -311,7 +319,7 @@ describe('AskPanel', () => {
       />,
     );
 
-    expect(await screen.findByText('ChatGPT frame unavailable')).toBeVisible();
+    expect(await screen.findByText('Gemini frame unavailable')).toBeVisible();
     expect(screen.getAllByText('Binding failed.')[0]).toBeVisible();
   });
 

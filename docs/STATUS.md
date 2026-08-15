@@ -1,14 +1,14 @@
 # Status
 
-Updated: 2026-08-13
+Updated: 2026-08-14
 
 ## Current state
 
-**Automated release candidate.** Watch Better's initial product includes Transcript
+**Private release candidate.** Watch Better's initial product includes Transcript
 and Ask. Jump Cut remains in source but is feature-gated out. Ask embeds ChatGPT
 and Gemini; both run inside the panel and Watch Better never opens a browser tab or
-window on its own. No model API or provider credential collection is used. A live
-unpacked-extension smoke test remains the release gate.
+window on its own. No model API or provider credential collection is used. A clean-profile
+Chrome smoke test passes; signed-in-provider checks in the daily profile remain the gate.
 
 ## Implemented
 
@@ -47,6 +47,8 @@ unpacked-extension smoke test remains the release gate.
   and session. Closing removes only that card's frame routes.
 - Detached timestamp actions open the pinned source separately instead of hijacking
   the video currently being browsed.
+- Detached cards propagate their fixed host height through the Shadow DOM mount,
+  keeping Transcript and the embedded AI workspace full-height like the sidebar.
 - Keeps the panel height stable when YouTube shrinks its player during page scrolling.
 - Keeps the panel content fixed in its normal page position while scrolling instead of
   adding player-to-masthead overlap as top padding.
@@ -60,15 +62,19 @@ unpacked-extension smoke test remains the release gate.
 
 ## Validation results
 
-- Canonical validation passed: Prettier, ESLint, strict TypeScript, 29 Vitest
-  files / 135 tests, and WXT production build.
-- Coverage: 60.06% statements, 59.60% branches, 64.80% functions, 62.53% lines.
-- Build: `.output/chrome-mv3/`, 612.64 kB.
-- Package: `.output/watchbetter-0.1.0-chrome.zip`, 234.23 kB reported by WXT.
+- Canonical validation passed: Prettier, ESLint, strict TypeScript, 30 Vitest
+  files / 155 tests, and WXT production build.
+- Coverage: 67.88% statements, 62.47% branches, 69.85% functions, 70.96% lines.
+- Build: `.output/chrome-mv3/`, 613.68 kB.
+- Package: `.output/watchbetter-0.1.0-chrome.zip`, 234.89 kB reported by WXT.
+- Package SHA-256: `267c3e72743f5e726202b6390bf0b73d7a428527a2da4757b02f53bc9596e875`.
 - Built manifest: `storage`, scoped `declarativeNetRequest`, direct-frame
   `webNavigation`, and exact YouTube, ChatGPT, and Gemini hosts.
-- Browser harness: Settings inspected at desktop and narrow widths with zero
-  horizontal overflow.
+- Browser harness: Ask inspected at 320px dark and 480px light panel widths, and
+  Settings at desktop width, with no clipping or horizontal overflow.
+- Clean-profile Chrome: live YouTube captions loaded; the Gemini frame rendered;
+  a detached Ask card kept a 418px × 452px provider frame; minimize, restore,
+  maximize, two-video SPA persistence, two simultaneous cards, and close cleanup passed.
 - Production audit tests reject provider API endpoints, cookie access, credential
   handling, broad host access, excess permissions, and any self-opened browser tab
   or window outside the two explicit user actions.
@@ -78,7 +84,7 @@ unpacked-extension smoke test remains the release gate.
 
 ## Remaining release gate
 
-- Reload `.output/chrome-mv3/` in `chrome://extensions`.
+- Reload `C:\Code\watch-better\.output\chrome-mv3` in the daily Chrome profile.
 - Sign in at ChatGPT and Gemini, then verify embedded frames, provider switch,
   first Ask, follow-up, and new-chat behavior.
 - Verify caption fetch, selection Ask, seek, SPA navigation, theater/fullscreen,
@@ -116,5 +122,5 @@ npm run zip
 ## Repository status
 
 Public launch documentation, CI, privacy policy, security reporting, contribution
-guidance, and issue templates are included. The live unpacked-extension smoke test
-remains the release gate.
+guidance, and issue templates are included. Daily-profile signed-in provider,
+theater/fullscreen, popup restore, and cold-restart checks remain the release gate.

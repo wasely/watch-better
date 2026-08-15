@@ -434,6 +434,11 @@ export default defineContentScript({
         inheritStyles: true,
         isolateEvents: true,
         onMount(container, shadow, host) {
+          // Floating cards give the host an explicit height. Carry it through WXT's
+          // inner mount container so the panel body and embedded AI frame can use the
+          // same full-height layout they have in the YouTube sidebar.
+          container.style.height = '100%';
+          container.style.minHeight = '0';
           host.dataset.watchbetterRoot = 'true';
           host.style.width = '100%';
           host.style.marginBottom = '12px';

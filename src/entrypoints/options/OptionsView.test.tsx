@@ -23,6 +23,7 @@ describe('OptionsView', () => {
     expect(
       screen.getByText(/stores no API keys, cookies, analytics/),
     ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/DeepSeek/i);
     expect(screen.getByText('Settings loaded')).toBeInTheDocument();
   });
 
@@ -81,7 +82,6 @@ describe('OptionsView', () => {
     expect(screen.queryByLabelText(/API key/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Open ChatGPT' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open Gemini' }));
-    expect(screen.queryByRole('button', { name: /DeepSeek/ })).not.toBeInTheDocument();
     expect(onOpenWebChat).toHaveBeenNthCalledWith(1, 'chatgpt');
     expect(onOpenWebChat).toHaveBeenNthCalledWith(2, 'gemini');
   });

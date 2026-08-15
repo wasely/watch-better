@@ -17,7 +17,11 @@ import './AskPanel.css';
 
 const DEFAULT_PROMPT_PROVIDER = new TranscriptPromptProvider();
 const EMPTY_SELECTION = new Set<TranscriptSegmentId>();
-const PROVIDER_IDS = ['chatgpt', 'gemini'] as const;
+const PROVIDER_IDS = ['gemini', 'chatgpt'] as const;
+const PROVIDER_PICKER_LABELS: Readonly<Record<WebChatProviderId, string>> = {
+  gemini: 'Google Gemini',
+  chatgpt: 'Codex',
+};
 const PRIME_QUESTION =
   'Use this transcript as the source of truth. Get ready to answer my questions about this video, cite useful timestamps, and say when the transcript does not establish an answer.';
 
@@ -234,7 +238,7 @@ export function AskPanel({
   initialScope = 'entire-video',
   provider = DEFAULT_PROMPT_PROVIDER,
   providerStatuses = {},
-  initialProvider = 'chatgpt',
+  initialProvider = 'gemini',
   selectedProvider: controlledSelectedProvider,
   sendRequestId = 0,
   onSendWebChat,
@@ -418,7 +422,7 @@ export function AskPanel({
                 onClick={() => selectProvider(providerId)}
                 type="button"
               >
-                {WEB_CHAT_PROVIDERS[providerId].displayName}
+                {PROVIDER_PICKER_LABELS[providerId]}
               </button>
             ))}
           </div>

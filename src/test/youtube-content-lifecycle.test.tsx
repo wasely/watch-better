@@ -238,6 +238,10 @@ describe('youtube content script lifecycle', () => {
     expect(floating).toHaveLength(1);
     expect(floating[0]?.dataset.watchbetterFloating).toBe('true');
     expect(floating[0]?.style.position).toBe('fixed');
+    const mountContainer = floating[0]?.shadowRoot?.firstElementChild as
+      HTMLElement | undefined;
+    expect(mountContainer?.style.height).toBe('100%');
+    expect(mountContainer?.style.minHeight).toBe('0px');
 
     const secondary = document.querySelector('#secondary');
     expect(secondary?.firstElementChild?.tagName.toLowerCase()).toBe(
