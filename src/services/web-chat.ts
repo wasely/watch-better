@@ -30,11 +30,8 @@ export interface WebChatFrameBinding {
 
 export type WebChatPageResponse =
   | { readonly ok: true; readonly type: 'webchat-page:ready' }
-  | {
-      readonly ok: true;
-      readonly type: 'webchat-page:response';
-      readonly text: string;
-    }
+  /** The prompt is in and submitted. The answer streams into the frame the viewer sees. */
+  | { readonly ok: true; readonly type: 'webchat-page:submitted' }
   | {
       readonly ok: false;
       readonly type: 'webchat-page:error';

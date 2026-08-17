@@ -16,6 +16,9 @@ const readyStatuses = {
   gemini: { provider: 'gemini' as const, state: 'ready' as const },
 };
 
+/** The provider that is not on screen mounts only once the page goes idle. */
+const DEFERRED_FRAME_TIMEOUT_MS = 5_000;
+
 describe('AskPanel', () => {
   it('never sends when opened or when providers switch', async () => {
     const user = userEvent.setup();
@@ -151,13 +154,17 @@ describe('AskPanel', () => {
     );
 
     await waitFor(() =>
-      expect(onPrepareWebChat).toHaveBeenCalledWith('chatgpt', expect.any(String)),
-    );
-    await waitFor(() =>
       expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
+    );
+    await waitFor(
+      () =>
+        expect(onPrepareWebChat).toHaveBeenCalledWith('chatgpt', expect.any(String)),
+      { timeout: DEFERRED_FRAME_TIMEOUT_MS },
     );
     const chatGptFrame = await screen.findByTitle<HTMLIFrameElement>(
       'ChatGPT embedded chat',
+      undefined,
+      { timeout: DEFERRED_FRAME_TIMEOUT_MS },
     );
     expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
       'src',
@@ -310,6 +317,20 @@ describe('AskPanel', () => {
     expect(onSend).toHaveBeenCalledOnce();
   });
 
+  it('loads only the provider on screen before the page goes idle', async () => {
+    render(
+      <AskPanel providerStatuses={readyStatuses} transcript={tutorialTranscript} />,
+    );
+
+    expect(screen.getByTitle('Gemini embedded chat')).toBeInTheDocument();
+    expect(screen.queryByTitle('ChatGPT embedded chat')).not.toBeInTheDocument();
+    expect(
+      await screen.findByTitle('ChatGPT embedded chat', undefined, {
+        timeout: DEFERRED_FRAME_TIMEOUT_MS,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('keeps frame preparation errors inside the frame area', async () => {
     render(
       <AskPanel
@@ -328,9 +349,11 @@ describe('AskPanel', () => {
     const view = render(
       <AskPanel onResetWebChat={onResetWebChat} transcript={tutorialTranscript} />,
     );
-    const chatGptSource = screen
-      .getByTitle('ChatGPT embedded chat')
-      .getAttribute('src');
+    const chatGptSource = (
+      await screen.findByTitle('ChatGPT embedded chat', undefined, {
+        timeout: DEFERRED_FRAME_TIMEOUT_MS,
+      })
+    ).getAttribute('src');
     const geminiSource = screen.getByTitle('Gemini embedded chat').getAttribute('src');
     const sessionFrom = (source: string | null) =>
       decodeURIComponent(source?.split('watchbetter-frame=')[1] ?? '');

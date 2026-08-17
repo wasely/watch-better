@@ -1,3 +1,5 @@
+import { observeDocumentMutations } from './document-mutations';
+
 export interface PlaybackSnapshot {
   readonly currentTimeSeconds: number;
   readonly durationSeconds: number | null;
@@ -27,20 +29,26 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = Object.freeze({
 const finiteDuration = (video: HTMLVideoElement): number | null =>
   Number.isFinite(video.duration) && video.duration > 0 ? video.duration : null;
 
+const sameSnapshot = (left: PlaybackSnapshot, right: PlaybackSnapshot): boolean =>
+  left.currentTimeSeconds === right.currentTimeSeconds &&
+  left.durationSeconds === right.durationSeconds &&
+  left.playbackRate === right.playbackRate &&
+  left.paused === right.paused &&
+  left.adActive === right.adActive &&
+  left.supported === right.supported;
+
 /** Reconnects automatically when YouTube replaces its video element. */
 export class HtmlVideoPlaybackController implements PlaybackController {
   #video: HTMLVideoElement | null = null;
   #snapshot: PlaybackSnapshot = EMPTY_SNAPSHOT;
   readonly #listeners = new Set<(snapshot: PlaybackSnapshot) => void>();
-  readonly #observer: MutationObserver;
+  readonly #unobserve: () => void;
   #scheduled = false;
 
   public constructor(private readonly documentRef: Document = document) {
-    this.#observer = new MutationObserver(() => this.#scheduleConnect());
-    this.#observer.observe(this.documentRef.documentElement, {
-      childList: true,
-      subtree: true,
-    });
+    this.#unobserve = observeDocumentMutations(this.documentRef, () =>
+      this.#scheduleConnect(),
+    );
     this.#connect();
   }
 
@@ -70,13 +78,22 @@ export class HtmlVideoPlaybackController implements PlaybackController {
   }
 
   public dispose(): void {
-    this.#observer.disconnect();
+    this.#unobserve();
     this.#detach();
     this.#listeners.clear();
   }
 
+  /**
+   * A DOM mutation only matters when the element we are bound to went away. Shorts swap
+   * between reel players that all stay connected, so only that page re-resolves eagerly.
+   */
+  #needsReconnect(): boolean {
+    if (!this.#video?.isConnected) return true;
+    return this.documentRef.location.pathname.startsWith('/shorts');
+  }
+
   #scheduleConnect(): void {
-    if (this.#scheduled) return;
+    if (this.#scheduled || !this.#needsReconnect()) return;
     this.#scheduled = true;
     queueMicrotask(() => {
       this.#scheduled = false;
@@ -127,7 +144,7 @@ export class HtmlVideoPlaybackController implements PlaybackController {
 
   #publish(): void {
     const video = this.#video;
-    this.#snapshot = video
+    const next: PlaybackSnapshot = video
       ? {
           currentTimeSeconds: Number.isFinite(video.currentTime)
             ? Math.max(0, video.currentTime)
@@ -143,6 +160,9 @@ export class HtmlVideoPlaybackController implements PlaybackController {
           supported: video.isConnected,
         }
       : EMPTY_SNAPSHOT;
-    for (const listener of this.#listeners) listener(this.#snapshot);
+    // Subscribers re-render on every publish, so never publish an identical snapshot.
+    if (sameSnapshot(next, this.#snapshot)) return;
+    this.#snapshot = next;
+    for (const listener of this.#listeners) listener(next);
   }
 }

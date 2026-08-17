@@ -305,17 +305,18 @@ const sendWebChat = async (
       message: response?.message ?? `${provider.displayName} is not ready.`,
     };
   }
-  if (response.type !== 'webchat-page:response')
+  if (response.type !== 'webchat-page:submitted')
     return {
       ok: false,
       type: 'error',
       message: `${provider.displayName} returned an unexpected response.`,
     };
+  // The answer belongs to the frame the viewer is watching, so nothing to carry back.
   return {
     ok: true,
     type: 'webchat:response',
     provider: providerId,
-    text: response.text,
+    text: '',
     responseId: `web_${providerId}_${crypto.randomUUID()}`,
   };
 };

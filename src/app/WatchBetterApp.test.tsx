@@ -27,7 +27,7 @@ describe('WatchBetterApp foundation shell', () => {
       'aria-selected',
       'true',
     );
-    expect(screen.getByTitle('ChatGPT embedded chat')).toBeInTheDocument();
+    expect(screen.getByTitle('Gemini embedded chat')).toBeInTheDocument();
 
     expect(screen.queryByRole('tab', { name: 'Jump Cut' })).not.toBeInTheDocument();
   });
@@ -78,7 +78,7 @@ describe('WatchBetterApp foundation shell', () => {
         transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }}
       />,
     );
-    const frame = screen.getByTitle('ChatGPT embedded chat');
+    const frame = screen.getByTitle('Gemini embedded chat');
 
     rerender(
       <WatchBetterApp
@@ -90,7 +90,7 @@ describe('WatchBetterApp foundation shell', () => {
       />,
     );
 
-    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(frame);
+    expect(screen.getByTitle('Gemini embedded chat')).toBe(frame);
   });
 
   it('expands the Ask session as a focused overlay without remounting its frame', () => {
@@ -102,13 +102,13 @@ describe('WatchBetterApp foundation shell', () => {
         transcript={{ state: readyTranscriptState(), onCopy: vi.fn() }}
       />,
     );
-    const frame = screen.getByTitle('ChatGPT embedded chat');
+    const frame = screen.getByTitle('Gemini embedded chat');
 
     fireEvent.click(screen.getByRole('button', { name: 'Focus AI view' }));
 
     expect(onAskFocusChange).toHaveBeenCalledWith(true);
     expect(screen.getByRole('dialog', { name: 'Focused AI session' })).toBeVisible();
-    expect(screen.getByTitle('ChatGPT embedded chat')).toBe(frame);
+    expect(screen.getByTitle('Gemini embedded chat')).toBe(frame);
   });
 
   it('supports controlled tab state and reports requested changes', () => {

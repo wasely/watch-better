@@ -16,10 +16,13 @@ import {
   responseTexts,
 } from '@/services/web-chat-dom';
 
-const POLL_INTERVAL_MS = 300;
+/** Tight: every wait here is on the critical path between a click and a sent prompt. */
+const POLL_INTERVAL_MS = 60;
 const COMPOSER_TIMEOUT_MS = 15_000;
-const RESPONSE_TIMEOUT_MS = 180_000;
-const STABLE_RESPONSE_MS = 1_800;
+/** Status answers must not block the panel's poll loop, so they barely wait at all. */
+const STATUS_TIMEOUT_MS = 250;
+const FILL_TIMEOUT_MS = 400;
+const SUBMIT_CONFIRM_TIMEOUT_MS = 1_500;
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -35,6 +38,38 @@ const waitForComposer = async (
     await delay(POLL_INTERVAL_MS);
   } while (Date.now() < deadline);
   return null;
+};
+
+/** Rich editors settle a frame or two after the insert; the old fixed 150ms just guessed. */
+const waitForComposerText = async (
+  composer: HTMLElement,
+  expected: string,
+): Promise<boolean> => {
+  const deadline = Date.now() + FILL_TIMEOUT_MS;
+  do {
+    if (composerText(composer) === expected) return true;
+    await delay(POLL_INTERVAL_MS);
+  } while (Date.now() < deadline);
+  return false;
+};
+
+/** The composer empties (or generation starts) the moment a provider accepts a prompt. */
+const waitForSubmission = async (
+  definition: NonNullable<ReturnType<typeof providerForHostname>>,
+  composer: HTMLElement,
+  responseCount: number,
+): Promise<boolean> => {
+  const deadline = Date.now() + SUBMIT_CONFIRM_TIMEOUT_MS;
+  do {
+    if (
+      composerText(composer) === '' ||
+      isGenerating(definition) ||
+      responseTexts(definition).length > responseCount
+    )
+      return true;
+    await delay(POLL_INTERVAL_MS);
+  } while (Date.now() < deadline);
+  return false;
 };
 
 const startNewConversation = async (
@@ -111,7 +146,7 @@ export default defineContentScript({
       let composer = await waitForComposer(
         definition.composerSelectors,
         message.type === 'watchbetter:webchat-page-status'
-          ? 1_500
+          ? STATUS_TIMEOUT_MS
           : COMPOSER_TIMEOUT_MS,
       );
       if (message.type === 'watchbetter:webchat-page-status')
@@ -142,11 +177,9 @@ export default defineContentScript({
       activeSend = true;
       try {
         if (message.newConversation) composer = await startNewConversation(definition);
-        const baseline = responseTexts(definition);
-        const baselineLast = baseline.at(-1) ?? '';
+        const responseCount = responseTexts(definition).length;
         fillComposer(composer, message.message);
-        await delay(150);
-        if (composerText(composer) !== message.message.trim())
+        if (!(await waitForComposerText(composer, message.message.trim())))
           throw new Error(`${definition.displayName} did not accept the prompt.`);
 
         const sendButton = firstVisible(definition.sendSelectors);
@@ -154,32 +187,16 @@ export default defineContentScript({
           sendButton.click();
         else pressEnter(composer);
 
-        const deadline = Date.now() + RESPONSE_TIMEOUT_MS;
-        let candidate = '';
-        let candidateSince = 0;
-        do {
-          await delay(POLL_INTERVAL_MS);
-          const current = responseTexts(definition);
-          const latest = current.at(-1) ?? '';
-          const isNew = current.length > baseline.length || latest !== baselineLast;
-          if (!isNew || !latest) continue;
-          if (latest !== candidate) {
-            candidate = latest;
-            candidateSince = Date.now();
-            continue;
-          }
-          if (
-            !isGenerating(definition) &&
-            Date.now() - candidateSince >= STABLE_RESPONSE_MS
-          )
-            return { ok: true, type: 'webchat-page:response', text: candidate };
-        } while (Date.now() < deadline);
+        // Watch Better never reads the answer — the viewer watches it stream inside the
+        // frame — so hand control back as soon as the prompt is in, not minutes later.
+        if (await waitForSubmission(definition, composer, responseCount))
+          return { ok: true, type: 'webchat-page:submitted' };
 
         return {
           ok: false,
           type: 'webchat-page:error',
-          code: 'response-timeout',
-          message: `${definition.displayName} did not finish within three minutes. Open its tab to check the response.`,
+          code: 'send-failed',
+          message: `${definition.displayName} did not accept the prompt. Open its tab and try again.`,
         };
       } catch (error) {
         return {

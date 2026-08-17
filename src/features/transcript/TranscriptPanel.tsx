@@ -1,4 +1,6 @@
 import {
+  memo,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -112,13 +114,14 @@ const highlightText = (text: string, query: string): ReactNode => {
   return parts;
 };
 
+/** Segment ids are URI-encoded track ids plus digits, so quoting is all that is needed. */
 const findSegmentElement = (
   container: HTMLElement | null,
   id: TranscriptSegmentId,
-): HTMLElement | undefined =>
-  Array.from(container?.querySelectorAll<HTMLElement>('[data-segment-id]') ?? []).find(
-    (element) => element.dataset.segmentId === id,
-  );
+): HTMLElement | null =>
+  container?.querySelector<HTMLElement>(
+    `[data-segment-id="${id.replace(/["\\]/g, '\\$&')}"]`,
+  ) ?? null;
 
 const scrollSegmentWithinList = (
   list: HTMLElement,
@@ -133,6 +136,75 @@ const scrollSegmentWithinList = (
   if (typeof list.scrollTo === 'function') list.scrollTo({ behavior, top });
   else list.scrollTop = top;
 };
+
+interface TranscriptRowProps {
+  readonly segment: TranscriptSegment;
+  readonly index: number;
+  readonly active: boolean;
+  readonly selected: boolean;
+  readonly searchCurrent: boolean;
+  /** Empty unless this row matches, so a search only re-renders the rows it touches. */
+  readonly highlightQuery: string;
+  readonly onSeek: (segment: TranscriptSegment) => void;
+  readonly onToggleSelection: (
+    index: number,
+    id: TranscriptSegmentId,
+    range: boolean,
+  ) => void;
+  readonly onRangeIntent: (range: boolean) => void;
+}
+
+/**
+ * Memoized because the list can hold thousands of rows and the panel re-renders every
+ * time the active segment moves. Only the rows whose own props changed re-render.
+ */
+const TranscriptRow = memo(function TranscriptRow({
+  segment,
+  index,
+  active,
+  selected,
+  searchCurrent,
+  highlightQuery,
+  onSeek,
+  onToggleSelection,
+  onRangeIntent,
+}: TranscriptRowProps) {
+  return (
+    <div
+      aria-current={active ? 'true' : undefined}
+      className={`ct-transcript-row${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${searchCurrent ? ' is-search-current' : ''}`}
+      data-segment-id={segment.id}
+      role="listitem"
+    >
+      <label className="ct-row-select" title="Select segment">
+        <input
+          aria-label={`Select transcript segment at ${formatTimestamp(segment.startSeconds)}`}
+          checked={selected}
+          onClick={(event) => onToggleSelection(index, segment.id, event.shiftKey)}
+          onMouseDown={(event) => onRangeIntent(event.shiftKey)}
+          readOnly
+          type="checkbox"
+        />
+      </label>
+      <button
+        aria-label={`Seek to ${formatTimestamp(segment.startSeconds)}`}
+        className="ct-row-time"
+        onClick={() => onSeek(segment)}
+        type="button"
+      >
+        {formatTimestamp(segment.startSeconds)}
+      </button>
+      <button
+        className="ct-row-text"
+        data-segment-seek
+        onClick={() => onSeek(segment)}
+        type="button"
+      >
+        {highlightQuery ? highlightText(segment.text, highlightQuery) : segment.text}
+      </button>
+    </div>
+  );
+});
 
 function TranscriptReadyView({
   state,
@@ -158,6 +230,8 @@ function TranscriptReadyView({
   );
   const [feedback, setFeedback] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
+  // Rows are memoized, so they get a stable seek callback instead of the parent's.
+  const seekRef = useRef(onSeek);
   const lastSelectionIndexRef = useRef<number | null>(null);
   const rangeModifierRef = useRef(false);
   const ignoreScrollUntilRef = useRef(0);
@@ -167,6 +241,10 @@ function TranscriptReadyView({
     [query, segments],
   );
   const matchingIndexes = useMemo(() => new Set(matches), [matches]);
+
+  useEffect(() => {
+    seekRef.current = onSeek;
+  }, [onSeek]);
 
   useEffect(() => {
     if (!following || !activeSegmentId) return;
@@ -199,31 +277,44 @@ function TranscriptReadyView({
       ?.focus({ preventScroll: true });
   };
 
-  const toggleSelection = (index: number, id: TranscriptSegmentId, range: boolean) => {
-    const lastIndex = lastSelectionIndexRef.current;
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      const shouldSelect = !next.has(id);
+  const toggleSelection = useCallback(
+    (index: number, id: TranscriptSegmentId, shiftHeld: boolean) => {
+      const range = shiftHeld || rangeModifierRef.current;
+      rangeModifierRef.current = false;
+      const lastIndex = lastSelectionIndexRef.current;
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        const shouldSelect = !next.has(id);
 
-      if (range && lastIndex !== null) {
-        const start = Math.min(lastIndex, index);
-        const end = Math.max(lastIndex, index);
-        for (let selectionIndex = start; selectionIndex <= end; selectionIndex += 1) {
-          const segment = segments[selectionIndex];
-          if (!segment) continue;
-          if (shouldSelect) next.add(segment.id);
-          else next.delete(segment.id);
+        if (range && lastIndex !== null) {
+          const start = Math.min(lastIndex, index);
+          const end = Math.max(lastIndex, index);
+          for (let selectionIndex = start; selectionIndex <= end; selectionIndex += 1) {
+            const segment = segments[selectionIndex];
+            if (!segment) continue;
+            if (shouldSelect) next.add(segment.id);
+            else next.delete(segment.id);
+          }
+        } else if (shouldSelect) {
+          next.add(id);
+        } else {
+          next.delete(id);
         }
-      } else if (shouldSelect) {
-        next.add(id);
-      } else {
-        next.delete(id);
-      }
 
-      return next;
-    });
-    lastSelectionIndexRef.current = index;
-  };
+        return next;
+      });
+      lastSelectionIndexRef.current = index;
+    },
+    [segments],
+  );
+
+  const seekSegment = useCallback((segment: TranscriptSegment) => {
+    seekRef.current?.(segment);
+  }, []);
+
+  const rememberRangeIntent = useCallback((range: boolean) => {
+    rangeModifierRef.current = range;
+  }, []);
 
   const copyTranscript = async (
     selected: ReadonlySet<TranscriptSegmentId> | undefined,
@@ -373,58 +464,20 @@ function TranscriptReadyView({
         role="list"
         tabIndex={-1}
       >
-        {segments.map((segment, index) => {
-          const selected = selectedIds.has(segment.id);
-          const active = activeSegmentId === segment.id;
-          const matching = matchingIndexes.has(index);
-          const currentSearchMatch = matches[currentMatch] === index;
-
-          return (
-            <div
-              aria-current={active ? 'true' : undefined}
-              className={`ct-transcript-row${active ? ' is-active' : ''}${selected ? ' is-selected' : ''}${currentSearchMatch ? ' is-search-current' : ''}`}
-              data-segment-id={segment.id}
-              key={segment.id}
-              role="listitem"
-            >
-              <label className="ct-row-select" title="Select segment">
-                <input
-                  aria-label={`Select transcript segment at ${formatTimestamp(segment.startSeconds)}`}
-                  checked={selected}
-                  onClick={(event) => {
-                    toggleSelection(
-                      index,
-                      segment.id,
-                      event.shiftKey || rangeModifierRef.current,
-                    );
-                    rangeModifierRef.current = false;
-                  }}
-                  onMouseDown={(event) => {
-                    rangeModifierRef.current = event.shiftKey;
-                  }}
-                  readOnly
-                  type="checkbox"
-                />
-              </label>
-              <button
-                aria-label={`Seek to ${formatTimestamp(segment.startSeconds)}`}
-                className="ct-row-time"
-                onClick={() => onSeek?.(segment)}
-                type="button"
-              >
-                {formatTimestamp(segment.startSeconds)}
-              </button>
-              <button
-                className="ct-row-text"
-                data-segment-seek
-                onClick={() => onSeek?.(segment)}
-                type="button"
-              >
-                {matching ? highlightText(segment.text, query) : segment.text}
-              </button>
-            </div>
-          );
-        })}
+        {segments.map((segment, index) => (
+          <TranscriptRow
+            active={activeSegmentId === segment.id}
+            highlightQuery={matchingIndexes.has(index) ? query : ''}
+            index={index}
+            key={segment.id}
+            onRangeIntent={rememberRangeIntent}
+            onSeek={seekSegment}
+            onToggleSelection={toggleSelection}
+            searchCurrent={matches[currentMatch] === index}
+            segment={segment}
+            selected={selectedIds.has(segment.id)}
+          />
+        ))}
       </div>
 
       {selectedIds.size > 0 ? (

@@ -1,3 +1,4 @@
+import { observeDocumentMutations } from './document-mutations';
 import { parseYouTubeVideoUrl, type YouTubePageKind } from './youtube-url';
 
 export type { YouTubePageKind } from './youtube-url';
@@ -27,7 +28,7 @@ const readPage = (url: string, generation: number): YouTubePageSnapshot => {
 export class BrowserYouTubePageController implements YouTubePageController {
   #snapshot: YouTubePageSnapshot;
   readonly #listeners = new Set<(snapshot: YouTubePageSnapshot) => void>();
-  #observer: MutationObserver | null = null;
+  #unobserve: (() => void) | null = null;
   #started = false;
   #scheduled = false;
 
@@ -50,11 +51,10 @@ export class BrowserYouTubePageController implements YouTubePageController {
       'yt-page-data-updated',
       this.#onPageSignal,
     );
-    this.#observer = new MutationObserver(this.#onPageSignal);
-    this.#observer.observe(this.windowRef.document.documentElement, {
-      childList: true,
-      subtree: true,
-    });
+    this.#unobserve = observeDocumentMutations(
+      this.windowRef.document,
+      this.#onPageSignal,
+    );
     this.#refresh();
   }
 
@@ -76,8 +76,8 @@ export class BrowserYouTubePageController implements YouTubePageController {
       'yt-page-data-updated',
       this.#onPageSignal,
     );
-    this.#observer?.disconnect();
-    this.#observer = null;
+    this.#unobserve?.();
+    this.#unobserve = null;
     this.#listeners.clear();
   }
 

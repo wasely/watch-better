@@ -14,6 +14,7 @@ import type { DetachedVideoContext } from '@/features/detach/detached-video';
 import type {
   TranscriptDocument,
   TranscriptProvider,
+  TranscriptSegment,
   TranscriptSegmentId,
 } from '@/features/transcript/domain';
 import { TranscriptProviderError } from '@/features/transcript/domain';
@@ -31,6 +32,7 @@ import {
 } from '@/storage/settings-repository';
 import { TranscriptCache } from '@/storage/transcript-cache';
 import {
+  type WebChatConnectionState,
   type WebChatProviderId,
   type WebChatProviderStatus,
 } from '@/services/web-chat';
@@ -47,6 +49,16 @@ const EMPTY_PLAYBACK: PlaybackSnapshot = {
 };
 
 const MAX_SETTINGS_LOAD_ATTEMPTS = 3;
+const WEB_CHAT_PROVIDER_IDS: readonly WebChatProviderId[] = ['gemini', 'chatgpt'];
+/** Fast while a frame is still coming up; polling stops entirely once every frame is ready. */
+const PROVIDER_STATUS_POLL_MS = 400;
+const MAX_PROVIDER_STATUS_POLL_MS = 3_200;
+const EMPTY_SEGMENTS: readonly TranscriptSegment[] = [];
+/**
+ * Ask only needs a rough "where are we" for its current-section prompt. Coarse buckets
+ * keep four playback ticks a second from re-rendering the panel.
+ */
+const ASK_TIME_BUCKET_SECONDS = 5;
 
 /**
  * Chrome tears down a content script's extension APIs when the extension reloads while
@@ -125,9 +137,14 @@ export function WatchBetterRuntime({
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [contextLost, setContextLost] = useState(false);
   const [page, setPage] = useState<YouTubePageSnapshot>(pageController.snapshot);
-  const [playbackState, setPlaybackState] = useState<PlaybackSnapshot>(
-    playback.snapshot ?? EMPTY_PLAYBACK,
+  const [activeSegmentId, setActiveSegmentId] = useState<TranscriptSegmentId | null>(
+    null,
   );
+  const [askTimeSeconds, setAskTimeSeconds] = useState(0);
+  const playbackTimeRef = useRef(
+    (playback.snapshot ?? EMPTY_PLAYBACK).currentTimeSeconds,
+  );
+  const segmentsRef = useRef<readonly TranscriptSegment[]>(EMPTY_SEGMENTS);
   const [transcript, setTranscript] = useState<TranscriptViewState>({
     kind: 'loading',
   });
@@ -190,7 +207,30 @@ export function WatchBetterRuntime({
     };
   }, [pageController, resolveDefaultTab]);
 
-  useEffect(() => playback.subscribe(setPlaybackState), [playback]);
+  /**
+   * Playback ticks four times a second. Keeping the raw snapshot in state re-rendered
+   * the whole panel that often, so only the values the UI actually reads become state,
+   * and both of those settle for seconds at a time.
+   */
+  const applyPlaybackTime = useCallback((currentTimeSeconds: number) => {
+    playbackTimeRef.current = currentTimeSeconds;
+    const segments = segmentsRef.current;
+    const index = findActiveSegmentIndex(segments, currentTimeSeconds);
+    setActiveSegmentId(index < 0 ? null : (segments[index]?.id ?? null));
+    setAskTimeSeconds((current) =>
+      Math.abs(currentTimeSeconds - current) >= ASK_TIME_BUCKET_SECONDS
+        ? Math.floor(currentTimeSeconds)
+        : current,
+    );
+  }, []);
+
+  useEffect(
+    () =>
+      playback.subscribe((snapshot: PlaybackSnapshot) =>
+        applyPlaybackTime(snapshot.currentTimeSeconds),
+      ),
+    [applyPlaybackTime, playback],
+  );
 
   useEffect(() => {
     let disposed = false;
@@ -246,41 +286,76 @@ export function WatchBetterRuntime({
 
   useEffect(() => {
     let disposed = false;
-    const refresh = () => {
-      for (const provider of ['chatgpt', 'gemini'] as const) {
-        const sessionId = providerSessionIds[provider];
-        if (!sessionId) {
-          setProviderStatuses((current) => ({
-            ...current,
-            [provider]: { provider, state: 'loading' },
-          }));
-          continue;
-        }
-        void send({ type: 'webchat:get-status', provider, sessionId })
-          .then((response) => {
-            if (disposed || !response.ok || response.type !== 'webchat:status') return;
-            setProviderStatuses((current) => ({
-              ...current,
-              [provider]: { provider, state: response.state },
-            }));
-          })
-          .catch((error: unknown) => {
-            if (disposed) return;
-            if (isExtensionContextLost(error)) setContextLost(true);
-          });
+    let timer: number | null = null;
+    let running = false;
+    let attempt = 0;
+
+    const publish = (provider: WebChatProviderId, state: WebChatConnectionState) => {
+      setProviderStatuses((current) =>
+        current[provider]?.state === state
+          ? current
+          : { ...current, [provider]: { provider, state } },
+      );
+    };
+
+    /** Resolves true once this provider's frame is answering. */
+    const check = async (provider: WebChatProviderId): Promise<boolean> => {
+      const sessionId = providerSessionIds[provider];
+      if (!sessionId) {
+        publish(provider, 'loading');
+        return false;
+      }
+      try {
+        const response = await send({
+          type: 'webchat:get-status',
+          provider,
+          sessionId,
+        });
+        if (disposed) return true;
+        if (!response.ok || response.type !== 'webchat:status') return false;
+        publish(provider, response.state);
+        return response.state === 'ready';
+      } catch (error: unknown) {
+        if (!disposed && isExtensionContextLost(error)) setContextLost(true);
+        return disposed;
       }
     };
-    const onVisibilityChange = () => {
-      if (!document.hidden) refresh();
+
+    /**
+     * Poll hard while a frame is still coming up so Ask unlocks the moment it can send,
+     * then stop: a ready frame only changes on a reload, which focus already catches.
+     * A frame that stays unreachable (signed out, still loading) backs off instead.
+     */
+    const poll = async () => {
+      if (disposed || running) return;
+      running = true;
+      const ready = await Promise.all(WEB_CHAT_PROVIDER_IDS.map(check));
+      running = false;
+      if (disposed || ready.every(Boolean)) return;
+      const delay = Math.min(
+        MAX_PROVIDER_STATUS_POLL_MS,
+        PROVIDER_STATUS_POLL_MS * 2 ** attempt,
+      );
+      attempt += 1;
+      timer = window.setTimeout(() => void poll(), delay);
     };
-    window.addEventListener('focus', refresh);
+
+    const restart = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+      attempt = 0;
+      void poll();
+    };
+    const onVisibilityChange = () => {
+      if (!document.hidden) restart();
+    };
+    window.addEventListener('focus', restart);
     document.addEventListener('visibilitychange', onVisibilityChange);
-    const interval = window.setInterval(refresh, 2_000);
-    refresh();
+    void poll();
     return () => {
       disposed = true;
-      window.clearInterval(interval);
-      window.removeEventListener('focus', refresh);
+      if (timer !== null) window.clearTimeout(timer);
+      window.removeEventListener('focus', restart);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [providerSessionIds]);
@@ -389,14 +464,10 @@ export function WatchBetterRuntime({
       .trim()
       .slice(0, 300) || `YouTube video ${page.videoId ?? ''}`.trim();
 
-  const activeSegmentId = useMemo(() => {
-    if (!transcriptDocument) return null;
-    const index = findActiveSegmentIndex(
-      transcriptDocument.segments,
-      playbackState.currentTimeSeconds,
-    );
-    return index < 0 ? null : (transcriptDocument.segments[index]?.id ?? null);
-  }, [playbackState.currentTimeSeconds, transcriptDocument]);
+  useEffect(() => {
+    segmentsRef.current = transcriptDocument?.segments ?? EMPTY_SEGMENTS;
+    applyPlaybackTime(playbackTimeRef.current);
+  }, [applyPlaybackTime, transcriptDocument]);
 
   const displayedTranscript: TranscriptViewState = contextLost
     ? { kind: 'error', message: CONTEXT_LOST_MESSAGE }
@@ -512,7 +583,7 @@ export function WatchBetterRuntime({
       ask={{
         transcript: transcriptDocument,
         selectedSegmentIds,
-        currentTimeSeconds: playbackState.currentTimeSeconds,
+        currentTimeSeconds: askTimeSeconds,
         providerStatuses,
         selectedProvider: selectedWebChatProvider,
         sendRequestId,

@@ -259,8 +259,12 @@ const sourceFromResponse = (
   };
 };
 
+const NEVER_ABORTED = new AbortController().signal;
+
 export class YouTubeTranscriptProvider implements TranscriptProvider {
   readonly #sources = new Map<string, VideoSource>();
+  /** Shared per video+track so a prefetch and the panel never fetch the same captions. */
+  readonly #documents = new Map<string, Promise<TranscriptDocument>>();
   readonly #fetch: typeof fetch;
 
   public constructor(
@@ -293,27 +297,50 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
         'The requested caption track is unavailable.',
       );
 
+    const key = `${source.videoId}:${caption.track.id}`;
+    const started = this.#documents.get(key);
+    if (started) return started;
+    // Detached from the caller's signal: a navigation away should not throw away work
+    // the next visit to this video would only redo.
+    const pending = this.#loadDocument(source, caption);
+    this.#documents.set(key, pending);
+    void pending.catch(() => this.#documents.delete(key));
+    return pending;
+  }
+
+  /**
+   * Warms the caption pipeline before React mounts. Failures are the panel's problem to
+   * report when it asks for the transcript itself.
+   */
+  public prefetch(videoId: string): void {
+    void this.load({ videoId, trackId: null }, NEVER_ABORTED).catch(() => undefined);
+  }
+
+  async #loadDocument(
+    source: VideoSource,
+    caption: CaptionSource,
+  ): Promise<TranscriptDocument> {
     let segments: readonly TranscriptSegment[] = [];
     try {
       segments = await this.#loadCaptionSegments(
         caption.baseUrl,
         caption.track.id,
-        signal,
+        NEVER_ABORTED,
       );
-    } catch (error) {
-      if (signal.aborted) throw error;
+    } catch {
+      // Fall through to the Android caption endpoint below.
     }
     if (segments.length === 0) {
       const androidCaption = await this.#loadAndroidCaption(
         source.videoId,
         caption,
-        signal,
+        NEVER_ABORTED,
       );
       if (androidCaption)
         segments = await this.#loadCaptionSegments(
           androidCaption.baseUrl,
           caption.track.id,
-          signal,
+          NEVER_ABORTED,
         );
     }
     if (segments.length === 0)
@@ -334,8 +361,14 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
   }
 
   public clear(videoId?: string): void {
-    if (videoId) this.#sources.delete(videoId);
-    else this.#sources.clear();
+    if (!videoId) {
+      this.#sources.clear();
+      this.#documents.clear();
+      return;
+    }
+    this.#sources.delete(videoId);
+    for (const key of this.#documents.keys())
+      if (key.startsWith(`${videoId}:`)) this.#documents.delete(key);
   }
 
   async #loadCaptionSegments(
@@ -433,7 +466,17 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
 
     let source: VideoSource | null = null;
     let metadataFound = false;
-    let innertubeKey = innertubeApiKeyFromDocument(this.documentRef);
+    // Scanning every inline script for the key costs milliseconds on a watch page and
+    // the inline player response almost always answers first, so resolve it on demand.
+    let innertubeKey: string | null = null;
+    let scannedForInnertubeKey = false;
+    const pageInnertubeKey = (): string | null => {
+      if (innertubeKey === null && !scannedForInnertubeKey) {
+        scannedForInnertubeKey = true;
+        innertubeKey = innertubeApiKeyFromDocument(this.documentRef);
+      }
+      return innertubeKey;
+    };
     let attemptedInnertubeKey: string | null = null;
     const currentId = parseYouTubeVideoUrl(this.documentRef.location.href)?.videoId;
     if (currentId === videoId) {
@@ -448,9 +491,10 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
       }
     }
 
-    if (!source && innertubeKey) {
-      attemptedInnertubeKey = innertubeKey;
-      source = await this.#loadAndroidSource(videoId, innertubeKey, signal);
+    const pageKey = source ? null : pageInnertubeKey();
+    if (!source && pageKey) {
+      attemptedInnertubeKey = pageKey;
+      source = await this.#loadAndroidSource(videoId, pageKey, signal);
       metadataFound ||= Boolean(source);
     }
 

@@ -44,14 +44,31 @@ import {
 } from '@/features/detach/floating-position';
 import { isExtensionRequest, type ExtensionResponse } from '@/messaging/messages';
 
-const currentMountTarget = (): Element | null =>
-  resolveYouTubeMountTarget(document, location.href);
-
 const isTheaterMode = (): boolean => isYouTubeTheaterMode(document);
+
+/**
+ * Resolving the rail runs up to six document queries, and YouTube's mutation firehose
+ * would otherwise pay for them on every animation frame. The answer only changes when
+ * the page, the layout mode, or the element itself does.
+ */
+let cachedMountTarget: Element | null = null;
+let cachedMountKey = '';
+
+const currentMountTarget = (): Element | null => {
+  const key = `${location.href}|${isTheaterMode() ? 'theater' : 'default'}`;
+  if (key === cachedMountKey && cachedMountTarget?.isConnected)
+    return cachedMountTarget;
+  const target = resolveYouTubeMountTarget(document, location.href);
+  // A missing rail is transient during navigation, so never cache the miss.
+  cachedMountKey = target ? key : '';
+  cachedMountTarget = target;
+  return target;
+};
 
 export default defineContentScript({
   matches: ['https://www.youtube.com/*'],
   cssInjectionMode: 'ui',
+  runAt: 'document_end',
   async main(ctx) {
     interface FloatingControls {
       setMinimized(next: boolean): void;
@@ -74,6 +91,18 @@ export default defineContentScript({
       floatingCleanup?: () => void;
     }
     type RuntimeUi = Awaited<ReturnType<typeof createShadowRootUi<MountedRuntime>>>;
+
+    // One provider per tab: captions fetched before React mounts, or fetched for the
+    // rail panel, are already in hand when a detached card asks for the same video.
+    const transcriptProvider = new YouTubeTranscriptProvider(document, fetch);
+    let prefetchedVideoId: string | null = null;
+    const prefetchTranscript = () => {
+      const videoId = parseYouTubeVideoUrl(location.href)?.videoId;
+      if (!videoId || videoId === prefetchedVideoId) return;
+      prefetchedVideoId = videoId;
+      transcriptProvider.prefetch(videoId);
+    };
+    prefetchTranscript();
 
     let activeUi: RuntimeUi | null = null;
     let creatingActiveUi: Promise<RuntimeUi> | null = null;
@@ -452,7 +481,7 @@ export default defineContentScript({
             shadow,
             pageController: new BrowserYouTubePageController(window),
             playback: new HtmlVideoPlaybackController(document),
-            transcriptProvider: new YouTubeTranscriptProvider(document, fetch),
+            transcriptProvider,
             controls: null,
             visible: false,
             presentation: 'panel',
@@ -547,8 +576,13 @@ export default defineContentScript({
       scheduleSync();
     }
 
+    /** Inputs of the last applied host layout, so a quiet frame stays free. */
+    let appliedLayoutTarget: Element | null = null;
+    let appliedLayoutKey = '';
+
     const syncMount = () => {
       scheduled = false;
+      prefetchTranscript();
       // Detached cards are independent of the page's mount target: they keep their
       // own video, position and size while the viewer browses on to other videos.
       for (const detached of detachedUis) {
@@ -569,15 +603,28 @@ export default defineContentScript({
         return;
       }
       if (isDetached(ui)) return;
-      if (!ui.shadowHost.isConnected) ui.mount();
-      else {
+      const theaterMode = isTheaterMode();
+      const layoutKey = `${location.href}|${theaterMode ? 'theater' : 'default'}`;
+      const layoutChanged =
+        target !== appliedLayoutTarget || layoutKey !== appliedLayoutKey;
+      if (!ui.shadowHost.isConnected) {
+        ui.mount();
+        appliedLayoutTarget = target;
+        appliedLayoutKey = layoutKey;
+      } else {
         placeYouTubePanelFirst(target, ui.shadowHost);
-        applyYouTubePanelHostLayout(ui.shadowHost, target, location.href, document);
+        if (layoutChanged) {
+          applyYouTubePanelHostLayout(ui.shadowHost, target, location.href, document);
+          appliedLayoutTarget = target;
+          appliedLayoutKey = layoutKey;
+        }
       }
       const runtime = ui.mounted;
       if (!runtime) return;
-      runtime.playerSizeSync?.sync();
-      const theaterMode = isTheaterMode();
+      // A ResizeObserver already tracks the player, so only re-measure when the layout
+      // itself moved. Measuring every frame forced a synchronous layout on every
+      // YouTube mutation.
+      if (layoutChanged) runtime.playerSizeSync?.sync();
       if (runtime.theaterMode !== theaterMode) {
         runtime.theaterMode = theaterMode;
         renderRuntime(ui, runtime);

@@ -22,6 +22,11 @@ const PROVIDER_PICKER_LABELS: Readonly<Record<WebChatProviderId, string>> = {
   gemini: 'Google Gemini',
   chatgpt: 'Codex',
 };
+/**
+ * Two provider iframes cost two full app loads. The one on screen goes first and the
+ * other warms up once the page is idle, so opening a video is half the work it was.
+ */
+const BACKGROUND_PROVIDER_WARMUP_MS = 2_000;
 const PRIME_QUESTION =
   'Use this transcript as the source of truth. Get ready to answer my questions about this video, cite useful timestamps, and say when the transcript does not establish an answer.';
 
@@ -255,7 +260,7 @@ export function AskPanel({
   const selectedProvider = controlledSelectedProvider ?? internalSelectedProvider;
   const [mountedProviders, setMountedProviders] = useState<
     ReadonlySet<WebChatProviderId>
-  >(() => new Set(['chatgpt', 'gemini', initialProvider]));
+  >(() => new Set([controlledSelectedProvider ?? initialProvider]));
   const [primeState, setPrimeState] = useState<PrimeState>({ kind: 'idle' });
   const [handledRequestId, setHandledRequestId] = useState(0);
   const [providerSessionIds, setProviderSessionIds] = useState<
@@ -277,6 +282,21 @@ export function AskPanel({
     requestPending && providerStatus === 'sign-in-required'
       ? `Sign in to ${providerDefinition.displayName} before sending.`
       : '';
+
+  const allProvidersMounted = mountedProviders.size >= PROVIDER_IDS.length;
+
+  useEffect(() => {
+    if (allProvidersMounted) return;
+    const mountRest = () => setMountedProviders(new Set(PROVIDER_IDS));
+    if (typeof window.requestIdleCallback === 'function') {
+      const handle = window.requestIdleCallback(mountRest, {
+        timeout: BACKGROUND_PROVIDER_WARMUP_MS,
+      });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const timer = window.setTimeout(mountRest, BACKGROUND_PROVIDER_WARMUP_MS);
+    return () => window.clearTimeout(timer);
+  }, [allProvidersMounted]);
 
   const registerProviderSession = useCallback(
     (providerId: WebChatProviderId, sessionId: string) => {
