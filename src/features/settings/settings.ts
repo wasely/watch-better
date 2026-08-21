@@ -1,12 +1,19 @@
-import type { SkipConfiguration, SkipPresetId } from '@/features/skip/skip-engine';
+import {
+  DEFAULT_SMART_SKIP_CONFIGURATION,
+  SMART_SKIP_CATEGORIES,
+  type SmartSkipCategory,
+  type SmartSkipConfiguration,
+  type SmartSkipStrictness,
+} from '@/features/smart-skip/domain';
+import { isWebChatProviderId, type WebChatProviderId } from '@/services/web-chat';
 
-export type PanelTab = 'transcript' | 'ask' | 'skip';
+export type PanelTab = 'transcript' | 'ask' | 'smart-skip';
 export type ThemePreference = 'system' | 'dark' | 'light';
 export type TranscriptFontSize = 'compact' | 'standard' | 'large';
 export type TranscriptCachePolicy = 'memory-only' | 'session';
 
 export interface WatchBetterSettings {
-  readonly schemaVersion: 2;
+  readonly schemaVersion: 3;
   readonly extensionEnabled: boolean;
   readonly defaultTab: PanelTab;
   readonly autoLoadTranscript: boolean;
@@ -14,24 +21,12 @@ export interface WatchBetterSettings {
   readonly transcriptFontSize: TranscriptFontSize;
   readonly theme: ThemePreference;
   readonly panelCollapsed: boolean;
-  readonly pause: SkipConfiguration;
+  readonly smartSkip: SmartSkipConfiguration;
   readonly transcriptCachePolicy: TranscriptCachePolicy;
 }
 
-export const DEFAULT_SKIP_CONFIGURATION: SkipConfiguration = Object.freeze({
-  enabled: false,
-  preset: 'conservative',
-  minimumGapSeconds: 2.5,
-  leadingPaddingSeconds: 0.35,
-  trailingPaddingSeconds: 0.25,
-  speechPlaybackRate: 1,
-  gapPlaybackRate: 2,
-  jumpLongGaps: false,
-  jumpThresholdSeconds: 8,
-});
-
 export const DEFAULT_SETTINGS: WatchBetterSettings = Object.freeze({
-  schemaVersion: 2,
+  schemaVersion: 3,
   extensionEnabled: true,
   defaultTab: 'transcript',
   autoLoadTranscript: true,
@@ -39,7 +34,7 @@ export const DEFAULT_SETTINGS: WatchBetterSettings = Object.freeze({
   transcriptFontSize: 'standard',
   theme: 'system',
   panelCollapsed: false,
-  pause: DEFAULT_SKIP_CONFIGURATION,
+  smartSkip: DEFAULT_SMART_SKIP_CONFIGURATION,
   transcriptCachePolicy: 'memory-only',
 });
 
@@ -56,81 +51,58 @@ const oneOf = <T extends string>(
 const booleanOr = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback;
 
-const boundedNumber = (
-  value: unknown,
-  fallback: number,
-  minimum: number,
-  maximum: number,
-): number =>
-  typeof value === 'number' && Number.isFinite(value)
-    ? Math.min(maximum, Math.max(minimum, value))
-    : fallback;
+const normalizeDefaultTab = (value: unknown): PanelTab => {
+  // The source-only Jump Cut prototype used "skip". Preserve that user intent.
+  if (value === 'skip') return 'smart-skip';
+  return oneOf<PanelTab>(
+    value,
+    ['transcript', 'ask', 'smart-skip'],
+    DEFAULT_SETTINGS.defaultTab,
+  );
+};
 
-const normalizePauseSettings = (value: unknown): SkipConfiguration => {
+const normalizeCategories = (value: unknown): readonly SmartSkipCategory[] => {
+  if (!Array.isArray(value)) return DEFAULT_SMART_SKIP_CONFIGURATION.categories;
+  const allowed = new Set<SmartSkipCategory>(SMART_SKIP_CATEGORIES);
+  const categories = Array.from(
+    new Set(
+      value.filter(
+        (candidate): candidate is SmartSkipCategory =>
+          typeof candidate === 'string' && allowed.has(candidate as SmartSkipCategory),
+      ),
+    ),
+  );
+  return categories.length > 0
+    ? categories
+    : DEFAULT_SMART_SKIP_CONFIGURATION.categories;
+};
+
+const normalizeSmartSkip = (value: unknown): SmartSkipConfiguration => {
   const source = isRecord(value) ? value : {};
-  const defaults = DEFAULT_SKIP_CONFIGURATION;
-
+  const provider: WebChatProviderId = isWebChatProviderId(source.provider)
+    ? source.provider
+    : DEFAULT_SMART_SKIP_CONFIGURATION.provider;
   return {
-    enabled: booleanOr(source.enabled, defaults.enabled),
-    preset: oneOf<SkipPresetId>(
-      source.preset,
+    provider,
+    strictness: oneOf<SmartSkipStrictness>(
+      source.strictness,
       ['conservative', 'balanced', 'aggressive'],
-      defaults.preset,
+      DEFAULT_SMART_SKIP_CONFIGURATION.strictness,
     ),
-    minimumGapSeconds: boundedNumber(
-      source.minimumGapSeconds,
-      defaults.minimumGapSeconds,
-      0.5,
-      30,
-    ),
-    leadingPaddingSeconds: boundedNumber(
-      source.leadingPaddingSeconds,
-      defaults.leadingPaddingSeconds,
-      0,
-      3,
-    ),
-    trailingPaddingSeconds: boundedNumber(
-      source.trailingPaddingSeconds,
-      defaults.trailingPaddingSeconds,
-      0,
-      3,
-    ),
-    speechPlaybackRate: boundedNumber(
-      source.speechPlaybackRate,
-      defaults.speechPlaybackRate,
-      0.5,
-      3,
-    ),
-    gapPlaybackRate: boundedNumber(
-      source.gapPlaybackRate,
-      defaults.gapPlaybackRate,
-      1,
-      16,
-    ),
-    jumpLongGaps: booleanOr(source.jumpLongGaps, defaults.jumpLongGaps),
-    jumpThresholdSeconds: boundedNumber(
-      source.jumpThresholdSeconds,
-      defaults.jumpThresholdSeconds,
-      2,
-      60,
-    ),
+    categories: normalizeCategories(source.categories),
+    autoSkip: booleanOr(source.autoSkip, DEFAULT_SMART_SKIP_CONFIGURATION.autoSkip),
   };
 };
 
 export const normalizeSettings = (value: unknown): WatchBetterSettings => {
   const source = isRecord(value) ? value : {};
-
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     extensionEnabled: booleanOr(
       source.extensionEnabled,
       DEFAULT_SETTINGS.extensionEnabled,
     ),
-    defaultTab: oneOf<PanelTab>(
-      source.defaultTab,
-      ['transcript', 'ask', 'skip'],
-      DEFAULT_SETTINGS.defaultTab,
-    ),
+    defaultTab: normalizeDefaultTab(source.defaultTab),
     autoLoadTranscript: booleanOr(
       source.autoLoadTranscript,
       DEFAULT_SETTINGS.autoLoadTranscript,
@@ -150,7 +122,7 @@ export const normalizeSettings = (value: unknown): WatchBetterSettings => {
       DEFAULT_SETTINGS.theme,
     ),
     panelCollapsed: booleanOr(source.panelCollapsed, DEFAULT_SETTINGS.panelCollapsed),
-    pause: normalizePauseSettings(source.pause),
+    smartSkip: normalizeSmartSkip(source.smartSkip),
     transcriptCachePolicy: oneOf<TranscriptCachePolicy>(
       source.transcriptCachePolicy,
       ['memory-only', 'session'],

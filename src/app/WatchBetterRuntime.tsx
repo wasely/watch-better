@@ -5,6 +5,7 @@ import type {
   PlaybackController,
   PlaybackSnapshot,
 } from '@/adapters/youtube/playback-controller';
+import type { ChatTurnRequest, ChatTurnResult } from '@/features/ask/AskPanel';
 import type {
   YouTubePageController,
   YouTubePageSnapshot,
@@ -25,6 +26,28 @@ import {
   type WatchBetterSettings,
   type PanelTab,
 } from '@/features/settings/settings';
+import {
+  buildSmartSkipAnalysisChunks,
+  mergeSmartSkipAnalyses,
+  normalizeSmartSkipIntervals,
+  parseSmartSkipAnalysisResponse,
+  smartSkipAnalysisCacheKey,
+} from '@/features/smart-skip/analysis';
+import type {
+  SmartSkipAnalysis,
+  SmartSkipAnalysisState,
+  SmartSkipRefinementState,
+} from '@/features/smart-skip/domain';
+import { SmartSkipCache } from '@/features/smart-skip/smart-skip-cache';
+import {
+  buildInstantSmartSkipAnalysis,
+  createInstantOpeningInterval,
+} from '@/features/smart-skip/instant-analysis';
+import {
+  SmartSkipEngine,
+  type SmartSkipEngineSnapshot,
+} from '@/features/smart-skip/smart-skip-engine';
+import { SmartSkipRefinementFrame } from '@/features/smart-skip/SmartSkipRefinementFrame';
 import type { ExtensionRequest, ExtensionResponse } from '@/messaging/messages';
 import {
   SettingsRepository,
@@ -73,8 +96,22 @@ const isExtensionContextLost = (error: unknown): boolean =>
 const CONTEXT_LOST_MESSAGE =
   'Watch Better was reloaded. Refresh this tab to reconnect the panel.';
 
-const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
-  browser.runtime.sendMessage(request);
+const send = async (request: ExtensionRequest): Promise<ExtensionResponse> => {
+  const response: unknown = await browser.runtime.sendMessage(request);
+  if (
+    typeof response === 'object' &&
+    response !== null &&
+    'ok' in response &&
+    typeof response.ok === 'boolean'
+  )
+    return response as ExtensionResponse;
+  return {
+    ok: false,
+    type: 'error',
+    message:
+      'Watch Better background did not respond. Reload the extension and refresh YouTube.',
+  };
+};
 
 export interface WatchBetterRuntimeControls {
   restore(): Promise<void>;
@@ -132,6 +169,8 @@ export function WatchBetterRuntime({
 }: WatchBetterRuntimeProps) {
   const repository = useMemo(() => new SettingsRepository(), []);
   const cache = useMemo(() => new TranscriptCache(), []);
+  const smartSkipCache = useMemo(() => new SmartSkipCache(), []);
+  const smartSkipEngine = useMemo(() => new SmartSkipEngine(playback), [playback]);
   const [settings, setSettings] = useState<WatchBetterSettings>(DEFAULT_SETTINGS);
   const settingsRef = useRef(settings);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -163,12 +202,31 @@ export function WatchBetterRuntime({
   const [providerSessionIds, setProviderSessionIds] = useState<
     Partial<Record<WebChatProviderId, string>>
   >({});
+  const [smartSkipAnalysisState, setSmartSkipAnalysisState] =
+    useState<SmartSkipAnalysisState>({ kind: 'idle' });
+  const smartSkipAnalysisStateRef = useRef<SmartSkipAnalysisState>({ kind: 'idle' });
+  const [smartSkipRefinementState, setSmartSkipRefinementState] =
+    useState<SmartSkipRefinementState>({ kind: 'idle' });
+  const [smartSkipRefinementSession, setSmartSkipRefinementSession] = useState<{
+    readonly provider: WebChatProviderId;
+    readonly sessionId: string;
+  } | null>(null);
+  const [smartSkipRefinementProviderState, setSmartSkipRefinementProviderState] =
+    useState<WebChatConnectionState>('not-open');
+  const [smartSkipRefinementFrameEnabled, setSmartSkipRefinementFrameEnabled] =
+    useState(false);
+  const [smartSkipRefinementRetryToken, setSmartSkipRefinementRetryToken] = useState(0);
+  const [smartSkipEngineSnapshot, setSmartSkipEngineSnapshot] =
+    useState<SmartSkipEngineSnapshot>(smartSkipEngine.snapshot);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
     matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
   );
   const loadAbortRef = useRef<AbortController | null>(null);
   const loadGenerationRef = useRef(0);
   const pageRef = useRef(page);
+  const smartSkipGenerationRef = useRef(0);
+  const smartSkipRefinementRunKeyRef = useRef<string | null>(null);
+  const smartSkipRefinementFailureCountRef = useRef(0);
   const resolveDefaultTab = useCallback(
     (defaultTab: PanelTab) => resolveInitialProductTab(initialTab ?? defaultTab),
     [initialTab],
@@ -179,8 +237,21 @@ export function WatchBetterRuntime({
   }, [settings]);
 
   useEffect(() => {
+    smartSkipAnalysisStateRef.current = smartSkipAnalysisState;
+  }, [smartSkipAnalysisState]);
+
+  useEffect(() => {
     pageRef.current = page;
   }, [page]);
+
+  useEffect(() => {
+    smartSkipEngine.start();
+    const unsubscribe = smartSkipEngine.subscribe(setSmartSkipEngineSnapshot);
+    return () => {
+      unsubscribe();
+      smartSkipEngine.stop();
+    };
+  }, [smartSkipEngine]);
 
   useEffect(() => {
     const query = matchMedia('(prefers-color-scheme: dark)');
@@ -197,6 +268,21 @@ export function WatchBetterRuntime({
       setPage(next);
       if (changedVideo) {
         setSelectedSegmentIds(new Set());
+        smartSkipGenerationRef.current += 1;
+        smartSkipRefinementRunKeyRef.current = null;
+        setSmartSkipAnalysisState({ kind: 'idle' });
+        setSmartSkipRefinementState({ kind: 'idle' });
+        smartSkipEngine.setEnabled(false);
+        const opening = next.videoId
+          ? createInstantOpeningInterval(
+              next.videoId,
+              playback.snapshot.durationSeconds,
+              settingsRef.current.smartSkip,
+            )
+          : null;
+        smartSkipEngine.setIntervals(opening ? [opening] : []);
+        if (opening && settingsRef.current.smartSkip.autoSkip)
+          smartSkipEngine.setEnabled(true);
         setActiveTab(resolveDefaultTab(settingsRef.current.defaultTab));
       }
     });
@@ -205,7 +291,7 @@ export function WatchBetterRuntime({
       unsubscribe();
       pageController.dispose();
     };
-  }, [pageController, resolveDefaultTab]);
+  }, [pageController, playback, resolveDefaultTab, smartSkipEngine]);
 
   /**
    * Playback ticks four times a second. Keeping the raw snapshot in state re-rendered
@@ -328,8 +414,12 @@ export function WatchBetterRuntime({
      */
     const poll = async () => {
       if (disposed || running) return;
+      const mountedProviders = WEB_CHAT_PROVIDER_IDS.filter(
+        (provider) => providerSessionIds[provider],
+      );
+      if (mountedProviders.length === 0) return;
       running = true;
-      const ready = await Promise.all(WEB_CHAT_PROVIDER_IDS.map(check));
+      const ready = await Promise.all(mountedProviders.map(check));
       running = false;
       if (disposed || ready.every(Boolean)) return;
       const delay = Math.min(
@@ -368,6 +458,84 @@ export function WatchBetterRuntime({
       throw new Error('Unexpected settings response.');
     setSettings(response.settings);
   }, []);
+
+  const primeAskWebChat = useCallback(async (request: ChatTurnRequest) => {
+    const response = await send({ type: 'webchat:prime', ...request });
+    if (!response.ok) throw new Error(response.message);
+    if (response.type !== 'acknowledged')
+      throw new Error('Unexpected context preload response.');
+  }, []);
+
+  const focusAskWebChat = useCallback(
+    async (provider: WebChatProviderId, sessionId: string) => {
+      const response = await send({
+        type: 'webchat:focus',
+        provider,
+        sessionId,
+      });
+      if (!response.ok) throw new Error(response.message);
+    },
+    [],
+  );
+
+  const sendAskWebChat = useCallback(
+    async (request: ChatTurnRequest): Promise<ChatTurnResult> => {
+      const response = await send({ type: 'webchat:send', ...request });
+      if (!response.ok) throw new Error(response.message);
+      if (response.type !== 'webchat:response')
+        throw new Error('Unexpected AI response.');
+      return {
+        text: response.text,
+        responseId: response.responseId,
+        provider: response.provider,
+      };
+    },
+    [],
+  );
+
+  const openAskWebChat = useCallback(async (provider: WebChatProviderId) => {
+    const response = await send({ type: 'webchat:open', provider });
+    if (!response.ok) throw new Error(response.message);
+  }, []);
+
+  const prepareAskWebChat = useCallback(
+    async (provider: WebChatProviderId, sessionId: string) => {
+      setProviderStatuses((current) => ({
+        ...current,
+        [provider]: { provider, state: 'loading' },
+      }));
+      const response = await send({
+        type: 'webchat:frame-prepare',
+        provider,
+        sessionId,
+      });
+      if (!response.ok) throw new Error(response.message);
+    },
+    [],
+  );
+
+  const resetAskWebChat = useCallback(
+    async (provider: WebChatProviderId, sessionId: string) => {
+      const response = await send({
+        type: 'webchat:frame-reset',
+        provider,
+        sessionId,
+      });
+      if (!response.ok) throw new Error(response.message);
+    },
+    [],
+  );
+
+  const registerAskProviderSession = useCallback(
+    (provider: WebChatProviderId, sessionId: string) => {
+      setProviderSessionIds((current) =>
+        current[provider] === sessionId
+          ? current
+          : { ...current, [provider]: sessionId },
+      );
+    },
+    [],
+  );
 
   const loadTranscript = useCallback(
     async (videoId: string, requestedTrackId: string | null = null) => {
@@ -469,6 +637,391 @@ export function WatchBetterRuntime({
     applyPlaybackTime(playbackTimeRef.current);
   }, [applyPlaybackTime, transcriptDocument]);
 
+  const selectedTranscriptTrackId =
+    transcript.kind === 'ready' ? transcript.selectedTrackId : null;
+
+  useEffect(() => {
+    if (
+      smartSkipRefinementFrameEnabled ||
+      !transcriptDocument ||
+      !selectedTranscriptTrackId ||
+      !settings.smartSkip.autoSkip
+    )
+      return;
+    let disposed = false;
+    const enable = () => {
+      if (!disposed) setSmartSkipRefinementFrameEnabled(true);
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(enable, { timeout: 1_500 });
+      return () => {
+        disposed = true;
+        window.cancelIdleCallback(idleId);
+      };
+    }
+    const timer = window.setTimeout(enable, 500);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+    };
+  }, [
+    selectedTranscriptTrackId,
+    settings.smartSkip.autoSkip,
+    smartSkipRefinementFrameEnabled,
+    transcriptDocument,
+  ]);
+
+  const registerSmartSkipRefinementSession = useCallback(
+    (provider: WebChatProviderId, sessionId: string) => {
+      setSmartSkipRefinementSession((current) =>
+        current?.provider === provider && current.sessionId === sessionId
+          ? current
+          : { provider, sessionId },
+      );
+    },
+    [],
+  );
+
+  const prepareSmartSkipRefinement = useCallback(
+    async (provider: WebChatProviderId, sessionId: string) => {
+      setSmartSkipRefinementProviderState('loading');
+      setSmartSkipRefinementState({ kind: 'connecting' });
+      try {
+        const response = await send({
+          type: 'webchat:frame-prepare',
+          provider,
+          sessionId,
+        });
+        if (!response.ok) throw new Error(response.message);
+      } catch (error: unknown) {
+        setSmartSkipRefinementState({
+          kind: 'unavailable',
+          message: 'Deep scan reconnecting; strict local cuts remain active.',
+        });
+        throw error;
+      }
+    },
+    [],
+  );
+
+  const resetSmartSkipRefinement = useCallback(
+    async (provider: WebChatProviderId, sessionId: string) => {
+      const response = await send({
+        type: 'webchat:frame-reset',
+        provider,
+        sessionId,
+      });
+      if (!response.ok) throw new Error(response.message);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!smartSkipRefinementSession) return;
+    let disposed = false;
+    let timer: number | null = null;
+    let attempt = 0;
+
+    const poll = async () => {
+      if (disposed) return;
+      try {
+        const response = await send({
+          type: 'webchat:get-status',
+          provider: smartSkipRefinementSession.provider,
+          sessionId: smartSkipRefinementSession.sessionId,
+        });
+        if (disposed) return;
+        if (response.ok && response.type === 'webchat:status') {
+          setSmartSkipRefinementProviderState(response.state);
+          if (response.state === 'ready') return;
+          if (response.state === 'sign-in-required') {
+            setSmartSkipRefinementState({
+              kind: 'unavailable',
+              message: 'Sign in to Gemini for deeper middle-of-video cuts.',
+            });
+            return;
+          }
+        }
+      } catch {
+        // Deep analysis is optional. Local cuts must remain uninterrupted.
+      }
+      attempt += 1;
+      if (attempt === 9) {
+        setSmartSkipRefinementState({
+          kind: 'unavailable',
+          message: 'Deep scan reconnecting; strict local cuts remain active.',
+        });
+      }
+      timer = window.setTimeout(
+        () => void poll(),
+        attempt >= 9
+          ? 10_000
+          : Math.min(3_200, PROVIDER_STATUS_POLL_MS * 2 ** Math.min(attempt, 3)),
+      );
+    };
+
+    queueMicrotask(() => {
+      if (!disposed) setSmartSkipRefinementState({ kind: 'connecting' });
+    });
+    void poll();
+    return () => {
+      disposed = true;
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [smartSkipRefinementSession]);
+
+  const applySmartSkipAnalysis = useCallback(
+    (analysis: SmartSkipAnalysis, cached: boolean, generation: number) => {
+      smartSkipEngine.setEnabled(false);
+      smartSkipEngine.setIntervals(analysis.intervals);
+      if (settingsRef.current.smartSkip.autoSkip) smartSkipEngine.setEnabled(true);
+      queueMicrotask(() => {
+        if (generation === smartSkipGenerationRef.current)
+          setSmartSkipAnalysisState({ kind: 'ready', analysis, cached });
+      });
+    },
+    [smartSkipEngine],
+  );
+
+  useEffect(() => {
+    const generation = ++smartSkipGenerationRef.current;
+    let disposed = false;
+    const configuration = settings.smartSkip;
+    if (!page.videoId) {
+      smartSkipEngine.setEnabled(false);
+      smartSkipEngine.setIntervals([]);
+      queueMicrotask(() => {
+        if (!disposed) {
+          setSmartSkipAnalysisState({ kind: 'idle' });
+          setSmartSkipRefinementState({ kind: 'idle' });
+        }
+      });
+      return () => {
+        disposed = true;
+      };
+    }
+
+    if (!transcriptDocument || !selectedTranscriptTrackId) {
+      const opening = createInstantOpeningInterval(
+        page.videoId,
+        playback.snapshot.durationSeconds,
+        configuration,
+      );
+      smartSkipEngine.setEnabled(false);
+      smartSkipEngine.setIntervals(opening ? [opening] : []);
+      if (opening && configuration.autoSkip) smartSkipEngine.setEnabled(true);
+      queueMicrotask(() => {
+        if (!disposed && generation === smartSkipGenerationRef.current) {
+          setSmartSkipAnalysisState({ kind: 'idle' });
+          setSmartSkipRefinementState({ kind: 'idle' });
+        }
+      });
+      return () => {
+        disposed = true;
+      };
+    }
+
+    const instantAnalysis = buildInstantSmartSkipAnalysis(
+      transcriptDocument,
+      selectedTranscriptTrackId,
+      configuration,
+    );
+    queueMicrotask(() => {
+      if (disposed || generation !== smartSkipGenerationRef.current) return;
+      setSmartSkipRefinementState(
+        smartSkipRefinementSession ? { kind: 'connecting' } : { kind: 'idle' },
+      );
+    });
+    applySmartSkipAnalysis(instantAnalysis, false, generation);
+    const key = smartSkipAnalysisCacheKey(
+      transcriptDocument,
+      selectedTranscriptTrackId,
+      configuration,
+    );
+    void smartSkipCache
+      .get(key)
+      .then((analysis) => {
+        if (disposed || generation !== smartSkipGenerationRef.current) return;
+        if (analysis) {
+          applySmartSkipAnalysis(analysis, true, generation);
+          const deepCuts = analysis.intervals.filter(
+            (interval) => interval.source === 'deep',
+          ).length;
+          if (deepCuts > 0) {
+            smartSkipRefinementRunKeyRef.current = key;
+            setSmartSkipRefinementState({ kind: 'complete', addedCuts: deepCuts });
+          }
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      disposed = true;
+    };
+  }, [
+    applySmartSkipAnalysis,
+    selectedTranscriptTrackId,
+    smartSkipCache,
+    smartSkipEngine,
+    page.videoId,
+    playback,
+    settings.smartSkip,
+    smartSkipRefinementSession,
+    transcriptDocument,
+  ]);
+
+  useEffect(() => {
+    if (
+      !transcriptDocument ||
+      !selectedTranscriptTrackId ||
+      !smartSkipRefinementSession ||
+      smartSkipRefinementProviderState !== 'ready' ||
+      !settings.smartSkip.autoSkip
+    )
+      return;
+
+    const configuration = settings.smartSkip;
+    if (smartSkipRefinementSession.provider !== configuration.provider) return;
+    const cacheKey = smartSkipAnalysisCacheKey(
+      transcriptDocument,
+      selectedTranscriptTrackId,
+      configuration,
+    );
+    if (smartSkipRefinementRunKeyRef.current === cacheKey) return;
+    const generation = smartSkipGenerationRef.current;
+    let disposed = false;
+    let retryTimer: number | null = null;
+
+    const refine = async () => {
+      try {
+        const chunks = buildSmartSkipAnalysisChunks(transcriptDocument, configuration);
+        const rawCuts: ReturnType<typeof parseSmartSkipAnalysisResponse>[number][] = [];
+        setSmartSkipRefinementState({
+          kind: 'analyzing',
+          completed: 0,
+          total: chunks.length,
+        });
+        for (const chunk of chunks) {
+          let parsedCuts: ReturnType<typeof parseSmartSkipAnalysisResponse> | null =
+            null;
+          let lastError: Error | null = null;
+          for (let attempt = 0; attempt < 2 && !disposed; attempt += 1) {
+            try {
+              const response = await send({
+                type: 'webchat:analyze',
+                provider: smartSkipRefinementSession.provider,
+                sessionId: smartSkipRefinementSession.sessionId,
+                message: chunk.prompt,
+                newConversation: chunk.index === 0 || attempt > 0,
+              });
+              if (!response.ok) throw new Error(response.message);
+              if (response.type !== 'webchat:analysis')
+                throw new Error('Deep scan returned an unexpected response.');
+              parsedCuts = parseSmartSkipAnalysisResponse(response.text, chunk);
+              break;
+            } catch (error: unknown) {
+              lastError =
+                error instanceof Error
+                  ? error
+                  : new Error('Deep scan could not read the provider response.');
+              if (attempt < 1)
+                await new Promise<void>((resolve) => window.setTimeout(resolve, 800));
+            }
+          }
+          if (!parsedCuts)
+            throw lastError ?? new Error('Deep scan did not return cuts.');
+          rawCuts.push(...parsedCuts);
+          if (disposed || generation !== smartSkipGenerationRef.current) return;
+          setSmartSkipRefinementState({
+            kind: 'analyzing',
+            completed: chunk.index + 1,
+            total: chunks.length,
+          });
+        }
+
+        const deep = normalizeSmartSkipIntervals(
+          rawCuts,
+          transcriptDocument,
+          configuration,
+        );
+        const current = smartSkipAnalysisStateRef.current;
+        const instant =
+          current.kind === 'ready' &&
+          current.analysis.videoId === transcriptDocument.videoId &&
+          current.analysis.trackId === selectedTranscriptTrackId
+            ? current.analysis
+            : buildInstantSmartSkipAnalysis(
+                transcriptDocument,
+                selectedTranscriptTrackId,
+                configuration,
+              );
+        const merged = mergeSmartSkipAnalyses(
+          instant,
+          deep,
+          transcriptDocument.durationSeconds ??
+            transcriptDocument.segments.at(-1)?.endSeconds ??
+            0,
+        );
+        if (disposed || generation !== smartSkipGenerationRef.current) return;
+        smartSkipEngine.updateIntervals(merged.intervals);
+        smartSkipAnalysisStateRef.current = {
+          kind: 'ready',
+          analysis: merged,
+          cached: false,
+        };
+        setSmartSkipAnalysisState(smartSkipAnalysisStateRef.current);
+        const addedCuts = merged.intervals.filter(
+          (interval) => interval.source === 'deep',
+        ).length;
+        smartSkipRefinementFailureCountRef.current = 0;
+        setSmartSkipRefinementState({ kind: 'complete', addedCuts });
+        await smartSkipCache.set(cacheKey, merged);
+      } catch (error: unknown) {
+        if (disposed || generation !== smartSkipGenerationRef.current) return;
+        smartSkipRefinementRunKeyRef.current = null;
+        const retryDelay = Math.min(
+          30_000,
+          2_000 * 2 ** smartSkipRefinementFailureCountRef.current,
+        );
+        smartSkipRefinementFailureCountRef.current += 1;
+        setSmartSkipRefinementState({
+          kind: 'unavailable',
+          message: `Deep scan reconnecting; strict local cuts remain active. ${
+            error instanceof Error ? error.message : ''
+          }`.trim(),
+        });
+        if (smartSkipRefinementFailureCountRef.current <= 3)
+          retryTimer = window.setTimeout(
+            () => setSmartSkipRefinementRetryToken((value) => value + 1),
+            retryDelay,
+          );
+      }
+    };
+
+    queueMicrotask(() => {
+      if (
+        disposed ||
+        generation !== smartSkipGenerationRef.current ||
+        smartSkipRefinementRunKeyRef.current === cacheKey
+      )
+        return;
+      smartSkipRefinementRunKeyRef.current = cacheKey;
+      void refine();
+    });
+    return () => {
+      disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+    };
+  }, [
+    selectedTranscriptTrackId,
+    settings.smartSkip,
+    smartSkipCache,
+    smartSkipEngine,
+    smartSkipRefinementProviderState,
+    smartSkipRefinementRetryToken,
+    smartSkipRefinementSession,
+    transcriptDocument,
+  ]);
+
   const displayedTranscript: TranscriptViewState = contextLost
     ? { kind: 'error', message: CONTEXT_LOST_MESSAGE }
     : transcript;
@@ -517,119 +1070,139 @@ export function WatchBetterRuntime({
   if (!visible) return null;
 
   return (
-    <WatchBetterApp
-      activeTab={activeTab}
-      allowCollapse={presentation === 'panel'}
-      collapsed={
-        presentation === 'floating' ? false : settings.panelCollapsed || theaterMode
-      }
-      {...(presentation === 'panel'
-        ? {
-            onCollapsedChange: (panelCollapsed: boolean) =>
-              void patchSettings({ panelCollapsed }).catch(() => undefined),
-          }
-        : {})}
-      {...(onAskFocusChange ? { onAskFocusChange } : {})}
-      onOpenSettings={async () => {
-        const response = await send({ type: 'settings:open' });
-        if (!response.ok) throw new Error(response.message);
-      }}
-      onTabChange={setActiveTab}
-      {...(presentation === 'panel' && detachableVideo && onDetach
-        ? {
-            onDetach: async () => {
-              await onDetach({
-                videoId: detachableVideo.videoId,
-                videoKind: detachableVideo.videoKind,
-                videoUrl: page.url,
-                videoTitle: resolvedVideoTitle,
-                generation: page.generation,
-                provider: selectedWebChatProvider,
-              });
-            },
-          }
-        : {})}
-      {...(presentation === 'floating'
-        ? {
-            minimized,
-            ...(onClose ? { onClose } : {}),
-            ...(onMinimizedChange ? { onMinimizedChange } : {}),
-            ...(onToggleMaximized ? { onToggleMaximized } : {}),
-          }
-        : {})}
-      presentation={presentation}
-      theme={theme}
-      transcriptFontSize={settings.transcriptFontSize}
-      {...(presentation === 'floating' ? { videoTitle: resolvedVideoTitle } : {})}
-      transcript={{
-        state: displayedTranscript,
-        activeSegmentId,
-        autoFollow: settings.autoFollowTranscript,
-        onSeek: (segment) => playback.seek(segment.startSeconds),
-        onTrackChange: (trackId) => {
-          if (page.videoId) void loadTranscript(page.videoId, trackId);
-        },
-        onSendToAI: (segmentIds) => {
-          setSelectedSegmentIds(new Set(segmentIds));
-          setActiveTab('ask');
-          setSendRequestId((current) => current + 1);
-        },
-        onEnableTranscript: () =>
-          void patchSettings({ autoLoadTranscript: true }).catch(() => undefined),
-        onRetry: () => {
-          if (page.videoId) void loadTranscript(page.videoId);
-        },
-      }}
-      ask={{
-        transcript: transcriptDocument,
-        selectedSegmentIds,
-        currentTimeSeconds: askTimeSeconds,
-        providerStatuses,
-        selectedProvider: selectedWebChatProvider,
-        sendRequestId,
-        onProviderChange: setSelectedWebChatProvider,
-        onProviderSessionChange: (provider, sessionId) =>
-          setProviderSessionIds((current) =>
-            current[provider] === sessionId
-              ? current
-              : { ...current, [provider]: sessionId },
-          ),
-        onSendWebChat: async (request) => {
-          const response = await send({ type: 'webchat:send', ...request });
+    <>
+      {smartSkipRefinementFrameEnabled ? (
+        <SmartSkipRefinementFrame
+          key={settings.smartSkip.provider}
+          onPrepare={prepareSmartSkipRefinement}
+          onReset={resetSmartSkipRefinement}
+          onSessionChange={registerSmartSkipRefinementSession}
+          provider={settings.smartSkip.provider}
+        />
+      ) : null}
+      <WatchBetterApp
+        activeTab={activeTab}
+        allowCollapse={presentation === 'panel'}
+        collapsed={
+          presentation === 'floating' ? false : settings.panelCollapsed || theaterMode
+        }
+        {...(presentation === 'panel'
+          ? {
+              onCollapsedChange: (panelCollapsed: boolean) =>
+                void patchSettings({ panelCollapsed }).catch(() => undefined),
+            }
+          : {})}
+        {...(onAskFocusChange ? { onAskFocusChange } : {})}
+        onOpenSettings={async () => {
+          const response = await send({ type: 'settings:open' });
           if (!response.ok) throw new Error(response.message);
-          if (response.type !== 'webchat:response')
-            throw new Error('Unexpected AI response.');
-          return {
-            text: response.text,
-            responseId: response.responseId,
-            provider: response.provider,
-          };
-        },
-        onOpenWebChat: async (provider) => {
-          const response = await send({ type: 'webchat:open', provider });
-          if (!response.ok) throw new Error(response.message);
-        },
-        onPrepareWebChat: async (provider, sessionId) => {
-          setProviderStatuses((current) => ({
-            ...current,
-            [provider]: { provider, state: 'loading' },
-          }));
-          const response = await send({
-            type: 'webchat:frame-prepare',
-            provider,
-            sessionId,
-          });
-          if (!response.ok) throw new Error(response.message);
-        },
-        onResetWebChat: async (provider, sessionId) => {
-          const response = await send({
-            type: 'webchat:frame-reset',
-            provider,
-            sessionId,
-          });
-          if (!response.ok) throw new Error(response.message);
-        },
-      }}
-    />
+        }}
+        onTabChange={setActiveTab}
+        {...(presentation === 'panel' && detachableVideo && onDetach
+          ? {
+              onDetach: async () => {
+                await onDetach({
+                  videoId: detachableVideo.videoId,
+                  videoKind: detachableVideo.videoKind,
+                  videoUrl: page.url,
+                  videoTitle: resolvedVideoTitle,
+                  generation: page.generation,
+                  provider: selectedWebChatProvider,
+                });
+              },
+            }
+          : {})}
+        {...(presentation === 'floating'
+          ? {
+              minimized,
+              ...(onClose ? { onClose } : {}),
+              ...(onMinimizedChange ? { onMinimizedChange } : {}),
+              ...(onToggleMaximized ? { onToggleMaximized } : {}),
+            }
+          : {})}
+        presentation={presentation}
+        theme={theme}
+        transcriptFontSize={settings.transcriptFontSize}
+        {...(presentation === 'floating' ? { videoTitle: resolvedVideoTitle } : {})}
+        transcript={{
+          state: displayedTranscript,
+          activeSegmentId,
+          autoFollow: settings.autoFollowTranscript,
+          onSeek: (segment) => playback.seek(segment.startSeconds),
+          onTrackChange: (trackId) => {
+            if (page.videoId) void loadTranscript(page.videoId, trackId);
+          },
+          onSendToAI: (segmentIds) => {
+            setSelectedSegmentIds(new Set(segmentIds));
+            setActiveTab('ask');
+            setSendRequestId((current) => current + 1);
+          },
+          onEnableTranscript: () =>
+            void patchSettings({ autoLoadTranscript: true }).catch(() => undefined),
+          onRetry: () => {
+            if (page.videoId) void loadTranscript(page.videoId);
+          },
+        }}
+        smartSkip={{
+          configuration: settings.smartSkip,
+          analysisState: smartSkipAnalysisState,
+          refinementState: smartSkipRefinementState,
+          engineSnapshot: smartSkipEngineSnapshot,
+          durationSeconds:
+            transcriptDocument?.durationSeconds ?? playback.snapshot.durationSeconds,
+          transcriptAvailable: Boolean(transcriptDocument),
+          onConfigurationChange: (configuration) => {
+            void patchSettings({ smartSkip: configuration }).catch(() => undefined);
+          },
+          onEnabledChange: (enabled) => {
+            smartSkipEngine.setEnabled(enabled);
+            void patchSettings({
+              smartSkip: { ...settings.smartSkip, autoSkip: enabled },
+            }).catch(() => undefined);
+          },
+          onIntervalEnabledChange: (intervalId, enabled) => {
+            setSmartSkipAnalysisState((current) => {
+              if (current.kind !== 'ready') return current;
+              const analysis = {
+                ...current.analysis,
+                intervals: current.analysis.intervals.map((interval) =>
+                  interval.id === intervalId ? { ...interval, enabled } : interval,
+                ),
+              };
+              smartSkipEngine.updateIntervals(analysis.intervals);
+              if (transcriptDocument && selectedTranscriptTrackId) {
+                const key = smartSkipAnalysisCacheKey(
+                  transcriptDocument,
+                  selectedTranscriptTrackId,
+                  settings.smartSkip,
+                );
+                void smartSkipCache.set(key, analysis).catch(() => undefined);
+              }
+              return { ...current, analysis };
+            });
+          },
+          onUndo: () => {
+            smartSkipEngine.undoLastSkip();
+          },
+          onSeek: (seconds) => playback.seek(seconds),
+        }}
+        ask={{
+          transcript: transcriptDocument,
+          selectedSegmentIds,
+          currentTimeSeconds: askTimeSeconds,
+          providerStatuses,
+          selectedProvider: selectedWebChatProvider,
+          sendRequestId,
+          onProviderChange: setSelectedWebChatProvider,
+          onProviderSessionChange: registerAskProviderSession,
+          onPrimeWebChat: primeAskWebChat,
+          onFocusWebChat: focusAskWebChat,
+          onSendWebChat: sendAskWebChat,
+          onOpenWebChat: openAskWebChat,
+          onPrepareWebChat: prepareAskWebChat,
+          onResetWebChat: resetAskWebChat,
+        }}
+      />
+    </>
   );
 }

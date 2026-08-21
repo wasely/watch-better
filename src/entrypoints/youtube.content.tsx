@@ -32,6 +32,10 @@ import {
   type DetachedVideoContext,
 } from '@/features/detach/detached-video';
 import {
+  QuickLearnController,
+  type QuickLearnOverlayRequest,
+} from '@/features/quick-learn/quick-learn-controller';
+import {
   clampFloatingPosition,
   clampFloatingSize,
   floatingSize,
@@ -73,6 +77,7 @@ export default defineContentScript({
     interface FloatingControls {
       setMinimized(next: boolean): void;
       toggleMaximized(): void;
+      bringToFront(): void;
     }
     interface MountedRuntime {
       readonly root: Root;
@@ -88,6 +93,7 @@ export default defineContentScript({
       minimized: boolean;
       floatingControls: FloatingControls | null;
       playerSizeSync: ReturnType<typeof createYouTubePlayerSizeSync> | null;
+      quickLearn: boolean;
       floatingCleanup?: () => void;
     }
     type RuntimeUi = Awaited<ReturnType<typeof createShadowRootUi<MountedRuntime>>>;
@@ -95,6 +101,10 @@ export default defineContentScript({
     // One provider per tab: captions fetched before React mounts, or fetched for the
     // rail panel, are already in hand when a detached card asks for the same video.
     const transcriptProvider = new YouTubeTranscriptProvider(document, fetch);
+    // Listing pages stay light: this controller adds tiny thumbnail buttons and does
+    // no caption work until the viewer explicitly asks for a briefing.
+    const quickLearn = new QuickLearnController(document, openQuickLearnOverlay);
+    quickLearn.start();
     let prefetchedVideoId: string | null = null;
     const prefetchTranscript = () => {
       const videoId = parseYouTubeVideoUrl(location.href)?.videoId;
@@ -111,6 +121,8 @@ export default defineContentScript({
     let topZIndex = 2_147_483_000;
     /** Detached cards live on <body> and must never be re-anchored or removed by syncMount. */
     const detachedUis = new Set<RuntimeUi>();
+    const quickLearnUis = new Map<string, RuntimeUi>();
+    let quickLearnGeneration = 1_000_000;
     const MAX_UI_CREATION_ATTEMPTS = 5;
     let uiCreationFailures = 0;
 
@@ -160,6 +172,12 @@ export default defineContentScript({
             pageController={runtime.pageController}
             playback={runtime.playback}
             presentation={runtime.presentation}
+            {...(runtime.quickLearn
+              ? {
+                  initialTab: 'ask' as const,
+                  initialWebChatProvider: 'gemini' as const,
+                }
+              : {})}
             theaterMode={runtime.presentation === 'panel' && runtime.theaterMode}
             transcriptProvider={runtime.transcriptProvider}
           />
@@ -376,6 +394,7 @@ export default defineContentScript({
       };
 
       const controls: FloatingControls = {
+        bringToFront,
         setMinimized(next) {
           if (runtime.minimized === next) return;
           runtime.minimized = next;
@@ -454,6 +473,85 @@ export default defineContentScript({
       return controls;
     };
 
+    async function openQuickLearnOverlay(
+      request: QuickLearnOverlayRequest,
+    ): Promise<void> {
+      const existing = quickLearnUis.get(request.videoId);
+      const existingRuntime = existing?.mounted;
+      if (existing?.shadowHost.isConnected && existingRuntime) {
+        existingRuntime.floatingControls?.setMinimized(false);
+        existingRuntime.floatingControls?.bringToFront();
+        return;
+      }
+      if (existing) quickLearnUis.delete(request.videoId);
+
+      const videoContext: DetachedVideoContext = {
+        videoId: request.videoId,
+        videoKind: request.videoKind,
+        videoUrl: request.videoUrl,
+        videoTitle: request.videoTitle,
+        generation: (quickLearnGeneration += 1),
+        provider: 'gemini',
+      };
+      const ui = await createShadowRootUi<MountedRuntime>(ctx, {
+        name: 'watchbetter-panel',
+        position: 'inline',
+        anchor: () => document.body,
+        append: 'last',
+        inheritStyles: true,
+        isolateEvents: true,
+        onMount(container, shadow, host) {
+          container.style.height = '100%';
+          container.style.minHeight = '0';
+          host.dataset.watchbetterRoot = 'true';
+          const pageController = new DetachedPageController(videoContext);
+          const playback = new DetachedPlaybackController(
+            videoContext,
+            resolveLiveVideo,
+          );
+          const runtime: MountedRuntime = {
+            root: createRoot(container),
+            shadow,
+            pageController,
+            playback,
+            transcriptProvider,
+            controls: null,
+            visible: false,
+            presentation: 'floating',
+            theaterMode: false,
+            videoTitle: request.videoTitle,
+            minimized: false,
+            floatingControls: null,
+            playerSizeSync: null,
+            quickLearn: true,
+          };
+          renderRuntime(ui, runtime);
+          return runtime;
+        },
+        onRemove(runtime) {
+          if (quickLearnUis.get(request.videoId) === ui)
+            quickLearnUis.delete(request.videoId);
+          detachedUis.delete(ui);
+          runtime?.floatingCleanup?.();
+          runtime?.root.unmount();
+          runtime?.playback.dispose();
+          runtime?.pageController.dispose();
+        },
+      });
+
+      detachedUis.add(ui);
+      ui.mount();
+      const runtime = ui.mounted;
+      if (!runtime) {
+        detachedUis.delete(ui);
+        ui.remove();
+        throw new Error('Quick Learn could not mount its in-page card.');
+      }
+      runtime.floatingControls = makeFloating(ui, runtime);
+      quickLearnUis.set(request.videoId, ui);
+      syncHostVisibility(ui, runtime);
+    }
+
     const createRuntimeUi = async (): Promise<RuntimeUi> => {
       const ui = await createShadowRootUi<MountedRuntime>(ctx, {
         name: 'watchbetter-panel',
@@ -489,6 +587,7 @@ export default defineContentScript({
             minimized: false,
             floatingControls: null,
             playerSizeSync,
+            quickLearn: false,
           };
           renderRuntime(ui, runtime);
           return runtime;
@@ -514,6 +613,9 @@ export default defineContentScript({
      */
     const ensureActiveUi = async (): Promise<RuntimeUi | null> => {
       if (activeUi) return activeUi;
+      // Home, search and subscription pages use only Quick Learn. Avoid fetching and
+      // constructing the full watch-page panel until a supported player rail exists.
+      if (!currentMountTarget()) return null;
       if (!creatingActiveUi) creatingActiveUi = createRuntimeUi();
       try {
         activeUi = await creatingActiveUi;
@@ -698,6 +800,7 @@ export default defineContentScript({
       for (const event of ['yt-navigate-finish', 'yt-page-data-updated'])
         document.removeEventListener(event, scheduleSync);
       document.removeEventListener('fullscreenchange', scheduleSync);
+      quickLearn.dispose();
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       browser.runtime.onMessage.removeListener(onMessage);
     });

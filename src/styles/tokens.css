@@ -60,6 +60,7 @@
   --ct-text-muted: #87919d;
   --ct-accent: #e3e6ea;
   --ct-accent-strong: #f4f6f8;
+  --ct-on-accent: #0a0c10;
   --ct-accent-soft: rgb(227 230 234 / 11%);
   --ct-success: #d5d9de;
   --ct-warning: #e2a84a;
@@ -85,6 +86,7 @@
   --ct-text-muted: #667281;
   --ct-accent: #252a31;
   --ct-accent-strong: #0f1115;
+  --ct-on-accent: #fff;
   --ct-accent-soft: rgb(15 17 21 / 8%);
   --ct-success: #343a42;
   --ct-warning: #9a5b00;
@@ -157,6 +159,7 @@
     --ct-text-muted: GrayText;
     --ct-accent: Highlight;
     --ct-accent-strong: Highlight;
+    --ct-on-accent: HighlightText;
     --ct-accent-soft: Canvas;
     --ct-success: LinkText;
     --ct-warning: LinkText;

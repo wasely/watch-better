@@ -55,6 +55,14 @@ describe('web chat provider contract', () => {
     expect(isWebChatPageRequest({ type: 'watchbetter:webchat-page-status' })).toBe(
       true,
     );
+    expect(isWebChatPageRequest({ type: 'watchbetter:webchat-page-focus' })).toBe(true);
+    expect(
+      isWebChatPageRequest({
+        type: 'watchbetter:webchat-page-prime',
+        message: 'Submit this transcript as context.',
+        newConversation: true,
+      }),
+    ).toBe(true);
     expect(
       isWebChatPageRequest({
         type: 'watchbetter:webchat-page-send',
@@ -64,10 +72,23 @@ describe('web chat provider contract', () => {
     ).toBe(true);
     expect(
       isWebChatPageRequest({
+        type: 'watchbetter:webchat-page-analyze',
+        message: 'Return JSON cuts.',
+        newConversation: true,
+      }),
+    ).toBe(true);
+    expect(
+      isWebChatPageRequest({
         type: 'watchbetter:webchat-page-send',
         message: 'Hello',
         newConversation: false,
         cookie: 'secret',
+      }),
+    ).toBe(false);
+    expect(
+      isWebChatPageRequest({
+        type: 'watchbetter:webchat-page-focus',
+        message: 'hidden data',
       }),
     ).toBe(false);
   });

@@ -8,6 +8,11 @@ import type {
   TranscriptCachePolicy,
   TranscriptFontSize,
 } from '@/features/settings/settings';
+import {
+  SMART_SKIP_CATEGORIES,
+  SMART_SKIP_CATEGORY_LABELS,
+  type SmartSkipStrictness,
+} from '@/features/smart-skip/domain';
 import type { WebChatProviderId } from '@/services/web-chat';
 
 import './OptionsView.css';
@@ -92,6 +97,7 @@ export function OptionsView({
           >
             <option value="transcript">Transcript</option>
             <option value="ask">Ask</option>
+            <option value="smart-skip">Smart Skip</option>
           </select>
         </label>
         <label className="ct-options-row">
@@ -181,6 +187,81 @@ export function OptionsView({
         </label>
       </section>
 
+      <section aria-labelledby="smart-skip-title" className="ct-options-card">
+        <div className="ct-options-card__heading">
+          <h2 id="smart-skip-title">Smart Skip</h2>
+          <p>Choose how aggressively the instant local cut map skips.</p>
+        </div>
+        <label className="ct-options-row">
+          <span>
+            <strong>Strictness</strong>
+            <small>Balanced keeps uncertain discussion intact.</small>
+          </span>
+          <select
+            disabled={disabled}
+            onChange={(event) =>
+              update({
+                smartSkip: {
+                  ...settings.smartSkip,
+                  strictness: event.currentTarget.value as SmartSkipStrictness,
+                },
+              })
+            }
+            value={settings.smartSkip.strictness}
+          >
+            <option value="conservative">Conservative</option>
+            <option value="balanced">Balanced</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </label>
+        <label className="ct-options-row">
+          <span>
+            <strong>Start skipping immediately</strong>
+            <small>Skips the opening while captions are still loading.</small>
+          </span>
+          <input
+            checked={settings.smartSkip.autoSkip}
+            disabled={disabled}
+            onChange={(event) =>
+              update({
+                smartSkip: {
+                  ...settings.smartSkip,
+                  autoSkip: event.currentTarget.checked,
+                },
+              })
+            }
+            type="checkbox"
+          />
+        </label>
+        <fieldset className="ct-options-smart-skip-categories" disabled={disabled}>
+          <legend>Categories</legend>
+          {SMART_SKIP_CATEGORIES.map((category) => (
+            <label key={category}>
+              <input
+                checked={settings.smartSkip.categories.includes(category)}
+                disabled={disabled}
+                onChange={(event) => {
+                  const categories = event.currentTarget.checked
+                    ? [...settings.smartSkip.categories, category]
+                    : settings.smartSkip.categories.filter(
+                        (candidate) => candidate !== category,
+                      );
+                  if (categories.length === 0) return;
+                  update({
+                    smartSkip: {
+                      ...settings.smartSkip,
+                      categories,
+                    },
+                  });
+                }}
+                type="checkbox"
+              />
+              {SMART_SKIP_CATEGORY_LABELS[category]}
+            </label>
+          ))}
+        </fieldset>
+      </section>
+
       <section aria-labelledby="handoff-title" className="ct-options-card">
         <div className="ct-options-card__heading">
           <h2 id="handoff-title">AI sessions and privacy</h2>
@@ -234,9 +315,12 @@ export function OptionsView({
         </label>
         <p className="ct-options-privacy">
           Watch Better stores no API keys, cookies, analytics, transcripts, or
-          conversations permanently. Ask sends bounded transcript context only after an
-          explicit action, through the signed-in ChatGPT or Gemini website. Each
-          provider applies its own account, retention, and usage policies.
+          conversations permanently. Ask automatically submits bounded context with a
+          READY-only instruction, then leaves questions to you. Smart Skip starts
+          locally. When enabled and captions load, it automatically sends bounded
+          caption chunks for a separate deep analysis. Results last for the browser
+          session. Each provider applies its own draft, account, retention, and usage
+          policies.
         </p>
       </section>
 

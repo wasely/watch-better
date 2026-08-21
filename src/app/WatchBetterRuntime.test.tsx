@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
@@ -169,7 +169,7 @@ describe('WatchBetterRuntime integration', () => {
   beforeEach(() => {
     for (const key of Object.keys(browserState.storage))
       delete browserState.storage[key];
-    browserState.storage['watchbetter:settings:v2'] = DEFAULT_SETTINGS;
+    browserState.storage['watchbetter:settings:v3'] = DEFAULT_SETTINGS;
     browserState.localGet.mockReset();
     browserState.localGet.mockImplementation((key: string) =>
       Promise.resolve({ [key]: browserState.storage[key] }),
@@ -179,10 +179,10 @@ describe('WatchBetterRuntime integration', () => {
       (request: { type: string; changes?: object; provider?: string }) => {
         if (request.type === 'settings:update') {
           const settings = {
-            ...(browserState.storage['watchbetter:settings:v2'] as object),
+            ...(browserState.storage['watchbetter:settings:v3'] as object),
             ...request.changes,
           };
-          browserState.storage['watchbetter:settings:v2'] = settings;
+          browserState.storage['watchbetter:settings:v3'] = settings;
           return Promise.resolve({ ok: true, type: 'settings:updated', settings });
         }
         if (request.type === 'webchat:get-status') {
@@ -207,7 +207,133 @@ describe('WatchBetterRuntime integration', () => {
     );
   });
 
-  it('loads data and sends only from the explicit transcript action', async () => {
+  it('starts Smart Skip locally and skips the opening before any AI response', async () => {
+    const playback = new FakePlayback();
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track])),
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    render(
+      <WatchBetterRuntime
+        pageController={new FakePageController()}
+        playback={playback}
+        transcriptProvider={provider}
+      />,
+    );
+
+    await waitFor(() => expect(playback.snapshot.currentTimeSeconds).toBeCloseTo(7.86));
+    expect(browserState.sendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'webchat:analyze' }),
+    );
+    await screen.findByText('First evidence for one.');
+    fireEvent.click(screen.getByRole('tab', { name: 'Smart Skip' }));
+    expect(await screen.findByText(/Deep scan|Instant map/i)).toBeVisible();
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('keeps Smart Skip working when the extension background does not respond', async () => {
+    browserState.sendMessage.mockResolvedValue(undefined);
+    const playback = new FakePlayback();
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track])),
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    render(
+      <WatchBetterRuntime
+        pageController={new FakePageController()}
+        playback={playback}
+        transcriptProvider={provider}
+      />,
+    );
+
+    await waitFor(() => expect(playback.snapshot.currentTimeSeconds).toBeCloseTo(7.86));
+    await screen.findByText('First evidence for one.');
+    fireEvent.click(screen.getByRole('tab', { name: 'Smart Skip' }));
+    const smartSkipPanel = screen.getByRole('tabpanel', { name: 'Smart Skip' });
+    expect(
+      await within(smartSkipPanel).findByText(/Strict local scan active/i),
+    ).toBeVisible();
+    expect(screen.queryByText(/Cannot read properties of undefined/i)).toBeNull();
+    expect(screen.queryByText(/did not accept the prompt/i)).toBeNull();
+  });
+
+  it('merges a semantic middle cut after instant playback is already active', async () => {
+    let analysisAttempts = 0;
+    browserState.sendMessage.mockImplementation(
+      (request: { type: string; changes?: object; provider?: string }) => {
+        if (request.type === 'webchat:get-status')
+          return Promise.resolve({
+            ok: true,
+            type: 'webchat:status',
+            provider: request.provider,
+            state: 'ready',
+          });
+        if (request.type === 'webchat:analyze') {
+          analysisAttempts += 1;
+          if (analysisAttempts === 1)
+            return Promise.resolve({
+              ok: false,
+              type: 'error',
+              message: 'Temporary provider failure.',
+            });
+          return Promise.resolve({
+            ok: true,
+            type: 'webchat:analysis',
+            provider: 'gemini',
+            text: JSON.stringify({
+              cuts: [
+                {
+                  start: 1,
+                  end: 1,
+                  category: 'ramble',
+                  reason: 'Disposable middle tangent',
+                  confidence: 0.96,
+                },
+              ],
+            }),
+          });
+        }
+        return Promise.resolve({ ok: true, type: 'acknowledged' });
+      },
+    );
+    const playback = new FakePlayback();
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([track])),
+      load: vi.fn((request: { videoId: string }) =>
+        Promise.resolve(documentFor(request.videoId)),
+      ),
+    };
+    render(
+      <WatchBetterRuntime
+        pageController={new FakePageController()}
+        playback={playback}
+        transcriptProvider={provider}
+      />,
+    );
+
+    await waitFor(() => expect(playback.snapshot.currentTimeSeconds).toBeCloseTo(7.86));
+    await waitFor(
+      () =>
+        expect(browserState.sendMessage).toHaveBeenCalledWith(
+          expect.objectContaining({ type: 'webchat:analyze' }),
+        ),
+      { timeout: 3_500 },
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Smart Skip' }));
+    const panel = screen.getByRole('tabpanel', { name: 'Smart Skip' });
+    await waitFor(() => expect(panel).toHaveTextContent('Disposable middle tangent'), {
+      timeout: 3_500,
+    });
+    expect(analysisAttempts).toBe(2);
+    expect(screen.getByText('1 deeper cut found')).toBeVisible();
+    expect(screen.getByText('Middle')).toBeVisible();
+  });
+
+  it('auto-submits video context through prime while explicit send remains user-driven', async () => {
     const pageController = new FakePageController();
     const playback = new FakePlayback();
     const provider: TranscriptProvider = {
@@ -225,8 +351,17 @@ describe('WatchBetterRuntime integration', () => {
     );
 
     await screen.findByText('First evidence for one.');
-    expect(browserState.sendMessage).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'webchat:preload' }),
+    await waitFor(() =>
+      expect(browserState.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'webchat:prime',
+          provider: 'gemini',
+          newConversation: true,
+        }),
+      ),
+    );
+    expect(JSON.stringify(browserState.sendMessage.mock.calls)).toContain(
+      'Reply only READY',
     );
     fireEvent.click(screen.getByRole('button', { name: 'Seek to 0:08' }));
     expect(playback.snapshot.currentTimeSeconds).toBe(8);
@@ -238,6 +373,14 @@ describe('WatchBetterRuntime integration', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
     expect(sendCount()).toBe(0);
+    await waitFor(() =>
+      expect(browserState.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'webchat:focus',
+          provider: 'gemini',
+        }),
+      ),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Codex' }));
     expect(sendCount()).toBe(0);
     fireEvent.click(screen.getByRole('button', { name: 'Google Gemini' }));

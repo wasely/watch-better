@@ -42,6 +42,24 @@ describe('fixture accessibility', () => {
       await audit(
         <WatchBetterApp collapsed transcript={{ state: readyTranscriptState() }} />,
       );
+      await audit(
+        <WatchBetterApp
+          activeTab="smart-skip"
+          smartSkip={{
+            configuration: DEFAULT_SETTINGS.smartSkip,
+            analysisState: { kind: 'idle' },
+            durationSeconds: 300,
+            engineSnapshot: {
+              state: 'disabled',
+              timeSavedSeconds: 0,
+              lastSkipped: null,
+              message: 'Playback is unchanged.',
+            },
+            transcriptAvailable: true,
+          }}
+          transcript={{ state: readyTranscriptState() }}
+        />,
+      );
     },
     AXE_TEST_TIMEOUT_MS,
   );

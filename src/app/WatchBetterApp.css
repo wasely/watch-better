@@ -276,6 +276,7 @@
 .ct-tabs {
   position: relative;
   display: grid;
+  min-width: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 3px;
   margin: var(--ct-space-3) var(--ct-space-4);
@@ -315,6 +316,18 @@
 
 .ct-tabs--3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ct-tabs--3::before {
+  width: calc((100% - 12px) / 3);
+}
+
+.ct-tabs--3[data-active-tab='ask']::before {
+  transform: translateX(calc(100% + 3px));
+}
+
+.ct-tabs--3[data-active-tab='smart-skip']::before {
+  transform: translateX(calc(200% + 6px));
 }
 
 .ct-tab {
@@ -415,13 +428,13 @@
 }
 
 .ct-button--primary {
-  color: #fff;
+  color: var(--ct-on-accent);
   background: var(--ct-accent-strong);
   border-color: var(--ct-accent-strong);
 }
 
 .ct-button--primary:hover {
-  color: #fff;
+  color: var(--ct-on-accent);
   background: color-mix(in srgb, var(--ct-accent-strong) 88%, #000);
 }
 
@@ -635,6 +648,29 @@
 }
 
 @container watchbetter (max-width: 359px) {
+  .ct-header {
+    gap: var(--ct-space-2);
+    padding-inline: var(--ct-space-2);
+  }
+
+  .ct-identity {
+    gap: var(--ct-space-2);
+  }
+
+  .ct-identity > .ct-brand-mark,
+  .ct-video-title {
+    display: none;
+  }
+
+  .ct-header__actions {
+    gap: 1px;
+  }
+
+  .ct-icon-button {
+    width: 28px;
+    height: 28px;
+  }
+
   .ct-tab {
     gap: var(--ct-space-2);
     padding-inline: var(--ct-space-2);

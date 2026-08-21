@@ -47,7 +47,26 @@ export type ExtensionRequest =
       readonly sessionId: string;
     }
   | {
+      readonly type: 'webchat:focus';
+      readonly provider: WebChatProviderId;
+      readonly sessionId: string;
+    }
+  | {
+      readonly type: 'webchat:prime';
+      readonly provider: WebChatProviderId;
+      readonly sessionId: string;
+      readonly message: string;
+      readonly newConversation: boolean;
+    }
+  | {
       readonly type: 'webchat:send';
+      readonly provider: WebChatProviderId;
+      readonly sessionId: string;
+      readonly message: string;
+      readonly newConversation: boolean;
+    }
+  | {
+      readonly type: 'webchat:analyze';
       readonly provider: WebChatProviderId;
       readonly sessionId: string;
       readonly message: string;
@@ -74,6 +93,12 @@ export type ExtensionResponse =
       readonly text: string;
       readonly responseId: string;
     }
+  | {
+      readonly ok: true;
+      readonly type: 'webchat:analysis';
+      readonly provider: WebChatProviderId;
+      readonly text: string;
+    }
   | { readonly ok: true; readonly type: 'acknowledged' }
   | { readonly ok: false; readonly type: 'error'; readonly message: string };
 
@@ -86,32 +111,22 @@ const SETTINGS_KEYS = new Set([
   'transcriptFontSize',
   'theme',
   'panelCollapsed',
-  'pause',
+  'smartSkip',
   'transcriptCachePolicy',
 ]);
-const PAUSE_KEYS = new Set([
-  'enabled',
-  'preset',
-  'minimumGapSeconds',
-  'leadingPaddingSeconds',
-  'trailingPaddingSeconds',
-  'speechPlaybackRate',
-  'gapPlaybackRate',
-  'jumpLongGaps',
-  'jumpThresholdSeconds',
-]);
+const SMART_SKIP_KEYS = new Set(['provider', 'strictness', 'categories', 'autoSkip']);
 
 const isSettingsPatch = (value: unknown): boolean => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const changes = value as Record<string, unknown>;
   if (!Object.keys(changes).every((key) => SETTINGS_KEYS.has(key))) return false;
-  if (!('pause' in changes)) return true;
-  const pause = changes.pause;
+  if (!('smartSkip' in changes)) return true;
+  const smartSkip = changes.smartSkip;
   return (
-    typeof pause === 'object' &&
-    pause !== null &&
-    !Array.isArray(pause) &&
-    Object.keys(pause).every((key) => PAUSE_KEYS.has(key))
+    typeof smartSkip === 'object' &&
+    smartSkip !== null &&
+    !Array.isArray(smartSkip) &&
+    Object.keys(smartSkip).every((key) => SMART_SKIP_KEYS.has(key))
   );
 };
 
@@ -144,6 +159,7 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
       return isWebChatProviderId(candidate.provider) && hasOnlyKeys('type', 'provider');
     case 'webchat:frame-reset':
     case 'webchat:get-status':
+    case 'webchat:focus':
       return (
         isWebChatProviderId(candidate.provider) &&
         isWebChatSessionId(candidate.sessionId) &&
@@ -156,7 +172,9 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
         isWebChatSessionId(candidate.sessionId) &&
         hasOnlyKeys('type', 'provider', 'sessionId')
       );
+    case 'webchat:prime':
     case 'webchat:send':
+    case 'webchat:analyze':
       return (
         isWebChatProviderId(candidate.provider) &&
         isWebChatSessionId(candidate.sessionId) &&

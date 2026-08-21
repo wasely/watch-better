@@ -1,4 +1,4 @@
-/** Every provider embeds inside the panel; Watch Better never opens provider tabs. */
+/** Every provider surface stays embedded inside the YouTube page. */
 export type WebChatProviderId = 'chatgpt' | 'gemini';
 export type EmbeddedWebChatProviderId = WebChatProviderId;
 
@@ -14,13 +14,34 @@ export interface WebChatPageStatusRequest {
   readonly type: 'watchbetter:webchat-page-status';
 }
 
+export interface WebChatPageFocusRequest {
+  readonly type: 'watchbetter:webchat-page-focus';
+}
+
 export interface WebChatPageSendRequest {
   readonly type: 'watchbetter:webchat-page-send';
   readonly message: string;
   readonly newConversation: boolean;
 }
 
-export type WebChatPageRequest = WebChatPageStatusRequest | WebChatPageSendRequest;
+export interface WebChatPagePrimeRequest {
+  readonly type: 'watchbetter:webchat-page-prime';
+  readonly message: string;
+  readonly newConversation: boolean;
+}
+
+export interface WebChatPageAnalyzeRequest {
+  readonly type: 'watchbetter:webchat-page-analyze';
+  readonly message: string;
+  readonly newConversation: boolean;
+}
+
+export type WebChatPageRequest =
+  | WebChatPageStatusRequest
+  | WebChatPageFocusRequest
+  | WebChatPagePrimeRequest
+  | WebChatPageSendRequest
+  | WebChatPageAnalyzeRequest;
 
 export interface WebChatFrameBinding {
   readonly type: 'watchbetter:webchat-frame-binding';
@@ -30,8 +51,12 @@ export interface WebChatFrameBinding {
 
 export type WebChatPageResponse =
   | { readonly ok: true; readonly type: 'webchat-page:ready' }
+  /** The context was submitted and the provider accepted it. */
+  | { readonly ok: true; readonly type: 'webchat-page:primed' }
+  | { readonly ok: true; readonly type: 'webchat-page:focused' }
   /** The prompt is in and submitted. The answer streams into the frame the viewer sees. */
   | { readonly ok: true; readonly type: 'webchat-page:submitted' }
+  | { readonly ok: true; readonly type: 'webchat-page:analysis'; readonly text: string }
   | {
       readonly ok: false;
       readonly type: 'webchat-page:error';
@@ -153,10 +178,15 @@ export const isWebChatPageRequest = (value: unknown): value is WebChatPageReques
     readonly message?: unknown;
     readonly newConversation?: unknown;
   };
-  if (request.type === 'watchbetter:webchat-page-status')
+  if (
+    request.type === 'watchbetter:webchat-page-status' ||
+    request.type === 'watchbetter:webchat-page-focus'
+  )
     return Object.keys(request).length === 1;
   return (
-    request.type === 'watchbetter:webchat-page-send' &&
+    (request.type === 'watchbetter:webchat-page-prime' ||
+      request.type === 'watchbetter:webchat-page-send' ||
+      request.type === 'watchbetter:webchat-page-analyze') &&
     typeof request.message === 'string' &&
     request.message.trim().length > 0 &&
     request.message.length <= MAX_WEB_CHAT_MESSAGE_CHARACTERS &&

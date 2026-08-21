@@ -168,6 +168,11 @@ select {
 
 .harness-panel-host {
   width: 100%;
+  min-width: 0;
+}
+
+.harness-panel-host--floating {
+  height: 620px;
 }
 
 .harness-panel-host--focus {

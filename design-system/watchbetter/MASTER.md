@@ -78,6 +78,8 @@ Every normal-text pair must meet WCAG AA. Color never carries state alone.
 - **Status:** dot/icon plus text. Never dot/color alone.
 - **Advanced settings:** native disclosure pattern; no modal for routine controls.
 - **Feedback:** inline status or polite live region; avoid toast stacking.
+- **Smart Skip:** reuse neutral surfaces and white-metal controls; distinguish instant
+  and deep cuts with labels plus solid/hatched markers, not a separate feature palette.
 
 ## Interaction
 
@@ -107,4 +109,6 @@ Huge headings; pink/blue multi-accent palette; gradients as decoration; glass bl
 
 ## Visual review matrix
 
-Dark/light × 320/402/480px; default/loading/error/selection/long transcript; Ask composed/oversized; Skip enabled/unsupported; collapsed; neighbor-extension content; keyboard focus; reduced motion; 200% text zoom.
+Dark/light × 320/402/480px; default/loading/error/selection/long transcript; Ask
+composed/oversized; Smart Skip idle/analyzing/error/empty/ready and expanded cuts;
+collapsed; neighbor-extension content; keyboard focus; reduced motion; 200% text zoom.

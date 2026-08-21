@@ -11,9 +11,10 @@ import {
   composerText,
   fillComposer,
   firstVisible,
+  focusComposerAtEnd,
   isGenerating,
-  pressEnter,
   responseTexts,
+  submitComposer,
 } from '@/services/web-chat-dom';
 
 /** Tight: every wait here is on the critical path between a click and a sent prompt. */
@@ -21,8 +22,11 @@ const POLL_INTERVAL_MS = 60;
 const COMPOSER_TIMEOUT_MS = 15_000;
 /** Status answers must not block the panel's poll loop, so they barely wait at all. */
 const STATUS_TIMEOUT_MS = 250;
-const FILL_TIMEOUT_MS = 400;
+const FILL_TIMEOUT_MS = 1_500;
 const SUBMIT_CONFIRM_TIMEOUT_MS = 1_500;
+const RESPONSE_TIMEOUT_MS = 180_000;
+const RESPONSE_POLL_INTERVAL_MS = 250;
+const STABLE_RESPONSE_POLLS = 3;
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -45,9 +49,20 @@ const waitForComposerText = async (
   composer: HTMLElement,
   expected: string,
 ): Promise<boolean> => {
+  const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
+  const normalizedExpected = normalize(expected);
+  const prefix = normalizedExpected.slice(0, 120);
+  const suffix = normalizedExpected.slice(-80);
   const deadline = Date.now() + FILL_TIMEOUT_MS;
   do {
-    if (composerText(composer) === expected) return true;
+    const actual = normalize(composerText(composer));
+    if (
+      actual === normalizedExpected ||
+      (actual.length >= normalizedExpected.length * 0.92 &&
+        actual.startsWith(prefix) &&
+        actual.endsWith(suffix))
+    )
+      return true;
     await delay(POLL_INTERVAL_MS);
   } while (Date.now() < deadline);
   return false;
@@ -70,6 +85,29 @@ const waitForSubmission = async (
     await delay(POLL_INTERVAL_MS);
   } while (Date.now() < deadline);
   return false;
+};
+
+const waitForStableResponse = async (
+  definition: NonNullable<ReturnType<typeof providerForHostname>>,
+  responseCount: number,
+): Promise<string | null> => {
+  const deadline = Date.now() + RESPONSE_TIMEOUT_MS;
+  let previous = '';
+  let stablePolls = 0;
+  do {
+    const responses = responseTexts(definition);
+    const text = responses.length > responseCount ? (responses.at(-1) ?? '') : '';
+    if (text && !isGenerating(definition)) {
+      stablePolls = text === previous ? stablePolls + 1 : 0;
+      previous = text;
+      if (stablePolls >= STABLE_RESPONSE_POLLS) return text;
+    } else {
+      stablePolls = 0;
+      previous = text;
+    }
+    await delay(RESPONSE_POLL_INTERVAL_MS);
+  } while (Date.now() < deadline);
+  return null;
 };
 
 const startNewConversation = async (
@@ -159,6 +197,18 @@ export default defineContentScript({
               message: `Sign in to ${definition.displayName}, then return to YouTube.`,
             };
 
+      if (message.type === 'watchbetter:webchat-page-focus') {
+        if (!composer)
+          return {
+            ok: false,
+            type: 'webchat-page:error',
+            code: 'not-ready',
+            message: `${definition.displayName} composer is not ready.`,
+          };
+        focusComposerAtEnd(composer);
+        return { ok: true, type: 'webchat-page:focused' };
+      }
+
       if (activeSend)
         return {
           ok: false,
@@ -179,24 +229,40 @@ export default defineContentScript({
         if (message.newConversation) composer = await startNewConversation(definition);
         const responseCount = responseTexts(definition).length;
         fillComposer(composer, message.message);
-        if (!(await waitForComposerText(composer, message.message.trim())))
-          throw new Error(`${definition.displayName} did not accept the prompt.`);
+        if (!(await waitForComposerText(composer, message.message.trim()))) {
+          fillComposer(composer, message.message);
+          if (!(await waitForComposerText(composer, message.message.trim())))
+            throw new Error(`${definition.displayName} did not accept the prompt.`);
+        }
 
-        const sendButton = firstVisible(definition.sendSelectors);
-        if (sendButton instanceof HTMLButtonElement && !sendButton.disabled)
-          sendButton.click();
-        else pressEnter(composer);
+        submitComposer(definition, composer);
 
-        // Watch Better never reads the answer — the viewer watches it stream inside the
-        // frame — so hand control back as soon as the prompt is in, not minutes later.
-        if (await waitForSubmission(definition, composer, responseCount))
+        if (!(await waitForSubmission(definition, composer, responseCount)))
+          return {
+            ok: false,
+            type: 'webchat-page:error',
+            code: 'send-failed',
+            message: `${definition.displayName} did not accept the prompt. Open its tab and try again.`,
+          };
+
+        if (message.type === 'watchbetter:webchat-page-prime') {
+          focusComposerAtEnd(composer);
+          return { ok: true, type: 'webchat-page:primed' };
+        }
+
+        // Ask remains fire-and-view. Smart Skip explicitly waits because validated
+        // structured output drives local playback decisions.
+        if (message.type === 'watchbetter:webchat-page-send')
           return { ok: true, type: 'webchat-page:submitted' };
+        const responseText = await waitForStableResponse(definition, responseCount);
+        if (responseText)
+          return { ok: true, type: 'webchat-page:analysis', text: responseText };
 
         return {
           ok: false,
           type: 'webchat-page:error',
-          code: 'send-failed',
-          message: `${definition.displayName} did not accept the prompt. Open its tab and try again.`,
+          code: 'response-timeout',
+          message: `${definition.displayName} did not finish the analysis within three minutes.`,
         };
       } catch (error) {
         return {

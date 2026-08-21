@@ -1,9 +1,9 @@
 {
   "name": "watchbetter",
-  "version": "0.1.0",
+  "version": "0.1.7",
   "private": true,
   "type": "module",
-  "description": "A focused YouTube transcript and signed-in AI Ask companion.",
+  "description": "A YouTube caption preview, signed-in AI Ask, and Smart Skip companion.",
   "license": "MIT",
   "scripts": {
     "dev": "wxt",

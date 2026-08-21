@@ -124,7 +124,9 @@ describe('TranscriptPanel', () => {
     if (!first || !second) throw new Error('Fixture row buttons missing.');
 
     first.focus();
+    const secondFocus = vi.spyOn(second, 'focus');
     fireEvent.keyDown(first, { key: 'ArrowDown' });
+    expect(secondFocus).toHaveBeenCalledWith({ preventScroll: true });
     expect(second).toHaveFocus();
   });
 

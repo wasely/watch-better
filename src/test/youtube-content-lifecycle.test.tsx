@@ -43,6 +43,9 @@ const rendered = vi.hoisted(() => ({
   onMinimizedChange: null as ((minimized: boolean) => void) | null,
   onToggleMaximized: null as (() => void) | null,
   minimized: false,
+  initialTab: null as string | null,
+  initialWebChatProvider: null as string | null,
+  videoTitle: null as string | null,
 }));
 
 vi.mock('@/app/WatchBetterRuntime', () => ({
@@ -54,13 +57,20 @@ vi.mock('@/app/WatchBetterRuntime', () => ({
     minimized?: boolean;
     onMinimizedChange?: (minimized: boolean) => void;
     onToggleMaximized?: () => void;
+    initialTab?: string;
+    initialWebChatProvider?: string;
+    videoTitle?: string;
   }) => {
     if (props.onDetach) rendered.onDetach = props.onDetach;
     if (props.onClose) rendered.onClose = props.onClose;
     if (props.onMinimizedChange) rendered.onMinimizedChange = props.onMinimizedChange;
     if (props.onToggleMaximized) rendered.onToggleMaximized = props.onToggleMaximized;
-    if (props.presentation === 'floating')
+    if (props.presentation === 'floating') {
       rendered.minimized = props.minimized ?? false;
+      rendered.initialTab = props.initialTab ?? null;
+      rendered.initialWebChatProvider = props.initialWebChatProvider ?? null;
+      rendered.videoTitle = props.videoTitle ?? null;
+    }
     props.onVisibilityChange?.(true);
     return null;
   },
@@ -199,6 +209,9 @@ describe('youtube content script lifecycle', () => {
     rendered.onMinimizedChange = null;
     rendered.onToggleMaximized = null;
     rendered.minimized = false;
+    rendered.initialTab = null;
+    rendered.initialWebChatProvider = null;
+    rendered.videoTitle = null;
     rendered.onClose = null;
     browserState.tabsCreate.mockClear();
     setUrl('https://www.youtube.com/watch?v=first');
@@ -248,6 +261,41 @@ describe('youtube content script lifecycle', () => {
       'watchbetter-panel',
     );
     expect(browserState.tabsCreate).not.toHaveBeenCalled();
+  });
+
+  it('opens Quick Learn as the same in-page floating Ask card', async () => {
+    document.querySelector('ytd-app')?.insertAdjacentHTML(
+      'afterbegin',
+      `<ytd-rich-item-renderer>
+        <ytd-thumbnail>
+          <a id="thumbnail" href="https://www.youtube.com/watch?v=quick"><img alt="" /></a>
+        </ytd-thumbnail>
+        <a id="video-title" title="Quick video">Quick video</a>
+      </ytd-rich-item-renderer>`,
+    );
+    await flush();
+
+    const button = document.querySelector<HTMLButtonElement>(
+      '[data-watchbetter-quick-learn-button]',
+    );
+    expect(button).not.toBeNull();
+    button?.click();
+    await flush();
+
+    const [card] = detachedHosts();
+    expect(card?.dataset.watchbetterFloating).toBe('true');
+    expect(card?.style.position).toBe('fixed');
+    expect(
+      card?.shadowRoot?.querySelectorAll('[data-watchbetter-resize-edge]'),
+    ).toHaveLength(8);
+    expect(rendered.initialTab).toBe('ask');
+    expect(rendered.initialWebChatProvider).toBe('gemini');
+    expect(rendered.videoTitle).toBe('Quick video');
+    expect(browserState.tabsCreate).not.toHaveBeenCalled();
+
+    button?.click();
+    await flush();
+    expect(detachedHosts()).toHaveLength(1);
   });
 
   it('keeps the detached card when YouTube navigates to another video', async () => {

@@ -1,13 +1,12 @@
 # Status
 
-Updated: 2026-08-14
+Updated: 2026-08-19
 
 ## Current state
 
-**Private release candidate.** Watch Better's initial product includes Transcript
-and Ask. Jump Cut remains in source but is feature-gated out. Ask embeds ChatGPT
-and Gemini; both run inside the panel and Watch Better never opens a browser tab or
-window on its own. No model API or provider credential collection is used. A clean-profile
+**Smart Skip development build.** Watch Better includes Transcript, Ask, and Smart
+Skip. Ask embeds ChatGPT and Gemini. Quick Learn opens the same movable in-page card as
+Pop Out, starting on Gemini after its thumbnail button is pressed. No model API or provider credential collection is used. A clean-profile
 Chrome smoke test passes; signed-in-provider checks in the daily profile remain the gate.
 
 ## Implemented
@@ -21,8 +20,8 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
 - Adds a focused AI overlay for the active session: the expand control opens a larger,
   background-blurring workspace; Escape or the close control returns to the panel without
   remounting the provider frame or losing that session.
-- Starts both embedded provider frames when Watch Better opens, so ChatGPT and Gemini
-  are ready before either provider is selected. No provider tab is ever opened.
+- Starts only the selected provider frame; the unused provider stays unloaded until
+  selected, reducing startup work. Ask never opens a provider tab.
 - Embeds ChatGPT/Gemini and routes messages to the exact verified frame. Provider
   login remains in the browser; Watch Better does not read cookies, tokens,
   passwords, or API keys.
@@ -31,9 +30,12 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
   closes or leaves YouTube; top-level pages are unchanged.
 - Uses one-use frame session bindings plus direct-child `webNavigation`
   verification before routing provider status or prompt messages.
-- Sends bounded transcript context only after **Send to AI**. Opening Ask and
-  switching providers send nothing. Follow-ups use the provider composer.
+- Auto-submits bounded transcript context with a `READY`-only instruction, then focuses
+  the cleared composer. **Send to AI** remains an explicit focused submission;
+  follow-ups use the provider composer.
 - Retains transcript navigation, search, selection, seek, and SPA lifecycle handling.
+- Keeps transcript auto-follow inside its own list by excluding the injected panel from
+  YouTube page scroll anchoring and preventing keyboard focus from moving the host page.
 - Supports desktop YouTube Shorts: active-reel playback, sizing, transcript loading,
   and a normal-flow details-panel mount all share the Short video ID.
 - Resolves Short captions from matching active-page metadata, then YouTube's player
@@ -55,29 +57,44 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
 - Uses a branded collapsed launcher and persistently visible, centered transcript selectors.
 - Adds a responsive Settings page with consistent spacing and a working Chrome
   **Manage extension** action.
-- Retains Jump Cut source and tests for later development without exposing or
-  running it in the initial product.
 - Keeps memory-only transcript handling by default, with bounded session caching as
   an explicit opt-in.
+- Replaced provider-gated Smart Skip with an instant local pipeline: a provisional
+  opening cut activates before captions finish loading, then caption rules update the
+  cut map without AI sign-in or a network request.
+- Added session-only Smart Skip caching, a semantic seek engine, ad/unsupported-state
+  suspension, per-cut disable, immediate undo, and stale-navigation rejection.
+- Added the third-tab cut-map UI, strictness/category controls, saved-time reporting,
+  instant/no-caption/empty states, and responsive harness fixtures.
+- Added an isolated, non-blocking Gemini deep scan for subtle middle-video tangents,
+  restatements, housekeeping, and false starts; validated cuts merge into the live map
+  without touching Ask or resetting saved-time state. It begins during browser idle
+  after captions load rather than waiting for the Smart Skip tab.
+- Reworked Smart Skip into the shared white-metal visual system with labeled solid and
+  hatched cut sources, accessible scan progress, a restrained edge sheen, and a Strict
+  default.
+- Ask submits bounded transcript context before its tab opens, verifies provider
+  acceptance, then focuses the empty composer for the user's question.
+- Adds Quick Learn controls to standard video and Short thumbnails. A click fetches
+  captions without navigating, opens a movable in-page Ask/Gemini card, and submits
+  bounded timestamped context with a `READY` instruction.
 
 ## Validation results
 
-- Canonical validation passed: Prettier, ESLint, strict TypeScript, 30 Vitest
-  files / 155 tests, and WXT production build.
-- Coverage: 67.88% statements, 62.47% branches, 69.85% functions, 70.96% lines.
-- Build: `.output/chrome-mv3/`, 613.68 kB.
-- Package: `.output/watchbetter-0.1.0-chrome.zip`, 234.89 kB reported by WXT.
-- Package SHA-256: `267c3e72743f5e726202b6390bf0b73d7a428527a2da4757b02f53bc9596e875`.
+- Canonical validation passed: Prettier, ESLint, strict TypeScript, 34 Vitest
+  files / 176 tests, and WXT production build.
+- Build: `.output/chrome-mv3/`, 688.78 kB.
 - Built manifest: `storage`, scoped `declarativeNetRequest`, direct-frame
   `webNavigation`, and exact YouTube, ChatGPT, and Gemini hosts.
-- Browser harness: Ask inspected at 320px dark and 480px light panel widths, and
-  Settings at desktop width, with no clipping or horizontal overflow.
+- Browser harness: the Quick Learn floating card was inspected at 320px dark and
+  480px light with all tabs and window controls visible and no horizontal overflow.
+- Browser harness: Smart Skip's metallic ready/analyzing states were inspected at
+  320/402/480px across dark and light themes with no clipping or overlap.
 - Clean-profile Chrome: live YouTube captions loaded; the Gemini frame rendered;
   a detached Ask card kept a 418px × 452px provider frame; minimize, restore,
   maximize, two-video SPA persistence, two simultaneous cards, and close cleanup passed.
 - Production audit tests reject provider API endpoints, cookie access, credential
-  handling, broad host access, excess permissions, and any self-opened browser tab
-  or window outside the two explicit user actions.
+  handling, broad host access, excess permissions, and Quick Learn tab/window creation.
 - `src/test/youtube-content-lifecycle.test.tsx` covers the previously untested
   content-script lifecycle: rail mount order, detach onto `<body>`, card survival
   across simulated SPA navigation, several independent cards, and no `tabs.create`.
@@ -85,6 +102,8 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
 ## Remaining release gate
 
 - Reload `C:\Code\watch-better\.output\chrome-mv3` in the daily Chrome profile.
+- Verify Quick Learn opens the movable in-page Gemini card, receives `READY`, accepts a
+  follow-up, reuses its card, and leaves the YouTube page unchanged.
 - Sign in at ChatGPT and Gemini, then verify embedded frames, provider switch,
   first Ask, follow-up, and new-chat behavior.
 - Verify caption fetch, selection Ask, seek, SPA navigation, theater/fullscreen,
@@ -100,7 +119,8 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
 - Requires usable YouTube captions; no speech-to-text fallback.
 - ChatGPT/Gemini embedding depends on each site's frame behavior, rendered UI, and
   active user session.
-- Jump Cut remains source-only and is not part of the initial product.
+- Smart Skip starts locally on video detection. Its automatic idle deep refinement
+  requires the selected signed-in provider; failure never disables instant cuts.
 - No live streams, mobile, backend, account, sync, analytics, or model API.
 
 ## Shorts verification

@@ -272,6 +272,36 @@ const providerStatus = async (
   };
 };
 
+const focusWebChat = async (
+  providerId: WebChatProviderId,
+  tabId: number,
+  sessionId?: string,
+): Promise<ExtensionResponse> => {
+  const provider = WEB_CHAT_PROVIDERS[providerId];
+  const frame = sessionId
+    ? await loadEmbeddedFrame(tabId, providerId, sessionId)
+    : null;
+  if (!frame)
+    return {
+      ok: false,
+      type: 'error',
+      message: `${provider.displayName} is still loading inside Watch Better.`,
+    };
+  const response = await sendToProviderPage(tabId, frame.frameId, {
+    type: 'watchbetter:webchat-page-focus',
+  });
+  if (!response?.ok || response.type !== 'webchat-page:focused')
+    return {
+      ok: false,
+      type: 'error',
+      message:
+        response && !response.ok
+          ? response.message
+          : `${provider.displayName} composer is not ready.`,
+    };
+  return { ok: true, type: 'acknowledged' };
+};
+
 const sendWebChat = async (
   providerId: WebChatProviderId,
   message: string,
@@ -318,6 +348,85 @@ const sendWebChat = async (
     provider: providerId,
     text: '',
     responseId: `web_${providerId}_${crypto.randomUUID()}`,
+  };
+};
+
+const primeWebChat = async (
+  providerId: WebChatProviderId,
+  message: string,
+  newConversation: boolean,
+  tabId: number,
+  sessionId?: string,
+): Promise<ExtensionResponse> => {
+  const provider = WEB_CHAT_PROVIDERS[providerId];
+  const frame = sessionId
+    ? await loadEmbeddedFrame(tabId, providerId, sessionId)
+    : null;
+  if (!frame)
+    return {
+      ok: false,
+      type: 'error',
+      message: `${provider.displayName} is still loading inside Watch Better.`,
+    };
+  const response = await sendToProviderPage(tabId, frame.frameId, {
+    type: 'watchbetter:webchat-page-prime',
+    message,
+    newConversation,
+  });
+  if (!response?.ok)
+    return {
+      ok: false,
+      type: 'error',
+      message: response?.message ?? `${provider.displayName} is not ready.`,
+    };
+  if (response.type !== 'webchat-page:primed')
+    return {
+      ok: false,
+      type: 'error',
+      message: `${provider.displayName} returned an unexpected preload response.`,
+    };
+  return { ok: true, type: 'acknowledged' };
+};
+
+const analyzeWebChat = async (
+  providerId: WebChatProviderId,
+  message: string,
+  newConversation: boolean,
+  tabId: number,
+  sessionId?: string,
+): Promise<ExtensionResponse> => {
+  const provider = WEB_CHAT_PROVIDERS[providerId];
+  const frame = sessionId
+    ? await loadEmbeddedFrame(tabId, providerId, sessionId)
+    : null;
+  if (!frame)
+    return {
+      ok: false,
+      type: 'error',
+      message: `${provider.displayName} is still loading inside Watch Better.`,
+    };
+  const response = await sendToProviderPage(tabId, frame.frameId, {
+    type: 'watchbetter:webchat-page-analyze',
+    message,
+    newConversation,
+  });
+  if (!response?.ok)
+    return {
+      ok: false,
+      type: 'error',
+      message: response?.message ?? `${provider.displayName} is not ready.`,
+    };
+  if (response.type !== 'webchat-page:analysis')
+    return {
+      ok: false,
+      type: 'error',
+      message: `${provider.displayName} returned an unexpected analysis response.`,
+    };
+  return {
+    ok: true,
+    type: 'webchat:analysis',
+    provider: providerId,
+    text: response.text,
   };
 };
 
@@ -461,6 +570,16 @@ const handleRequest = async (
         ...(await providerStatus(request.provider, tabId, request.sessionId)),
       };
     }
+    case 'webchat:focus': {
+      const tabId = panelSenderTabId(sender);
+      if (tabId === null)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Embedded Ask focus is available only inside Watch Better.',
+        };
+      return focusWebChat(request.provider, tabId, request.sessionId);
+    }
     case 'webchat:send': {
       const tabId = panelSenderTabId(sender);
       if (tabId === null)
@@ -470,6 +589,38 @@ const handleRequest = async (
           message: 'Embedded Ask is available only inside Watch Better.',
         };
       return sendWebChat(
+        request.provider,
+        request.message,
+        request.newConversation,
+        tabId,
+        request.sessionId,
+      );
+    }
+    case 'webchat:prime': {
+      const tabId = panelSenderTabId(sender);
+      if (tabId === null)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Ask context preload is available only inside Watch Better.',
+        };
+      return primeWebChat(
+        request.provider,
+        request.message,
+        request.newConversation,
+        tabId,
+        request.sessionId,
+      );
+    }
+    case 'webchat:analyze': {
+      const tabId = panelSenderTabId(sender);
+      if (tabId === null)
+        return {
+          ok: false,
+          type: 'error',
+          message: 'Smart Skip analysis is available only inside Watch Better.',
+        };
+      return analyzeWebChat(
         request.provider,
         request.message,
         request.newConversation,

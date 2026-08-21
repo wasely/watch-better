@@ -7,7 +7,7 @@ export default defineConfig({
     name: 'Watch Better',
     minimum_chrome_version: '133',
     description:
-      'Navigate YouTube transcripts and ask ChatGPT or Gemini from one focused companion.',
+      'Preview YouTube videos from captions, ask signed-in AI, and skip unnecessary sections.',
     icons: {
       16: 'icon/16.png',
       32: 'icon/32.png',

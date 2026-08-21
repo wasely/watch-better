@@ -6,7 +6,8 @@ import {
   type WatchBetterSettings,
 } from '@/features/settings/settings';
 
-export const SETTINGS_STORAGE_KEY = 'watchbetter:settings:v2';
+export const SETTINGS_STORAGE_KEY = 'watchbetter:settings:v3';
+const LEGACY_SETTINGS_STORAGE_KEY = 'watchbetter:settings:v2';
 
 export interface KeyValueStorageArea {
   get(key: string): Promise<Record<string, unknown>>;
@@ -23,7 +24,10 @@ export class SettingsRepository {
 
   public async load(): Promise<WatchBetterSettings> {
     const stored = await this.#area.get(SETTINGS_STORAGE_KEY);
-    return normalizeSettings(stored[SETTINGS_STORAGE_KEY]);
+    if (stored[SETTINGS_STORAGE_KEY] !== undefined)
+      return normalizeSettings(stored[SETTINGS_STORAGE_KEY]);
+    const legacy = await this.#area.get(LEGACY_SETTINGS_STORAGE_KEY);
+    return normalizeSettings(legacy[LEGACY_SETTINGS_STORAGE_KEY]);
   }
 
   public async save(settings: WatchBetterSettings): Promise<WatchBetterSettings> {
@@ -34,6 +38,7 @@ export class SettingsRepository {
 
   public async reset(): Promise<WatchBetterSettings> {
     await this.#area.remove(SETTINGS_STORAGE_KEY);
+    await this.#area.remove(LEGACY_SETTINGS_STORAGE_KEY);
     return normalizeSettings(DEFAULT_SETTINGS);
   }
 }

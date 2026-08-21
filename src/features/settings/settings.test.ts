@@ -17,16 +17,11 @@ describe('normalizeSettings', () => {
       transcriptFontSize: 'large',
       theme: 'light',
       panelCollapsed: true,
-      pause: {
-        enabled: true,
-        preset: 'aggressive',
-        minimumGapSeconds: -4,
-        leadingPaddingSeconds: 99,
-        trailingPaddingSeconds: 1.2,
-        speechPlaybackRate: 100,
-        gapPlaybackRate: 0,
-        jumpLongGaps: true,
-        jumpThresholdSeconds: 900,
+      smartSkip: {
+        provider: 'chatgpt',
+        strictness: 'aggressive',
+        categories: ['sponsor', 'ramble', 'unknown', 'sponsor'],
+        autoSkip: false,
       },
       transcriptCachePolicy: 'session',
     });
@@ -38,16 +33,11 @@ describe('normalizeSettings', () => {
       theme: 'light',
       panelCollapsed: true,
       transcriptCachePolicy: 'session',
-      pause: {
-        enabled: true,
-        preset: 'aggressive',
-        minimumGapSeconds: 0.5,
-        leadingPaddingSeconds: 3,
-        trailingPaddingSeconds: 1.2,
-        speechPlaybackRate: 3,
-        gapPlaybackRate: 1,
-        jumpLongGaps: true,
-        jumpThresholdSeconds: 60,
+      smartSkip: {
+        provider: 'chatgpt',
+        strictness: 'aggressive',
+        categories: ['sponsor', 'ramble'],
+        autoSkip: false,
       },
     });
   });
@@ -56,11 +46,15 @@ describe('normalizeSettings', () => {
     const settings = normalizeSettings({
       defaultTab: 'analytics',
       theme: 'neon',
-      pause: { preset: 'reckless' },
+      smartSkip: { provider: 'deepseek', strictness: 'reckless' },
     });
 
     expect(settings.defaultTab).toBe(DEFAULT_SETTINGS.defaultTab);
     expect(settings.theme).toBe(DEFAULT_SETTINGS.theme);
-    expect(settings.pause.preset).toBe(DEFAULT_SETTINGS.pause.preset);
+    expect(settings.smartSkip).toEqual(DEFAULT_SETTINGS.smartSkip);
+  });
+
+  it('migrates the legacy skip tab to Smart Skip', () => {
+    expect(normalizeSettings({ defaultTab: 'skip' }).defaultTab).toBe('smart-skip');
   });
 });

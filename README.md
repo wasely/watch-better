@@ -7,10 +7,11 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 [![Build status](https://img.shields.io/github/actions/workflow/status/wasely/watch-better/ci.yml?branch=main&style=for-the-badge&label=Build)](https://github.com/wasely/watch-better/actions/workflows/ci.yml)
 
-Watch Better is a Chrome extension for searchable YouTube transcripts and AI video
-analysis. Find timestamped moments, select the useful context, and ask ChatGPT or
-Gemini without losing your place in the video. Detach the exact panel into a movable
-card inside the YouTube page, then keep browsing while the response runs.
+Watch Better is a Chrome extension for quick YouTube caption briefings, searchable
+transcripts, signed-in AI analysis, and Smart Skip. Preview a video from its thumbnail,
+find timestamped moments, ask ChatGPT or Gemini, and jump
+past high-confidence sponsors, intros, outros, repetition, and rambling without losing
+your place. Detach the exact panel into a movable card while you keep browsing.
 
 <p align="center">
   <a href="#install-in-chrome">Install</a> ·
@@ -58,23 +59,30 @@ Continue in ChatGPT or Gemini without losing the video.
 
 ## Features
 
+- Press **Quick Learn** on any captioned video or Short thumbnail to open a movable
+  Watch Better card with embedded Gemini and transcript context ready for questions.
 - Load every caption track exposed by the current YouTube video.
 - Search timestamped rows and jump directly to matching moments.
 - Select specific transcript lines or use the bounded full transcript.
-- Copy captions or send context only after an explicit action.
+- Auto-submit bounded video context to the selected Ask provider, then focus its empty
+  composer for your question when Ask opens.
 - Use ChatGPT and Gemini inside the panel with your signed-in sessions.
+- Start Smart Skip immediately with local cuts, then add high-confidence semantic cuts
+  for repetition, buried tangents, housekeeping, sponsors, intros, and outros.
+- Review a visual cut map, disable individual cuts, or undo the latest skip instantly.
 - Detach the exact video/AI session into a draggable card inside the same YouTube
   page—never a new tab or window.
 - Keep multiple detached cards alive while the normal rail panel starts fresh for
   each newly opened video.
 - Switch between light and dark themes, resize the panel, or collapse it to a launcher.
 - Configure transcript behavior, default tab, caching, and appearance from one settings page.
+- Keep Smart Skip results only for the current browser session.
 
 ## Why use Watch Better?
 
-Long videos often contain a few minutes you actually need. Watch Better helps you find
-those minutes, choose the exact context, and ask a focused question without turning the
-video into another tab-management job.
+Long videos often contain useful material wrapped in sponsorships, repeated points,
+and long introductions. Watch Better helps you find the useful moments, ask focused
+questions, and skip high-confidence filler without replacing YouTube's player.
 
 | Task                   | Common manual workflow                       | Watch Better                                                  |
 | ---------------------- | -------------------------------------------- | ------------------------------------------------------------- |
@@ -82,7 +90,7 @@ video into another tab-management job.
 | Prepare AI context     | Copy and clean a large transcript by hand    | Select exact rows or use the bounded full transcript          |
 | Ask a provider         | Switch between YouTube and a separate AI tab | Keep ChatGPT or Gemini beside the video, in the page          |
 | Connect AI             | Configure another service or API workflow    | Use your existing signed-in provider session; no API key      |
-| Control sharing        | Manually track what was pasted               | Nothing is sent until you choose **Send to AI**               |
+| Control sharing        | Manually paste and clean context             | Context loads automatically; you submit each actual question  |
 
 ### How it compares
 
@@ -105,19 +113,20 @@ it does not mean the feature can never exist. Checked August 2026 using the offi
 
 ```mermaid
 flowchart LR
-    A[YouTube captions] --> B[Search or select moments]
-    B --> C[Choose Send to AI]
-    C --> D{Provider}
+    A[YouTube captions] --> B[Submit bounded context automatically]
+    B --> C[Ask a question or choose Send to AI]
+    C --> D{Selected provider}
     D --> E[ChatGPT in panel]
     D --> F[Gemini in panel]
 ```
 
 ## How Ask works
 
-1. Open **Ask** and choose ChatGPT or Gemini. Nothing is sent yet.
-2. Sign in on the provider's official website if needed.
-3. In **Transcript**, optionally select the rows you want to reference.
-4. Choose **Send to AI**. With no selection, Watch Better sends the bounded transcript.
+1. Sign in on the provider's official website if needed.
+2. Watch Better preloads the selected provider and submits bounded video context with
+   instructions to reply only `READY`.
+3. Open **Ask**, type into the focused empty composer, and submit normally.
+4. Optionally select transcript rows and choose **Send to AI** for a focused handoff.
 5. Continue the conversation using the provider's own interface.
 6. Use the header detach button to turn that exact panel into a movable card. Drag
    its header anywhere in YouTube; the normal rail gets a fresh panel for the next
@@ -156,9 +165,9 @@ production extension build. `npm run zip` creates the install archive in `.outpu
 | `storage`               | Save settings, optional session transcripts, and embedded-frame routing IDs.         |
 | `declarativeNetRequest` | Permit one prepared provider subframe in a YouTube panel or detached workspace.      |
 | `webNavigation`         | Verify the registered provider is Watch Better's direct child before prompt routing. |
-| `youtube.com`           | Mount Watch Better and read captions exposed by the current watch page.              |
-| `chatgpt.com`           | Use the signed-in composer after an explicit send action.                            |
-| `gemini.google.com`     | Use the signed-in composer after an explicit send action.                            |
+| `youtube.com`           | Add Quick Learn to listings, mount the panel, and read on-demand captions.           |
+| `chatgpt.com`           | Prefill and use its signed-in composer when ChatGPT is selected in Ask.              |
+| `gemini.google.com`     | Use signed-in Gemini inside Ask and the in-page Quick Learn card.                    |
 
 Watch Better has no cookie, browsing-data, broad host, or remote-code permission.
 
@@ -167,9 +176,13 @@ Watch Better has no cookie, browsing-data, broad host, or remote-code permission
 Watch Better stores no API keys and sends no analytics. Transcripts and conversations
 are not persisted by default. The optional browser-session transcript cache is bounded
 and cleared with the browser session. Detached cards stay only in the current YouTube
-tab and browser memory. Transcript context is transferred only after you
-choose **Send to AI**; the selected provider then applies its own account, retention,
-and usage policies.
+tab and browser memory. Quick Learn fetches captions only after its thumbnail button
+is pressed, then sends bounded timestamped context to Gemini embedded in its in-page card.
+Ask automatically submits bounded context to the selected
+provider with a `READY`-only instruction; the provider applies its own account,
+retention, and usage policies. Smart Skip starts locally. When enabled and
+captions load, it automatically sends bounded caption chunks to the selected provider
+for an isolated deep analysis. Maps last only for the browser session.
 
 See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 
@@ -184,7 +197,7 @@ watch-better/
 │   │   ├── ask/           # Provider choice and prompt flow
 │   │   ├── settings/      # User preferences
 │   │   ├── detach/        # Movable in-page per-video cards
-│   │   └── skip/          # Disabled Jump Cut prototype
+│   │   └── smart-skip/    # AI classification, cut map, cache, and playback engine
 │   ├── services/          # Clipboard and signed-in web-chat adapters
 │   ├── storage/           # Settings and bounded transcript cache
 │   └── components/        # Shared extension UI
@@ -199,9 +212,10 @@ watch-better/
 
 - Chrome 133+ desktop YouTube watch pages and Shorts; no live streams or mobile Chrome
   extension support.
-- Uses available caption tracks only; there is no speech-to-text fallback.
+- Smart Skip uses available caption tracks only; there is no speech-to-text fallback.
+- Smart Skip starts locally with the video. Optional deep cuts require the selected
+  signed-in provider, but provider failure never delays or disables local skipping.
 - Provider web interfaces and embedded sign-in rules can change.
-- Jump Cut code is retained for later development but disabled in the current product.
 
 ## Contributing
 

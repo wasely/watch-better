@@ -1,0 +1,10 @@
+.ct-smart-skip-refinement-frame {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 720px;
+  height: 900px;
+  border: 0;
+  pointer-events: none;
+  opacity: 0;
+}

@@ -1,21 +1,30 @@
 # Watch Better Privacy Policy
 
-Last updated: August 1, 2026
+Last updated: August 19, 2026
 
-Watch Better is a browser extension that adds transcript navigation and an optional
-ChatGPT or Gemini workflow to desktop YouTube watch pages.
+Watch Better is a browser extension that adds thumbnail Quick Learn, transcript
+navigation, Smart Skip, and optional ChatGPT or Gemini workflows to desktop YouTube.
 
 ## Data Watch Better handles
 
-Watch Better processes the current video's title, URL, available captions, caption
-timestamps, and the transcript rows you select. This processing happens locally in
-the browser.
+Watch Better processes video titles, URLs, available captions, caption timestamps,
+and the transcript rows you select. Quick Learn requests a video's captions only after
+you press its thumbnail button, opens an in-page Watch Better card, and submits a bounded,
+timestamped copy to embedded Gemini as context for your follow-up questions.
 
-When you explicitly choose **Send to AI**, Watch Better sends the selected transcript
-rows—or the full transcript when nothing is selected—to the ChatGPT or Gemini page
-you selected. Both providers load inside Ask; Watch Better never opens a provider tab on its own.
-The provider may receive normal browser request and account-session information and
-applies its own privacy, retention, and account policies.
+When captions load, Watch Better automatically submits a bounded copy of the current
+video transcript to the selected Ask provider with instructions to reply only `READY`.
+Actual questions remain user-submitted. Choosing **Send to AI** explicitly submits the
+selected rows—or the bounded full transcript when nothing is selected. Providers load inside
+Ask. Quick Learn loads embedded Gemini only after its button is pressed. The provider may receive normal
+browser request, draft-input, and account-session information and applies its own
+privacy, retention, and account policies.
+
+Smart Skip starts locally with a short opening cut and caption rules. When Smart Skip
+is enabled and captions load, Watch Better automatically sends bounded caption chunks
+to the selected signed-in provider to find high-confidence semantic filler. This deep
+pass uses a separate embedded conversation and never blocks local skipping. The provider applies
+its own privacy, retention, and account policies.
 
 ## Storage
 
@@ -25,6 +34,7 @@ applies its own privacy, retention, and account policies.
   the current browser session.
 - Temporary provider-frame identifiers are stored only for the current browser
   session.
+- Validated Smart Skip maps are stored only for the current browser session.
 - Detached video cards remain only in the current YouTube tab and browser memory.
   Closing a card removes its provider-frame routing identifiers.
 

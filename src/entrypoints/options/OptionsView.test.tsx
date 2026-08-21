@@ -16,7 +16,7 @@ describe('OptionsView', () => {
 
     expect(screen.getByRole('heading', { name: 'Panel defaults' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Transcript' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Jump Cut' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Smart Skip' })).toBeVisible();
     expect(
       screen.getByRole('heading', { name: 'AI sessions and privacy' }),
     ).toBeInTheDocument();

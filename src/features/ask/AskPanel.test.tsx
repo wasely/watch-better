@@ -16,9 +16,6 @@ const readyStatuses = {
   gemini: { provider: 'gemini' as const, state: 'ready' as const },
 };
 
-/** The provider that is not on screen mounts only once the page goes idle. */
-const DEFERRED_FRAME_TIMEOUT_MS = 5_000;
-
 describe('AskPanel', () => {
   it('never sends when opened or when providers switch', async () => {
     const user = userEvent.setup();
@@ -156,15 +153,13 @@ describe('AskPanel', () => {
     await waitFor(() =>
       expect(onPrepareWebChat).toHaveBeenCalledWith('gemini', expect.any(String)),
     );
-    await waitFor(
-      () =>
-        expect(onPrepareWebChat).toHaveBeenCalledWith('chatgpt', expect.any(String)),
-      { timeout: DEFERRED_FRAME_TIMEOUT_MS },
+    expect(onPrepareWebChat).not.toHaveBeenCalledWith('chatgpt', expect.any(String));
+    await user.click(screen.getByRole('button', { name: 'Codex' }));
+    await waitFor(() =>
+      expect(onPrepareWebChat).toHaveBeenCalledWith('chatgpt', expect.any(String)),
     );
     const chatGptFrame = await screen.findByTitle<HTMLIFrameElement>(
       'ChatGPT embedded chat',
-      undefined,
-      { timeout: DEFERRED_FRAME_TIMEOUT_MS },
     );
     expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
       'src',
@@ -202,6 +197,68 @@ describe('AskPanel', () => {
     ).toHaveLength(1);
   });
 
+  it('auto-submits the entire video context without using the explicit send action', async () => {
+    const onPrime = vi
+      .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
+      .mockResolvedValue(undefined);
+    const onSend = vi.fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>();
+    render(
+      <AskPanel
+        onPrimeWebChat={onPrime}
+        onSendWebChat={onSend}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    await waitFor(() => expect(onPrime).toHaveBeenCalledOnce());
+    expect(onPrime.mock.calls[0]?.[0]).toMatchObject({
+      provider: 'gemini',
+      newConversation: true,
+    });
+    expect(onPrime.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
+    expect(onPrime.mock.calls[0]?.[0].message).toContain('Reply only READY');
+    expect(onPrime.mock.calls[0]?.[0].message).toContain(
+      'Do not summarize it or answer any question yet',
+    );
+    expect(onSend).not.toHaveBeenCalled();
+    expect(await screen.findByText('Video context ready in Gemini.')).toBeVisible();
+  });
+
+  it('focuses the primed composer only when Ask becomes visible', async () => {
+    const onPrime = vi
+      .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
+      .mockResolvedValue(undefined);
+    const onFocus = vi
+      .fn<NonNullable<AskPanelProps['onFocusWebChat']>>()
+      .mockResolvedValue(undefined);
+    const view = render(
+      <AskPanel
+        onFocusWebChat={onFocus}
+        onPrimeWebChat={onPrime}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+        visible={false}
+      />,
+    );
+
+    await waitFor(() => expect(onPrime).toHaveBeenCalledOnce());
+    expect(onFocus).not.toHaveBeenCalled();
+    view.rerender(
+      <AskPanel
+        onFocusWebChat={onFocus}
+        onPrimeWebChat={onPrime}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+        visible
+      />,
+    );
+
+    await waitFor(() =>
+      expect(onFocus).toHaveBeenCalledWith('gemini', expect.any(String)),
+    );
+  });
+
   it('sends the provider frame transcript context exactly once per request', async () => {
     const onSend = vi
       .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
@@ -225,7 +282,7 @@ describe('AskPanel', () => {
       newConversation: true,
     });
     expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
-    expect(screen.getByText('Transcript sent to Gemini.')).toBeVisible();
+    expect(screen.getByText('Video context ready in Gemini.')).toBeVisible();
     expect(screen.queryByText('Transcript loaded.')).not.toBeInTheDocument();
   });
 
@@ -317,18 +374,13 @@ describe('AskPanel', () => {
     expect(onSend).toHaveBeenCalledOnce();
   });
 
-  it('loads only the provider on screen before the page goes idle', async () => {
+  it('does not load the unused provider in the background', () => {
     render(
       <AskPanel providerStatuses={readyStatuses} transcript={tutorialTranscript} />,
     );
 
     expect(screen.getByTitle('Gemini embedded chat')).toBeInTheDocument();
     expect(screen.queryByTitle('ChatGPT embedded chat')).not.toBeInTheDocument();
-    expect(
-      await screen.findByTitle('ChatGPT embedded chat', undefined, {
-        timeout: DEFERRED_FRAME_TIMEOUT_MS,
-      }),
-    ).toBeInTheDocument();
   });
 
   it('keeps frame preparation errors inside the frame area', async () => {
@@ -345,15 +397,15 @@ describe('AskPanel', () => {
   });
 
   it('resets only its exact provider sessions when unmounted', async () => {
+    const user = userEvent.setup();
     const onResetWebChat = vi.fn<NonNullable<AskPanelProps['onResetWebChat']>>();
     const view = render(
       <AskPanel onResetWebChat={onResetWebChat} transcript={tutorialTranscript} />,
     );
-    const chatGptSource = (
-      await screen.findByTitle('ChatGPT embedded chat', undefined, {
-        timeout: DEFERRED_FRAME_TIMEOUT_MS,
-      })
-    ).getAttribute('src');
+    await user.click(screen.getByRole('button', { name: 'Codex' }));
+    const chatGptSource = screen
+      .getByTitle('ChatGPT embedded chat')
+      .getAttribute('src');
     const geminiSource = screen.getByTitle('Gemini embedded chat').getAttribute('src');
     const sessionFrom = (source: string | null) =>
       decodeURIComponent(source?.split('watchbetter-frame=')[1] ?? '');

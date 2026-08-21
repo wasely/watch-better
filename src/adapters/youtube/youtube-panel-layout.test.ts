@@ -49,4 +49,19 @@ describe('YouTube panel host layout', () => {
     expect(host.style.width).toBe('100%');
     expect(host.style.marginBottom).toBe('12px');
   });
+
+  it('excludes the injected panel from YouTube page scroll anchoring', () => {
+    const host = document.createElement('watchbetter-panel');
+    const rail = document.createElement('div');
+
+    applyYouTubePanelHostLayout(
+      host,
+      rail,
+      'https://www.youtube.com/watch?v=example',
+      document,
+    );
+
+    expect(host.style.overflowAnchor).toBe('none');
+    expect(host.style.getPropertyPriority('overflow-anchor')).toBe('important');
+  });
 });

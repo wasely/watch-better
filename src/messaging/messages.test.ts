@@ -12,6 +12,24 @@ describe('extension message validation', () => {
         changes: { panelCollapsed: false },
       }),
     ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:analyze',
+        provider: 'gemini',
+        sessionId: 'smart-skip:gemini:frame-1',
+        message: 'Return structured cuts.',
+        newConversation: true,
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:analyze',
+        provider: 'gemini',
+        sessionId: 'frame-1',
+        message: '',
+        newConversation: true,
+      }),
+    ).toBe(false);
     expect(isExtensionRequest({ type: 'settings:update', changes: [] })).toBe(false);
     expect(
       isExtensionRequest({
@@ -70,6 +88,30 @@ describe('extension message validation', () => {
         sessionId: 'gemini:frame-1',
       }),
     ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:prime',
+        provider: 'gemini',
+        sessionId: 'gemini:frame-1',
+        message: 'Prepare this transcript.',
+        newConversation: true,
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:focus',
+        provider: 'gemini',
+        sessionId: 'gemini:frame-1',
+      }),
+    ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:focus',
+        provider: 'gemini',
+        sessionId: 'gemini:frame-1',
+        message: 'hidden data',
+      }),
+    ).toBe(false);
     expect(
       isExtensionRequest({
         type: 'webchat:send',

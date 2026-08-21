@@ -5,6 +5,11 @@ import { Icon, type IconName } from '@/components/Icon';
 import { resolveInitialProductTab } from '@/config/product-features';
 import { AskPanel, type AskPanelProps } from '@/features/ask/AskPanel';
 import type { PanelTab, TranscriptFontSize } from '@/features/settings/settings';
+import { DEFAULT_SMART_SKIP_CONFIGURATION } from '@/features/smart-skip/domain';
+import {
+  SmartSkipPanel,
+  type SmartSkipPanelProps,
+} from '@/features/smart-skip/SmartSkipPanel';
 import {
   TranscriptPanel,
   type TranscriptPanelProps,
@@ -29,6 +34,7 @@ export interface WatchBetterAppProps {
   readonly collapsed?: boolean;
   readonly transcript?: TranscriptPanelProps;
   readonly ask?: AskPanelProps;
+  readonly smartSkip?: SmartSkipPanelProps;
   readonly onTabChange?: (tab: PanelTab) => void;
   readonly onCollapsedChange?: (collapsed: boolean) => void;
   readonly onOpenSettings?: () => void;
@@ -52,6 +58,7 @@ const tabs: readonly {
 }[] = [
   { id: 'transcript', label: 'Transcript', icon: 'captions' },
   { id: 'ask', label: 'Ask', icon: 'message' },
+  { id: 'smart-skip', label: 'Smart Skip', icon: 'spark' },
 ];
 
 const transcriptStatus = (
@@ -80,6 +87,7 @@ export function WatchBetterApp({
   collapsed: controlledCollapsed,
   transcript,
   ask,
+  smartSkip,
   onTabChange,
   onCollapsedChange,
   onOpenSettings,
@@ -112,6 +120,19 @@ export function WatchBetterApp({
     transcript:
       transcriptProps.state.kind === 'ready' ? transcriptProps.state.document : null,
   };
+  const smartSkipProps: SmartSkipPanelProps = smartSkip ?? {
+    configuration: DEFAULT_SMART_SKIP_CONFIGURATION,
+    analysisState: { kind: 'idle' },
+    engineSnapshot: {
+      state: 'disabled',
+      timeSavedSeconds: 0,
+      lastSkipped: null,
+      message: 'Playback is unchanged.',
+    },
+    durationSeconds: null,
+    transcriptAvailable: false,
+  };
+  const [smartSkipMounted, setSmartSkipMounted] = useState(activeTab === 'smart-skip');
   const status = transcriptStatus(transcriptProps.state);
 
   useLayoutEffect(() => {
@@ -126,6 +147,7 @@ export function WatchBetterApp({
 
   const selectTab = (nextTab: PanelTab) => {
     if (nextTab === activeTab) return;
+    if (nextTab === 'smart-skip') setSmartSkipMounted(true);
     if (controlledActiveTab === undefined) setInternalActiveTab(nextTab);
     onTabChange?.(nextTab);
   };
@@ -382,7 +404,24 @@ export function WatchBetterApp({
           role="tabpanel"
           tabIndex={activeTab === 'ask' ? 0 : -1}
         >
-          <AskPanel {...askProps} focused={askFocused} onFocusedChange={setAskFocus} />
+          <AskPanel
+            {...askProps}
+            focused={askFocused}
+            onFocusedChange={setAskFocus}
+            visible={!collapsed && !minimized && activeTab === 'ask'}
+          />
+        </div>
+        <div
+          aria-labelledby={`${id}-smart-skip-tab`}
+          className="ct-panel__body"
+          hidden={minimized || activeTab !== 'smart-skip'}
+          id={`${id}-smart-skip-panel`}
+          role="tabpanel"
+          tabIndex={activeTab === 'smart-skip' ? 0 : -1}
+        >
+          {smartSkipMounted || activeTab === 'smart-skip' ? (
+            <SmartSkipPanel {...smartSkipProps} />
+          ) : null}
         </div>
       </section>
     </div>

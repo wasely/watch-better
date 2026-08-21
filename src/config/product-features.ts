@@ -1,8 +1,8 @@
 import type { PanelTab } from '@/features/settings/settings';
 
 export const PRODUCT_FEATURES = Object.freeze({
-  jumpCut: false,
+  smartSkip: true,
 });
 
 export const resolveInitialProductTab = (tab: PanelTab): PanelTab =>
-  tab === 'skip' && !PRODUCT_FEATURES.jumpCut ? 'transcript' : tab;
+  tab === 'smart-skip' && !PRODUCT_FEATURES.smartSkip ? 'transcript' : tab;

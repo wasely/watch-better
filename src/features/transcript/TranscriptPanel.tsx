@@ -346,7 +346,7 @@ function TranscriptReadyView({
     const direction = event.key === 'ArrowDown' ? 1 : -1;
     rowButtons[
       Math.max(0, Math.min(rowButtons.length - 1, currentIndex + direction))
-    ]?.focus();
+    ]?.focus({ preventScroll: true });
   };
 
   const matchPosition =

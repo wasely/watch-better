@@ -110,6 +110,8 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
 
 ## Phase 6 — jump cutter
 
+The original caption-gap prototype below is historical and was replaced by Smart Skip.
+
 - [x] **MVP-060 · P0 · PRD-031 — Pause-detection feasibility spike**
   - Acceptance: four candidate methods are tested/researched and documented with permissions, reliability, and decision evidence.
   - Verify: spike tests/notes in architecture/decisions/risks.
@@ -122,6 +124,19 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` verified, `[!]` blocked. Status 
   - Acceptance: presets/advanced/reset/status/warnings/time-saved connect to engine and persist correctly.
   - Verify: component/integration tests and controlled playback fixture.
   - Status: Verified 2026-07-30; persisted configuration drives the real engine and the panel reports approximate savings and honest detector state.
+
+- [x] **MVP-063 · P0 — Smart Skip analysis and playback**
+  - Acceptance: playback starts from an instant local map; browser idle starts a
+    separate signed-in semantic pass after captions load and merges only validated cuts;
+    local playback keeps ad guards and undo throughout.
+  - Verify: analysis/parser/cache/engine/message/component tests and production build.
+  - Status: Implemented 2026-08-18; live signed-in Gemini/ChatGPT verification remains
+    in the manual release gate.
+- [x] **MVP-064 · P1 — Smart Skip responsive controls**
+  - Acceptance: third tab exposes cut map, settings, progress, error/empty/success,
+    per-cut controls, safety warning, and session privacy disclosure.
+  - Verify: component tests, accessibility checks, and dark/light 320/402/480px shots.
+  - Status: Verified 2026-08-18 in the fixture harness.
 
 ## Phase 7–8 — hardening and delivery
 

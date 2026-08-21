@@ -318,6 +318,7 @@
   font-size: 10px;
   text-align: center;
   animation: ct-provider-notice-in 160ms ease-out;
+  pointer-events: none;
 }
 
 .ct-provider-frame__notice--error {

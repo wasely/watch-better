@@ -74,8 +74,22 @@ export const fillComposer = (input: HTMLElement, text: string): void => {
 export const composerText = (input: HTMLElement): string =>
   (input instanceof HTMLTextAreaElement
     ? input.value
-    : (input.textContent ?? '')
+    : input.innerText || input.textContent || ''
   ).trim();
+
+export const focusComposerAtEnd = (input: HTMLElement): void => {
+  input.focus();
+  if (input instanceof HTMLTextAreaElement) {
+    input.setSelectionRange(input.value.length, input.value.length);
+    return;
+  }
+  const selection = document.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(input);
+  range.collapse(false);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+};
 
 export const isGenerating = (
   definition: WebChatProviderDefinition,
@@ -92,4 +106,17 @@ export const pressEnter = (input: HTMLElement): void => {
         key: 'Enter',
       }),
     );
+};
+
+export const submitComposer = (
+  definition: WebChatProviderDefinition,
+  composer: HTMLElement,
+  root: ParentNode = document,
+): void => {
+  const sendButton = firstVisible(definition.sendSelectors, root);
+  if (sendButton instanceof HTMLButtonElement && !sendButton.disabled) {
+    sendButton.click();
+    return;
+  }
+  pressEnter(composer);
 };

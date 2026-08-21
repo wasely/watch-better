@@ -29,7 +29,7 @@ describe('WatchBetterApp foundation shell', () => {
     );
     expect(screen.getByTitle('Gemini embedded chat')).toBeInTheDocument();
 
-    expect(screen.queryByRole('tab', { name: 'Jump Cut' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Smart Skip' })).toBeVisible();
   });
 
   it('supports arrow-key navigation between tabs', async () => {
@@ -52,7 +52,7 @@ describe('WatchBetterApp foundation shell', () => {
       />,
     );
 
-    for (const name of ['Transcript', 'Ask']) {
+    for (const name of ['Transcript', 'Ask', 'Smart Skip']) {
       const targetId = screen.getByRole('tab', { name }).getAttribute('aria-controls');
       expect(targetId).not.toBeNull();
       expect(document.getElementById(targetId ?? '')).toHaveAttribute(
@@ -124,12 +124,11 @@ describe('WatchBetterApp foundation shell', () => {
       'true',
     );
 
-    rerender(<WatchBetterApp activeTab="skip" onTabChange={onTabChange} />);
-    expect(screen.getByRole('tab', { name: 'Transcript' })).toHaveAttribute(
+    rerender(<WatchBetterApp activeTab="smart-skip" onTabChange={onTabChange} />);
+    expect(screen.getByRole('tab', { name: 'Smart Skip' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
-    expect(screen.queryByRole('tab', { name: 'Jump Cut' })).not.toBeInTheDocument();
   });
 
   it('ignores activation of the selected tab', () => {

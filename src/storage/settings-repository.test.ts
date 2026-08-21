@@ -58,11 +58,14 @@ describe('SettingsRepository', () => {
 
     const [disabled, changedTab] = await Promise.all([
       coordinator.patch({ extensionEnabled: false }),
-      coordinator.patch({ defaultTab: 'skip' }),
+      coordinator.patch({ defaultTab: 'smart-skip' }),
     ]);
 
     expect(disabled).toMatchObject({ extensionEnabled: false, defaultTab: 'ask' });
-    expect(changedTab).toMatchObject({ extensionEnabled: false, defaultTab: 'skip' });
+    expect(changedTab).toMatchObject({
+      extensionEnabled: false,
+      defaultTab: 'smart-skip',
+    });
     await expect(coordinator.load()).resolves.toEqual(changedTab);
   });
 

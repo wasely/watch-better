@@ -32,6 +32,7 @@ describe('production privacy and permission audit', () => {
     // Background tab creation survives only behind explicit user actions.
     const tabCreations = background.match(/browser\.tabs\.create/g) ?? [];
     expect(tabCreations).toHaveLength(2);
+    expect(background).not.toContain('browser.windows.create');
     expect(background).toContain("case 'webchat:open'");
     expect(background).toContain('chrome://extensions/?id=');
     expect(background).not.toContain('preloadProviderTab');
@@ -42,8 +43,10 @@ describe('production privacy and permission audit', () => {
     const messages = read('src/messaging/messages.ts');
     const background = read('src/entrypoints/background.ts');
     expect(messages).toContain("readonly type: 'webchat:send'");
+    expect(messages).toContain("readonly type: 'webchat:analyze'");
     expect(messages).toContain('readonly newConversation: boolean');
     expect(background).toContain("case 'webchat:send'");
+    expect(background).toContain("case 'webchat:analyze'");
     expect(background).toContain('sendToProviderPage');
   });
 

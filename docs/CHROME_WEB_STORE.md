@@ -7,13 +7,14 @@ before submitting version 0.1.0.
 
 **Short description**
 
-Search, copy, and navigate YouTube transcripts, then send selected context to
-ChatGPT or Gemini from a focused companion panel.
+Search and navigate YouTube transcripts, ask signed-in AI, and skip high-confidence
+unnecessary sections from a focused companion panel.
 
 **Single purpose**
 
 Help people understand and work with captioned YouTube videos faster through a
-searchable transcript and an explicit transcript-to-AI workflow.
+searchable transcript, explicit transcript-to-AI workflows, and instant local plus
+optional signed-in deep Smart Skip playback controls.
 
 ## Required listing material
 
@@ -32,10 +33,13 @@ searchable transcript and an explicit transcript-to-AI workflow.
 - CI validation passes on Windows, macOS, and Linux with the pinned Node/npm
   dependency graph.
 - Load the production build from `.output/chrome-mv3/` in a clean Chrome profile.
-- Verify ChatGPT/Gemini frame load, sign-in fallback,
+- Verify selected-provider frame load, automatic context submission with `READY` only,
   explicit single send, provider switching, and errors.
 - Verify transcript load, search, selection, copy, seek, SPA navigation, theater,
   fullscreen, 200% zoom, and dark/light themes.
+- Verify instant local Smart Skip cuts before provider readiness, semantic middle-cut
+  refinement after opening the tab, graceful provider failure, per-cut controls, undo,
+  and browser-session cache behavior.
 - Inspect the packaged manifest and archive; include no source maps, credentials,
   private data, test output, or unrelated files.
 - Confirm the listing privacy disclosures match `PRIVACY.md` and actual behavior.

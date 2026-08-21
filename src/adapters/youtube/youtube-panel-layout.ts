@@ -9,6 +9,10 @@ export const applyYouTubePanelHostLayout = (
   url: string,
   documentRef: Document,
 ): void => {
+  // The rail is part of YouTube's document scroller. Never let Chrome select the
+  // injected panel (or a moving transcript row inside it) as the page's scroll
+  // anchor, or transcript auto-follow can drag the whole watch page with it.
+  setHostStyle(host, 'overflow-anchor', 'none');
   const isShortsDock =
     parseYouTubeVideoUrl(url)?.kind === 'shorts' && target === documentRef.body;
 

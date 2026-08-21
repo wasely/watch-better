@@ -9,6 +9,10 @@ import {
   type WatchBetterSettings,
   type PanelTab,
 } from '@/features/settings/settings';
+import type {
+  SmartSkipAnalysisState,
+  SmartSkipRefinementState,
+} from '@/features/smart-skip/domain';
 import type { RuntimeStatus } from '@/messaging/messages';
 import type { TranscriptViewState } from '@/features/transcript/transcript-view-state';
 import {
@@ -133,8 +137,13 @@ const initialScenario: HarnessScenarioId =
     : 'tutorial';
 const requestedTab = harnessParams.get('tab');
 const focusedMode = harnessParams.get('mode') === 'focus';
+const floatingMode = harnessParams.get('presentation') === 'floating';
 const initialTab: PanelTab =
-  requestedTab === 'ask' || focusedMode ? 'ask' : 'transcript';
+  requestedTab === 'smart-skip'
+    ? 'smart-skip'
+    : requestedTab === 'ask' || focusedMode
+      ? 'ask'
+      : 'transcript';
 const requestedSurface = harnessParams.get('surface');
 const initialSurface: HarnessSurface =
   requestedSurface === 'popup' || requestedSurface === 'options'
@@ -155,6 +164,7 @@ const providerFrameState =
       : ('ready' as const);
 const initialCollapsed = harnessParams.get('collapsed') === '1';
 const initialAskFocused = harnessParams.get('focus') === '1' || focusedMode;
+const smartSkipScenario = harnessParams.get('smartSkip') ?? 'ready';
 
 function NeighborCard() {
   return (
@@ -194,6 +204,7 @@ function Harness() {
   const [activeIndex, setActiveIndex] = useState(4);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [askFocused, setAskFocused] = useState(initialAskFocused);
+  const [smartSkipEnabled, setSmartSkipEnabled] = useState(true);
   const [neighborFirst, setNeighborFirst] = useState(false);
   const [instance, setInstance] = useState(0);
 
@@ -228,6 +239,84 @@ function Harness() {
       ),
     [scenario, transcriptState],
   );
+  const smartSkipAnalysisState = useMemo<SmartSkipAnalysisState>(() => {
+    if (transcriptState.kind !== 'ready') return { kind: 'idle' };
+    const first = transcriptState.document.segments[1];
+    const last = transcriptState.document.segments[2] ?? first;
+    const middle = transcriptState.document.segments[11] ?? first;
+    const middleEnd = transcriptState.document.segments[12] ?? middle;
+    const ending = transcriptState.document.segments.at(-2) ?? last;
+    const endingEnd = transcriptState.document.segments.at(-1) ?? ending;
+    if (!first || !last || !middle || !middleEnd || !ending || !endingEnd)
+      return { kind: 'idle' };
+    return {
+      kind: 'ready',
+      cached: true,
+      analysis: {
+        schemaVersion: 1,
+        videoId: transcriptState.document.videoId,
+        trackId: transcriptState.selectedTrackId,
+        transcriptFingerprint: 'fixture01',
+        provider: 'gemini',
+        strictness: 'balanced',
+        categories: DEFAULT_SETTINGS.smartSkip.categories,
+        analyzedAt: 1,
+        reviewRequired: false,
+        intervals:
+          smartSkipScenario === 'empty'
+            ? []
+            : [
+                {
+                  id: 'fixture-sponsor',
+                  startSegmentIndex: 1,
+                  endSegmentIndex: 2,
+                  startSeconds: first.startSeconds,
+                  endSeconds: last.endSeconds,
+                  category: 'sponsor',
+                  reason: 'Sponsor message and discount code',
+                  confidence: 0.97,
+                  enabled: true,
+                  source: 'instant',
+                },
+                {
+                  id: 'fixture-middle-tangent',
+                  startSegmentIndex: 11,
+                  endSegmentIndex: 12,
+                  startSeconds: middle.startSeconds,
+                  endSeconds: middleEnd.endSeconds,
+                  category: 'ramble',
+                  reason: 'Disposable aside interrupts the main workflow',
+                  confidence: 0.94,
+                  enabled: true,
+                  source: 'deep',
+                },
+                {
+                  id: 'fixture-outro',
+                  startSegmentIndex: transcriptState.document.segments.length - 2,
+                  endSegmentIndex: transcriptState.document.segments.length - 1,
+                  startSeconds: ending.startSeconds,
+                  endSeconds: endingEnd.endSeconds,
+                  category: 'outro',
+                  reason: 'Closing recap repeats the main result',
+                  confidence: 0.96,
+                  enabled: true,
+                  source: 'deep',
+                },
+              ],
+      },
+    };
+  }, [transcriptState]);
+  const smartSkipRefinementState: SmartSkipRefinementState =
+    smartSkipScenario === 'analyzing'
+      ? { kind: 'analyzing', completed: 1, total: 2 }
+      : smartSkipScenario === 'error'
+        ? {
+            kind: 'unavailable',
+            message: 'Deep scan unavailable; instant cuts remain active.',
+          }
+        : smartSkipScenario === 'empty' || transcriptState.kind !== 'ready'
+          ? { kind: 'idle' }
+          : { kind: 'complete', addedCuts: 2 };
   const remount = (nextCollapsed: boolean) => {
     setCollapsed(nextCollapsed);
     setInstance((value) => value + 1);
@@ -306,6 +395,7 @@ function Harness() {
               >
                 <option value="transcript">Transcript</option>
                 <option value="ask">Ask</option>
+                <option value="smart-skip">Smart Skip</option>
               </select>
             </label>
 
@@ -407,7 +497,7 @@ function Harness() {
           <aside className="harness-column" style={{ width }}>
             {neighborFirst ? <NeighborCard /> : null}
             <div
-              className={`harness-panel-host${askFocused ? ' harness-panel-host--focus' : ''}`}
+              className={`harness-panel-host${askFocused ? ' harness-panel-host--focus' : ''}${floatingMode ? ' harness-panel-host--floating' : ''}`}
             >
               <WatchBetterApp
                 ask={{
@@ -446,7 +536,43 @@ function Harness() {
                 onCollapsedChange={setCollapsed}
                 onOpenSettings={() => setSurface('options')}
                 onTabChange={setPanelTab}
+                {...(floatingMode
+                  ? {
+                      presentation: 'floating' as const,
+                      videoTitle: 'Quick Learn fixture video',
+                      minimized: false,
+                      onClose: () => undefined,
+                      onMinimizedChange: () => undefined,
+                      onToggleMaximized: () => undefined,
+                    }
+                  : {})}
                 theme={theme}
+                smartSkip={{
+                  configuration: DEFAULT_SETTINGS.smartSkip,
+                  analysisState: smartSkipAnalysisState,
+                  refinementState: smartSkipRefinementState,
+                  durationSeconds:
+                    transcriptState.kind === 'ready'
+                      ? transcriptState.document.durationSeconds
+                      : null,
+                  engineSnapshot: {
+                    state:
+                      smartSkipAnalysisState.kind === 'ready' && smartSkipEnabled
+                        ? 'ready'
+                        : 'disabled',
+                    timeSavedSeconds:
+                      smartSkipAnalysisState.kind === 'ready' && smartSkipEnabled
+                        ? 18
+                        : 0,
+                    lastSkipped: null,
+                    message:
+                      smartSkipAnalysisState.kind === 'ready' && smartSkipEnabled
+                        ? '1 cut ready.'
+                        : 'Playback is unchanged.',
+                  },
+                  onEnabledChange: setSmartSkipEnabled,
+                  transcriptAvailable: transcriptState.kind === 'ready',
+                }}
                 transcript={{
                   state: transcriptState,
                   activeSegmentId: activeSegment?.id ?? null,

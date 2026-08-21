@@ -22,13 +22,8 @@ const PROVIDER_PICKER_LABELS: Readonly<Record<WebChatProviderId, string>> = {
   gemini: 'Google Gemini',
   chatgpt: 'Codex',
 };
-/**
- * Two provider iframes cost two full app loads. The one on screen goes first and the
- * other warms up once the page is idle, so opening a video is half the work it was.
- */
-const BACKGROUND_PROVIDER_WARMUP_MS = 2_000;
 const PRIME_QUESTION =
-  'Use this transcript as the source of truth. Get ready to answer my questions about this video, cite useful timestamps, and say when the transcript does not establish an answer.';
+  'Load this video transcript as context for my next message. Do not summarize it or answer any question yet. Reply only READY. For later questions, cite useful timestamps and say when the transcript does not establish an answer.';
 
 export interface ChatTurnRequest {
   readonly provider: WebChatProviderId;
@@ -53,6 +48,11 @@ export interface AskPanelProps {
   readonly initialProvider?: WebChatProviderId;
   readonly selectedProvider?: WebChatProviderId;
   readonly sendRequestId?: number;
+  readonly onPrimeWebChat?: (request: ChatTurnRequest) => Promise<void>;
+  readonly onFocusWebChat?: (
+    provider: WebChatProviderId,
+    sessionId: string,
+  ) => Promise<void>;
   readonly onSendWebChat?: (request: ChatTurnRequest) => Promise<ChatTurnResult>;
   readonly onOpenWebChat?: (provider: WebChatProviderId) => void | Promise<void>;
   readonly onPrepareWebChat?: (
@@ -64,6 +64,7 @@ export interface AskPanelProps {
     sessionId: string,
   ) => void | Promise<void>;
   readonly focused?: boolean;
+  readonly visible?: boolean;
   readonly onFocusedChange?: (focused: boolean) => void;
   readonly onProviderChange?: (provider: WebChatProviderId) => void;
   readonly onProviderSessionChange?: (
@@ -246,11 +247,14 @@ export function AskPanel({
   initialProvider = 'gemini',
   selectedProvider: controlledSelectedProvider,
   sendRequestId = 0,
+  onPrimeWebChat,
+  onFocusWebChat,
   onSendWebChat,
   onOpenWebChat,
   onPrepareWebChat,
   onResetWebChat,
   focused = false,
+  visible = true,
   onFocusedChange,
   onProviderChange,
   onProviderSessionChange,
@@ -269,6 +273,9 @@ export function AskPanel({
   const [settledFocusProvider, setSettledFocusProvider] =
     useState<WebChatProviderId | null>(null);
   const focusButtonRef = useRef<HTMLButtonElement>(null);
+  const primedContextsRef = useRef(new Set<string>());
+  const focusedContextRef = useRef('');
+  const [primedContextKey, setPrimedContextKey] = useState('');
 
   const providerDefinition = WEB_CHAT_PROVIDERS[selectedProvider];
   const providerStatus = providerStatuses[selectedProvider]?.state ?? 'not-open';
@@ -282,21 +289,6 @@ export function AskPanel({
     requestPending && providerStatus === 'sign-in-required'
       ? `Sign in to ${providerDefinition.displayName} before sending.`
       : '';
-
-  const allProvidersMounted = mountedProviders.size >= PROVIDER_IDS.length;
-
-  useEffect(() => {
-    if (allProvidersMounted) return;
-    const mountRest = () => setMountedProviders(new Set(PROVIDER_IDS));
-    if (typeof window.requestIdleCallback === 'function') {
-      const handle = window.requestIdleCallback(mountRest, {
-        timeout: BACKGROUND_PROVIDER_WARMUP_MS,
-      });
-      return () => window.cancelIdleCallback(handle);
-    }
-    const timer = window.setTimeout(mountRest, BACKGROUND_PROVIDER_WARMUP_MS);
-    return () => window.clearTimeout(timer);
-  }, [allProvidersMounted]);
 
   const registerProviderSession = useCallback(
     (providerId: WebChatProviderId, sessionId: string) => {
@@ -325,8 +317,122 @@ export function AskPanel({
     }).text;
   }, [currentTimeSeconds, initialScope, provider, selectedSegmentIds, transcript]);
 
+  const buildPrimePrompt = useCallback((): string | null => {
+    if (!transcript) return null;
+    const prompt = provider.buildPrompt({
+      transcript,
+      scope: 'entire-video',
+      currentTimeSeconds: null,
+      selectedSegmentIds: EMPTY_SELECTION,
+      question: PRIME_QUESTION,
+    }).text;
+    return prompt;
+  }, [provider, transcript]);
+
+  const currentPrimeContextKey = (() => {
+    if (!transcript) return '';
+    const sessionId = providerSessionIds[selectedProvider];
+    if (!sessionId) return '';
+    return [
+      selectedProvider,
+      sessionId,
+      transcript.videoId,
+      transcript.languageCode,
+      transcript.segments.length,
+      transcript.segments.at(-1)?.endSeconds ?? 0,
+    ].join(':');
+  })();
+
   useEffect(() => {
-    if (sendRequestId <= 0 || handledRequestId === sendRequestId || !onSendWebChat)
+    if (!onPrimeWebChat || !transcript || !providerReady) return;
+    const sessionId = providerSessionIds[selectedProvider];
+    if (!sessionId) return;
+    const contextKey = currentPrimeContextKey;
+    if (!contextKey) return;
+    if (primedContextsRef.current.has(contextKey)) return;
+    const message = buildPrimePrompt();
+    if (!message) return;
+    primedContextsRef.current.add(contextKey);
+    let disposed = false;
+    queueMicrotask(() => {
+      if (!disposed) setPrimeState({ kind: 'sending' });
+    });
+    void onPrimeWebChat({
+      provider: selectedProvider,
+      sessionId,
+      message,
+      newConversation: true,
+    })
+      .then(() => {
+        if (!disposed) {
+          setPrimedContextKey(contextKey);
+          setPrimeState({ kind: 'sent' });
+        }
+      })
+      .catch((error: unknown) => {
+        if (disposed) return;
+        primedContextsRef.current.delete(contextKey);
+        setPrimeState({
+          kind: 'error',
+          message:
+            error instanceof Error ? error.message : 'Could not prepare video context.',
+        });
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [
+    buildPrimePrompt,
+    currentPrimeContextKey,
+    onPrimeWebChat,
+    providerReady,
+    providerSessionIds,
+    selectedProvider,
+    transcript,
+  ]);
+
+  useEffect(() => {
+    if (!visible) {
+      focusedContextRef.current = '';
+      return;
+    }
+    if (
+      !onFocusWebChat ||
+      !currentPrimeContextKey ||
+      primedContextKey !== currentPrimeContextKey ||
+      focusedContextRef.current === currentPrimeContextKey
+    )
+      return;
+    const sessionId = providerSessionIds[selectedProvider];
+    if (!sessionId) return;
+    focusedContextRef.current = currentPrimeContextKey;
+    queueMicrotask(() => {
+      void onFocusWebChat(selectedProvider, sessionId).catch(() => {
+        focusedContextRef.current = '';
+      });
+    });
+  }, [
+    currentPrimeContextKey,
+    onFocusWebChat,
+    primedContextKey,
+    providerSessionIds,
+    selectedProvider,
+    visible,
+  ]);
+
+  useEffect(() => {
+    if (primeState.kind !== 'sent') return;
+    const timer = window.setTimeout(() => setPrimeState({ kind: 'idle' }), 1_500);
+    return () => window.clearTimeout(timer);
+  }, [primeState.kind]);
+
+  useEffect(() => {
+    if (
+      sendRequestId <= 0 ||
+      handledRequestId === sendRequestId ||
+      !onSendWebChat ||
+      primeSending
+    )
       return;
     const message = buildTranscriptPrompt();
     if (!message) return;
@@ -365,6 +471,7 @@ export function AskPanel({
     buildTranscriptPrompt,
     handledRequestId,
     onSendWebChat,
+    primeSending,
     sendRequestId,
     providerReady,
     providerSessionIds,
@@ -485,7 +592,7 @@ export function AskPanel({
 
           {primeState.kind === 'sending' ? (
             <div className="ct-provider-frame__notice" role="status">
-              Sending transcript to {providerDefinition.displayName}…
+              Preparing video context in {providerDefinition.displayName}…
             </div>
           ) : null}
           {waitingForProvider ? (
@@ -495,7 +602,7 @@ export function AskPanel({
           ) : null}
           {primeState.kind === 'sent' ? (
             <div className="ct-provider-frame__notice" role="status">
-              Transcript sent to {providerDefinition.displayName}.
+              Video context ready in {providerDefinition.displayName}.
             </div>
           ) : null}
           {primeState.kind === 'error' ? (
