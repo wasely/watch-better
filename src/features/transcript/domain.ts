@@ -14,6 +14,11 @@ export interface TranscriptTrack {
   readonly isAutomatic: boolean | null;
 }
 
+export interface TranscriptSpeechRange {
+  readonly startSeconds: number;
+  readonly endSeconds: number;
+}
+
 export interface TranscriptDocument {
   readonly videoId: string;
   readonly videoTitle: string;
@@ -22,6 +27,8 @@ export interface TranscriptDocument {
   readonly isAutomatic: boolean | null;
   readonly durationSeconds: number | null;
   readonly segments: readonly TranscriptSegment[];
+  /** Raw caption timing, kept separate so pacing can preserve sentence-oriented UI rows. */
+  readonly speechRanges?: readonly TranscriptSpeechRange[];
 }
 
 export interface TranscriptRequest {

@@ -108,7 +108,14 @@ export function WatchBetterApp({
   const [internalCollapsed, setInternalCollapsed] = useState(initialCollapsed);
   const [askFocused, setAskFocused] = useState(initialAskFocused);
   const [detachState, setDetachState] = useState<'idle' | 'opening' | 'error'>('idle');
-  const activeTab = resolveInitialProductTab(controlledActiveTab ?? internalActiveTab);
+  const requestedActiveTab = resolveInitialProductTab(
+    controlledActiveTab ?? internalActiveTab,
+  );
+  const availableTabs =
+    presentation === 'floating' ? tabs.filter((tab) => tab.id !== 'smart-skip') : tabs;
+  const activeTab = availableTabs.some((tab) => tab.id === requestedActiveTab)
+    ? requestedActiveTab
+    : 'transcript';
   const collapsed = controlledCollapsed ?? internalCollapsed;
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -128,6 +135,7 @@ export function WatchBetterApp({
       timeSavedSeconds: 0,
       lastSkipped: null,
       message: 'Playback is unchanged.',
+      basePlaybackRate: 1,
     },
     durationSeconds: null,
     transcriptAvailable: false,
@@ -180,15 +188,15 @@ export function WatchBetterApp({
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
 
-    const current = tabs.findIndex((tab) => tab.id === activeTab);
+    const current = availableTabs.findIndex((tab) => tab.id === activeTab);
     const nextIndex =
       event.key === 'Home'
         ? 0
         : event.key === 'End'
-          ? tabs.length - 1
-          : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) %
-            tabs.length;
-    const next = tabs[nextIndex];
+          ? availableTabs.length - 1
+          : (current + (event.key === 'ArrowRight' ? 1 : -1) + availableTabs.length) %
+            availableTabs.length;
+    const next = availableTabs[nextIndex];
     if (!next) return;
 
     const tablist = event.currentTarget;
@@ -213,10 +221,10 @@ export function WatchBetterApp({
     >
       {collapsed ? (
         <button
-          aria-label={`Expand Watch Better. ${status.label}.`}
+          aria-label={`Expand YouTube Max. ${status.label}.`}
           className="ct-launcher"
           onClick={() => setPanelCollapsed(false)}
-          title={`Expand Watch Better — ${status.label}`}
+          title={`Expand YouTube Max — ${status.label}`}
           type="button"
         >
           <span className="ct-launcher__brand" aria-hidden="true">
@@ -228,7 +236,7 @@ export function WatchBetterApp({
             />
           </span>
           <span className="ct-launcher__copy">
-            <strong>Watch Better</strong>
+            <strong>YouTube Max</strong>
             <small>{status.label}</small>
           </span>
           <Icon name="arrow-right" />
@@ -236,17 +244,14 @@ export function WatchBetterApp({
       ) : null}
 
       <section
-        aria-label="Watch Better video companion"
+        aria-label="YouTube Max video companion"
         className="ct-panel"
         hidden={collapsed}
       >
         <header className="ct-header">
           <div className="ct-identity">
-            <span className="ct-brand-mark" aria-hidden="true">
-              <BrandLogo />
-            </span>
             <div className="ct-identity__copy">
-              <strong>Watch Better</strong>
+              <strong>YouTube Max</strong>
               {videoTitle ? (
                 <span className="ct-video-title" title={videoTitle}>
                   {videoTitle}
@@ -266,7 +271,7 @@ export function WatchBetterApp({
           <div className="ct-header__actions">
             {onDetach ? (
               <button
-                aria-label="Detach Watch Better for this video"
+                aria-label="Detach YouTube Max for this video"
                 className="ct-icon-button"
                 disabled={detachState === 'opening'}
                 onClick={detachPanel}
@@ -281,7 +286,7 @@ export function WatchBetterApp({
               </button>
             ) : null}
             <button
-              aria-label="Open Watch Better settings"
+              aria-label="Open YouTube Max settings"
               className="ct-icon-button"
               disabled={!onOpenSettings}
               onClick={onOpenSettings}
@@ -292,7 +297,7 @@ export function WatchBetterApp({
             </button>
             {allowCollapse ? (
               <button
-                aria-label="Collapse Watch Better"
+                aria-label="Collapse YouTube Max"
                 className="ct-icon-button"
                 onClick={() => setPanelCollapsed(true)}
                 title="Collapse"
@@ -305,8 +310,8 @@ export function WatchBetterApp({
               <button
                 aria-label={
                   minimized
-                    ? 'Restore detached Watch Better'
-                    : 'Minimize detached Watch Better'
+                    ? 'Restore detached YouTube Max'
+                    : 'Minimize detached YouTube Max'
                 }
                 className="ct-icon-button"
                 onClick={() => onMinimizedChange(!minimized)}
@@ -318,7 +323,7 @@ export function WatchBetterApp({
             ) : null}
             {presentation === 'floating' && onToggleMaximized ? (
               <button
-                aria-label="Maximize or restore detached Watch Better"
+                aria-label="Maximize or restore detached YouTube Max"
                 className="ct-icon-button"
                 onClick={onToggleMaximized}
                 title="Maximize / restore (or double-click this bar)"
@@ -329,7 +334,7 @@ export function WatchBetterApp({
             ) : null}
             {presentation === 'floating' && onClose ? (
               <button
-                aria-label="Close detached Watch Better"
+                aria-label="Close detached YouTube Max"
                 className="ct-icon-button"
                 onClick={onClose}
                 title="Close detached card"
@@ -340,23 +345,26 @@ export function WatchBetterApp({
             ) : null}
             <span aria-live="polite" className="ct-sr-only">
               {detachState === 'opening'
-                ? 'Detaching Watch Better into a movable card.'
+                ? 'Detaching YouTube Max into a movable card.'
                 : detachState === 'error'
-                  ? 'Could not detach Watch Better.'
+                  ? 'Could not detach YouTube Max.'
                   : ''}
             </span>
           </div>
+          <span className="ct-brand-mark ct-header__brand" aria-hidden="true">
+            <BrandLogo />
+          </span>
         </header>
 
         <nav
-          aria-label="Watch Better sections"
-          className={`ct-tabs ct-tabs--${tabs.length}`}
+          aria-label="YouTube Max sections"
+          className={`ct-tabs ct-tabs--${availableTabs.length}`}
           data-active-tab={activeTab}
           hidden={minimized}
           onKeyDown={handleTabKeyDown}
           role="tablist"
         >
-          {tabs.map((tab) => {
+          {availableTabs.map((tab) => {
             const selected = activeTab === tab.id;
             return (
               <button
@@ -411,18 +419,20 @@ export function WatchBetterApp({
             visible={!collapsed && !minimized && activeTab === 'ask'}
           />
         </div>
-        <div
-          aria-labelledby={`${id}-smart-skip-tab`}
-          className="ct-panel__body"
-          hidden={minimized || activeTab !== 'smart-skip'}
-          id={`${id}-smart-skip-panel`}
-          role="tabpanel"
-          tabIndex={activeTab === 'smart-skip' ? 0 : -1}
-        >
-          {smartSkipMounted || activeTab === 'smart-skip' ? (
-            <SmartSkipPanel {...smartSkipProps} />
-          ) : null}
-        </div>
+        {presentation === 'panel' ? (
+          <div
+            aria-labelledby={`${id}-smart-skip-tab`}
+            className="ct-panel__body"
+            hidden={minimized || activeTab !== 'smart-skip'}
+            id={`${id}-smart-skip-panel`}
+            role="tabpanel"
+            tabIndex={activeTab === 'smart-skip' ? 0 : -1}
+          >
+            {smartSkipMounted || activeTab === 'smart-skip' ? (
+              <SmartSkipPanel {...smartSkipProps} />
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </div>
   );

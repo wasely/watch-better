@@ -1,4 +1,4 @@
-import { StrictMode, useMemo, useState } from 'react';
+import { StrictMode, useMemo, useState, type CSSProperties } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { WatchBetterApp, type ResolvedTheme } from '@/app/WatchBetterApp';
@@ -9,9 +9,9 @@ import {
   type WatchBetterSettings,
   type PanelTab,
 } from '@/features/settings/settings';
-import type {
-  SmartSkipAnalysisState,
-  SmartSkipRefinementState,
+import {
+  type SmartSkipAnalysisState,
+  type SmartSkipRefinementState,
 } from '@/features/smart-skip/domain';
 import type { RuntimeStatus } from '@/messaging/messages';
 import type { TranscriptViewState } from '@/features/transcript/transcript-view-state';
@@ -23,8 +23,11 @@ import {
 
 import './style.css';
 
-const widths = [320, 360, 402, 480] as const;
+const widths = [240, 280, 320, 360, 402, 480] as const;
+const heights = [360, 480, 640] as const;
 type HarnessWidth = (typeof widths)[number];
+type HarnessHeight = (typeof heights)[number];
+type HarnessContext = 'watch' | 'shorts';
 type HarnessScenarioId = TranscriptFixtureId | 'search' | 'selected';
 type HarnessSurface = 'panel' | 'popup' | 'options';
 type PopupFixtureId =
@@ -130,6 +133,12 @@ const requestedWidth = Number(harnessParams.get('width'));
 const initialWidth: HarnessWidth = widths.includes(requestedWidth as HarnessWidth)
   ? (requestedWidth as HarnessWidth)
   : 402;
+const requestedHeight = Number(harnessParams.get('height'));
+const initialHeight: HarnessHeight = heights.includes(requestedHeight as HarnessHeight)
+  ? (requestedHeight as HarnessHeight)
+  : 480;
+const initialContext: HarnessContext =
+  harnessParams.get('kind') === 'shorts' ? 'shorts' : 'watch';
 const requestedScenario = harnessParams.get('scenario');
 const initialScenario: HarnessScenarioId =
   requestedScenario && requestedScenario in scenarioLabels
@@ -198,13 +207,23 @@ function Harness() {
     useState<WatchBetterSettings>(DEFAULT_SETTINGS);
   const [optionsStatus, setOptionsStatus] = useState('Settings loaded');
   const [width, setWidth] = useState<HarnessWidth>(initialWidth);
+  const [height, setHeight] = useState<HarnessHeight>(initialHeight);
+  const [context, setContext] = useState<HarnessContext>(initialContext);
   const [scenario, setScenario] = useState<HarnessScenarioId>(initialScenario);
   const [panelTab, setPanelTab] = useState<PanelTab>(initialTab);
   const [selectedTrackId, setSelectedTrackId] = useState('en-human');
   const [activeIndex, setActiveIndex] = useState(4);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [askFocused, setAskFocused] = useState(initialAskFocused);
-  const [smartSkipEnabled, setSmartSkipEnabled] = useState(true);
+  const [smartSkipConfiguration, setSmartSkipConfiguration] = useState(
+    DEFAULT_SETTINGS.smartSkip,
+  );
+  const [disabledSmartSkipIntervalIds, setDisabledSmartSkipIntervalIds] = useState(
+    new Set<string>(),
+  );
+  const [smartSkipRefinementRequested, setSmartSkipRefinementRequested] = useState(
+    smartSkipScenario === 'analyzing' || smartSkipScenario === 'error',
+  );
   const [neighborFirst, setNeighborFirst] = useState(false);
   const [instance, setInstance] = useState(0);
 
@@ -258,8 +277,8 @@ function Harness() {
         trackId: transcriptState.selectedTrackId,
         transcriptFingerprint: 'fixture01',
         provider: 'gemini',
-        strictness: 'balanced',
-        categories: DEFAULT_SETTINGS.smartSkip.categories,
+        strictness: smartSkipConfiguration.strictness,
+        categories: smartSkipConfiguration.categories,
         analyzedAt: 1,
         reviewRequired: false,
         intervals:
@@ -275,7 +294,8 @@ function Harness() {
                   category: 'sponsor',
                   reason: 'Sponsor message and discount code',
                   confidence: 0.97,
-                  enabled: true,
+                  enabled: !disabledSmartSkipIntervalIds.has('fixture-sponsor'),
+                  action: 'skip',
                   source: 'instant',
                 },
                 {
@@ -287,7 +307,8 @@ function Harness() {
                   category: 'ramble',
                   reason: 'Disposable aside interrupts the main workflow',
                   confidence: 0.94,
-                  enabled: true,
+                  enabled: !disabledSmartSkipIntervalIds.has('fixture-middle-tangent'),
+                  action: 'skip',
                   source: 'deep',
                 },
                 {
@@ -299,20 +320,26 @@ function Harness() {
                   category: 'outro',
                   reason: 'Closing recap repeats the main result',
                   confidence: 0.96,
-                  enabled: true,
+                  enabled: !disabledSmartSkipIntervalIds.has('fixture-outro'),
+                  action: 'skip',
                   source: 'deep',
                 },
               ],
       },
     };
-  }, [transcriptState]);
+  }, [
+    disabledSmartSkipIntervalIds,
+    smartSkipConfiguration.categories,
+    smartSkipConfiguration.strictness,
+    transcriptState,
+  ]);
   const smartSkipRefinementState: SmartSkipRefinementState =
     smartSkipScenario === 'analyzing'
       ? { kind: 'analyzing', completed: 1, total: 2 }
       : smartSkipScenario === 'error'
         ? {
             kind: 'unavailable',
-            message: 'Deep scan unavailable; instant cuts remain active.',
+            message: 'Deep scan unavailable; instant jumps remain active.',
           }
         : smartSkipScenario === 'empty' || transcriptState.kind !== 'ready'
           ? { kind: 'idle' }
@@ -416,6 +443,35 @@ function Harness() {
             </label>
 
             <label>
+              Panel height
+              <select
+                onChange={(event) =>
+                  setHeight(Number(event.currentTarget.value) as HarnessHeight)
+                }
+                value={height}
+              >
+                {heights.map((option) => (
+                  <option key={option} value={option}>
+                    {option}px
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              YouTube context
+              <select
+                onChange={(event) =>
+                  setContext(event.currentTarget.value as HarnessContext)
+                }
+                value={context}
+              >
+                <option value="watch">Watch page</option>
+                <option value="shorts">Shorts dock</option>
+              </select>
+            </label>
+
+            <label>
               Fixture
               <select
                 onChange={(event) =>
@@ -489,9 +545,13 @@ function Harness() {
       </aside>
 
       {surface === 'panel' ? (
-        <main className="harness-stage" aria-label="Simulated YouTube page">
+        <main
+          className={`harness-stage harness-stage--${context}`}
+          aria-label={`Simulated YouTube ${context === 'shorts' ? 'Shorts' : 'watch'} page`}
+          style={{ '--harness-player-height': `${height}px` } as CSSProperties}
+        >
           <div className="harness-video">
-            <span>Simulated YouTube player</span>
+            <span>Simulated YouTube {context === 'shorts' ? 'Short' : 'player'}</span>
             <div />
           </div>
           <aside className="harness-column" style={{ width }}>
@@ -527,6 +587,13 @@ function Harness() {
                     frameShouldFail
                       ? Promise.reject(new Error('Fixture frame binding failure.'))
                       : Promise.resolve(),
+                  ...(floatingMode
+                    ? {
+                        quickLearn: {
+                          thumbnailUrl: 'https://i.ytimg.com/vi/fixture/hqdefault.jpg',
+                        },
+                      }
+                    : {}),
                 }}
                 activeTab={panelTab}
                 collapsed={collapsed}
@@ -548,29 +615,48 @@ function Harness() {
                   : {})}
                 theme={theme}
                 smartSkip={{
-                  configuration: DEFAULT_SETTINGS.smartSkip,
+                  configuration: smartSkipConfiguration,
                   analysisState: smartSkipAnalysisState,
                   refinementState: smartSkipRefinementState,
+                  refinementRequested: smartSkipRefinementRequested,
                   durationSeconds:
                     transcriptState.kind === 'ready'
                       ? transcriptState.document.durationSeconds
                       : null,
                   engineSnapshot: {
                     state:
-                      smartSkipAnalysisState.kind === 'ready' && smartSkipEnabled
+                      smartSkipAnalysisState.kind === 'ready' &&
+                      smartSkipConfiguration.autoSkip
                         ? 'ready'
                         : 'disabled',
                     timeSavedSeconds:
-                      smartSkipAnalysisState.kind === 'ready' && smartSkipEnabled
+                      smartSkipAnalysisState.kind === 'ready' &&
+                      smartSkipConfiguration.autoSkip
                         ? 18
                         : 0,
                     lastSkipped: null,
+                    basePlaybackRate: 1,
                     message:
-                      smartSkipAnalysisState.kind === 'ready' && smartSkipEnabled
-                        ? '1 cut ready.'
+                      smartSkipAnalysisState.kind === 'ready' &&
+                      smartSkipConfiguration.autoSkip
+                        ? 'Smart Skip is monitoring playback.'
                         : 'Playback is unchanged.',
                   },
-                  onEnabledChange: setSmartSkipEnabled,
+                  onConfigurationChange: setSmartSkipConfiguration,
+                  onEnabledChange: (enabled) =>
+                    setSmartSkipConfiguration((current) => ({
+                      ...current,
+                      autoSkip: enabled,
+                    })),
+                  onIntervalEnabledChange: (intervalId, enabled) =>
+                    setDisabledSmartSkipIntervalIds((current) => {
+                      const next = new Set(current);
+                      if (enabled) next.delete(intervalId);
+                      else next.add(intervalId);
+                      return next;
+                    }),
+                  onRefinementRequest: () => setSmartSkipRefinementRequested(true),
+                  onSeek: () => undefined,
                   transcriptAvailable: transcriptState.kind === 'ready',
                 }}
                 transcript={{

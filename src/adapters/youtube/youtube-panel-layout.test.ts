@@ -16,10 +16,14 @@ describe('YouTube panel host layout', () => {
     expect(host.dataset.watchbetterShortsDock).toBe('true');
     expect(host.style.display).toBe('block');
     expect(host.style.position).toBe('fixed');
-    expect(host.style.top).toBe('96px');
+    expect(host.style.top).toContain('9dvh');
     expect(host.style.right).toBe('16px');
     expect(host.style.width).toContain('420px');
     expect(host.style.width).toContain('100vw');
+    expect(host.style.maxHeight).toContain('100dvh');
+    expect(host.style.getPropertyValue('--watchbetter-player-height')).toContain(
+      '100dvh',
+    );
     expect(host.style.zIndex).toBe('2147483000');
     expect(host.style.getPropertyPriority('position')).toBe('important');
     expect(host.style.getPropertyPriority('display')).toBe('important');
@@ -46,6 +50,8 @@ describe('YouTube panel host layout', () => {
     expect(host.dataset.watchbetterShortsDock).toBeUndefined();
     expect(host.style.display).toBe('');
     expect(host.style.position).toBe('');
+    expect(host.style.maxHeight).toBe('');
+    expect(host.style.getPropertyValue('--watchbetter-player-height')).toBe('');
     expect(host.style.width).toBe('100%');
     expect(host.style.marginBottom).toBe('12px');
   });

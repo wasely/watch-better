@@ -19,7 +19,7 @@ No backend, provider credential access, model API, analytics, video download, or
 - `src/adapters/youtube/` — YouTube selectors and page/player adapters.
 - `src/features/transcript/` — transcript domain, search, selection, and UI.
 - `src/features/ask/` — bounded context and provider handoff.
-- `src/features/smart-skip/` — local/semantic analysis, cut maps, and controls.
+- `src/features/smart-skip/` — local/semantic analysis, skip-only action maps, and controls.
 - `src/features/detach/` — in-page movable session cards.
 - `src/services/` / `src/messaging/` / `src/storage/` — browser boundaries and contracts.
 - `harness/` — fixture UI for screenshots and interaction tests.

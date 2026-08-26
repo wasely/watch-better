@@ -117,7 +117,7 @@ The original caption-gap prototype below is historical and was replaced by Smart
   - Verify: spike tests/notes in architecture/decisions/risks.
   - Status: Verified 2026-07-30; four approaches documented with official platform evidence, and padded transcript gaps selected without new permissions.
 - [x] **MVP-061 · P0 · PRD-030, PRD-032, PRD-033, PRD-035 — Safe skip engine**
-  - Acceptance: selected engine is off by default, validates timing, avoids ads/repeats, reverses immediately, and restores rate on all exits.
+  - Acceptance: selected engine is off by default, validates timing, avoids ads/repeats, reverses immediately, and never changes playback speed.
   - Verify: deterministic engine/controller integration tests.
   - Status: Verified 2026-07-30; deterministic tests cover gap planning, ads, malformed timing, repeated jumps, rate changes, disable, and dispose restoration.
 - [x] **MVP-062 · P1 · PRD-034 — Jump Cut controls and measurement**
@@ -126,17 +126,18 @@ The original caption-gap prototype below is historical and was replaced by Smart
   - Status: Verified 2026-07-30; persisted configuration drives the real engine and the panel reports approximate savings and honest detector state.
 
 - [x] **MVP-063 · P0 — Smart Skip analysis and playback**
-  - Acceptance: playback starts from an instant local map; browser idle starts a
-    separate signed-in semantic pass after captions load and merges only validated cuts;
-    local playback keeps ad guards and undo throughout.
+  - Acceptance: matching captions build a local skip-only map; an explicit **Start deep
+    scan** starts a separate signed-in semantic pass and merges only validated jumps;
+    speed preservation, ad guards, 35% hard-jump budgeting, and undo remain live.
   - Verify: analysis/parser/cache/engine/message/component tests and production build.
-  - Status: Implemented 2026-08-18; live signed-in Gemini/ChatGPT verification remains
-    in the manual release gate.
-- [x] **MVP-064 · P1 — Smart Skip responsive controls**
-  - Acceptance: third tab exposes cut map, settings, progress, error/empty/success,
-    per-cut controls, safety warning, and session privacy disclosure.
+  - Status: Revalidated offline 2026-08-23; live signed-in provider and playback-feel
+    verification remains in the manual release gate.
+- [~] **MVP-064 · P1 — Smart Skip responsive controls**
+  - Acceptance: third tab exposes skip intensity, a jump map, per-jump controls,
+    progress, error/empty/success states, safety warning, and session privacy disclosure.
   - Verify: component tests, accessibility checks, and dark/light 320/402/480px shots.
-  - Status: Verified 2026-08-18 in the fixture harness.
+  - Status: Component tests and offline harness fixtures pass 2026-08-23; current redesign
+    still needs the manual narrow-dock visual matrix.
 
 ## Phase 7–8 — hardening and delivery
 

@@ -7,6 +7,7 @@ import type {
   TranscriptDocument,
   TranscriptSegmentId,
 } from '@/features/transcript/domain';
+import { buildQuickLearnQuestion } from '@/features/quick-learn/quick-learn-prompt';
 import {
   WEB_CHAT_PROVIDERS,
   type WebChatProviderId,
@@ -30,6 +31,7 @@ export interface ChatTurnRequest {
   readonly sessionId: string;
   readonly message: string;
   readonly newConversation: boolean;
+  readonly imageUrl?: string;
 }
 
 export interface ChatTurnResult {
@@ -48,6 +50,9 @@ export interface AskPanelProps {
   readonly initialProvider?: WebChatProviderId;
   readonly selectedProvider?: WebChatProviderId;
   readonly sendRequestId?: number;
+  readonly quickLearn?: {
+    readonly thumbnailUrl?: string;
+  };
   readonly onPrimeWebChat?: (request: ChatTurnRequest) => Promise<void>;
   readonly onFocusWebChat?: (
     provider: WebChatProviderId,
@@ -247,6 +252,7 @@ export function AskPanel({
   initialProvider = 'gemini',
   selectedProvider: controlledSelectedProvider,
   sendRequestId = 0,
+  quickLearn,
   onPrimeWebChat,
   onFocusWebChat,
   onSendWebChat,
@@ -273,7 +279,7 @@ export function AskPanel({
   const [settledFocusProvider, setSettledFocusProvider] =
     useState<WebChatProviderId | null>(null);
   const focusButtonRef = useRef<HTMLButtonElement>(null);
-  const primedContextsRef = useRef(new Set<string>());
+  const primingContextsRef = useRef(new Set<string>());
   const focusedContextRef = useRef('');
   const [primedContextKey, setPrimedContextKey] = useState('');
 
@@ -329,6 +335,20 @@ export function AskPanel({
     return prompt;
   }, [provider, transcript]);
 
+  const buildQuickLearnPrompt = useCallback((): string | null => {
+    if (!transcript || !quickLearn) return null;
+    return provider.buildPrompt({
+      transcript,
+      scope: 'entire-video',
+      currentTimeSeconds: null,
+      selectedSegmentIds: EMPTY_SELECTION,
+      question: buildQuickLearnQuestion({
+        videoTitle: transcript.videoTitle,
+        ...(quickLearn.thumbnailUrl ? { thumbnailUrl: quickLearn.thumbnailUrl } : {}),
+      }),
+    }).text;
+  }, [provider, quickLearn, transcript]);
+
   const currentPrimeContextKey = (() => {
     if (!transcript) return '';
     const sessionId = providerSessionIds[selectedProvider];
@@ -344,15 +364,24 @@ export function AskPanel({
   })();
 
   useEffect(() => {
-    if (!onPrimeWebChat || !transcript || !providerReady) return;
+    if (
+      quickLearn ||
+      !visible ||
+      requestPending ||
+      !onPrimeWebChat ||
+      !transcript ||
+      !providerReady
+    )
+      return;
     const sessionId = providerSessionIds[selectedProvider];
     if (!sessionId) return;
     const contextKey = currentPrimeContextKey;
     if (!contextKey) return;
-    if (primedContextsRef.current.has(contextKey)) return;
+    if (primedContextKey === contextKey || primingContextsRef.current.has(contextKey))
+      return;
     const message = buildPrimePrompt();
     if (!message) return;
-    primedContextsRef.current.add(contextKey);
+    primingContextsRef.current.add(contextKey);
     let disposed = false;
     queueMicrotask(() => {
       if (!disposed) setPrimeState({ kind: 'sending' });
@@ -364,14 +393,15 @@ export function AskPanel({
       newConversation: true,
     })
       .then(() => {
+        primingContextsRef.current.delete(contextKey);
         if (!disposed) {
           setPrimedContextKey(contextKey);
           setPrimeState({ kind: 'sent' });
         }
       })
       .catch((error: unknown) => {
+        primingContextsRef.current.delete(contextKey);
         if (disposed) return;
-        primedContextsRef.current.delete(contextKey);
         setPrimeState({
           kind: 'error',
           message:
@@ -385,14 +415,81 @@ export function AskPanel({
     buildPrimePrompt,
     currentPrimeContextKey,
     onPrimeWebChat,
+    primedContextKey,
     providerReady,
     providerSessionIds,
+    requestPending,
     selectedProvider,
     transcript,
+    visible,
+    quickLearn,
   ]);
 
   useEffect(() => {
-    if (!visible) {
+    if (
+      !quickLearn ||
+      !visible ||
+      requestPending ||
+      !onSendWebChat ||
+      !transcript ||
+      !providerReady
+    )
+      return;
+    const sessionId = providerSessionIds[selectedProvider];
+    if (!sessionId) return;
+    const contextKey = currentPrimeContextKey;
+    if (!contextKey) return;
+    if (primedContextKey === contextKey || primingContextsRef.current.has(contextKey))
+      return;
+    const message = buildQuickLearnPrompt();
+    if (!message) return;
+    primingContextsRef.current.add(contextKey);
+    let disposed = false;
+    queueMicrotask(() => {
+      if (!disposed) setPrimeState({ kind: 'sending' });
+    });
+    void onSendWebChat({
+      provider: selectedProvider,
+      sessionId,
+      message,
+      newConversation: false,
+      ...(quickLearn.thumbnailUrl ? { imageUrl: quickLearn.thumbnailUrl } : {}),
+    })
+      .then(() => {
+        primingContextsRef.current.delete(contextKey);
+        if (!disposed) {
+          setPrimedContextKey(contextKey);
+          setPrimeState({ kind: 'sent' });
+        }
+      })
+      .catch((error: unknown) => {
+        primingContextsRef.current.delete(contextKey);
+        if (disposed) return;
+        setPrimeState({
+          kind: 'error',
+          message:
+            error instanceof Error ? error.message : 'Could not start Quick Learn.',
+        });
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [
+    buildQuickLearnPrompt,
+    currentPrimeContextKey,
+    onSendWebChat,
+    primedContextKey,
+    providerReady,
+    providerSessionIds,
+    quickLearn,
+    requestPending,
+    selectedProvider,
+    transcript,
+    visible,
+  ]);
+
+  useEffect(() => {
+    if (!visible || quickLearn) {
       focusedContextRef.current = '';
       return;
     }
@@ -418,6 +515,7 @@ export function AskPanel({
     providerSessionIds,
     selectedProvider,
     visible,
+    quickLearn,
   ]);
 
   useEffect(() => {
@@ -439,6 +537,7 @@ export function AskPanel({
     if (!providerReady) return;
     const sessionId = providerSessionIds[selectedProvider];
     if (!sessionId) return;
+    const contextKey = currentPrimeContextKey;
     let disposed = false;
     queueMicrotask(() => {
       if (disposed || handledRequestId === sendRequestId) return;
@@ -451,7 +550,10 @@ export function AskPanel({
         newConversation: true,
       })
         .then(() => {
-          if (!disposed) setPrimeState({ kind: 'sent' });
+          if (!disposed) {
+            if (contextKey) setPrimedContextKey(contextKey);
+            setPrimeState({ kind: 'sent' });
+          }
         })
         .catch((error: unknown) => {
           if (disposed) return;
@@ -469,6 +571,7 @@ export function AskPanel({
     };
   }, [
     buildTranscriptPrompt,
+    currentPrimeContextKey,
     handledRequestId,
     onSendWebChat,
     primeSending,
@@ -592,7 +695,9 @@ export function AskPanel({
 
           {primeState.kind === 'sending' ? (
             <div className="ct-provider-frame__notice" role="status">
-              Preparing video context in {providerDefinition.displayName}…
+              {quickLearn
+                ? `Answering the video’s click question in ${providerDefinition.displayName}…`
+                : `Preparing video context in ${providerDefinition.displayName}…`}
             </div>
           ) : null}
           {waitingForProvider ? (
@@ -602,7 +707,9 @@ export function AskPanel({
           ) : null}
           {primeState.kind === 'sent' ? (
             <div className="ct-provider-frame__notice" role="status">
-              Video context ready in {providerDefinition.displayName}.
+              {quickLearn
+                ? `Quick answer sent to ${providerDefinition.displayName}.`
+                : `Video context ready in ${providerDefinition.displayName}.`}
             </div>
           ) : null}
           {primeState.kind === 'error' ? (

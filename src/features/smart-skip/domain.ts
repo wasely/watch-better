@@ -11,6 +11,7 @@ export const SMART_SKIP_CATEGORIES = [
 
 export type SmartSkipCategory = (typeof SMART_SKIP_CATEGORIES)[number];
 export type SmartSkipStrictness = 'conservative' | 'balanced' | 'aggressive';
+export type SmartSkipAction = 'skip';
 
 export interface SmartSkipConfiguration {
   readonly provider: WebChatProviderId;
@@ -29,6 +30,8 @@ export interface SmartSkipInterval {
   readonly reason: string;
   readonly confidence: number;
   readonly enabled: boolean;
+  /** Smart Skip seeks over enabled intervals; it never changes playback speed. */
+  readonly action?: SmartSkipAction;
   /** Local rules are immediate; deep cuts arrive later without blocking playback. */
   readonly source?: 'instant' | 'deep';
 }
@@ -77,5 +80,5 @@ export const SMART_SKIP_CATEGORY_LABELS: Readonly<Record<SmartSkipCategory, stri
     outro: 'Outros',
     'call-to-action': 'Calls to action',
     repetition: 'Repetition',
-    ramble: 'Rambling',
+    ramble: 'Filler & rambling',
   });

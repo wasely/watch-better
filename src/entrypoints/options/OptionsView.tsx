@@ -49,7 +49,7 @@ export function OptionsView({
           <BrandLogo aria-hidden="true" className="ct-options__logo" />
           <div>
             <span className="ct-options__eyebrow">Extension settings</span>
-            <h1>Watch Better</h1>
+            <h1>YouTube Max</h1>
             <p>Configure your YouTube companion and signed-in AI sessions.</p>
           </div>
         </div>
@@ -67,12 +67,12 @@ export function OptionsView({
       <section aria-labelledby="general-title" className="ct-options-card">
         <div className="ct-options-card__heading">
           <h2 id="general-title">Panel defaults</h2>
-          <p>Choose how Watch Better appears when a supported video opens.</p>
+          <p>Choose how YouTube Max appears when a supported video opens.</p>
         </div>
         <label className="ct-options-row">
           <span>
             <strong>Extension enabled</strong>
-            <small>Show Watch Better on supported YouTube videos.</small>
+            <small>Show YouTube Max on supported YouTube videos.</small>
           </span>
           <input
             checked={settings.extensionEnabled}
@@ -86,7 +86,7 @@ export function OptionsView({
         <label className="ct-options-row">
           <span>
             <strong>Default tab</strong>
-            <small>Shown when Watch Better mounts on a video.</small>
+            <small>Shown when YouTube Max mounts on a video.</small>
           </span>
           <select
             disabled={disabled}
@@ -190,12 +190,15 @@ export function OptionsView({
       <section aria-labelledby="smart-skip-title" className="ct-options-card">
         <div className="ct-options-card__heading">
           <h2 id="smart-skip-title">Smart Skip</h2>
-          <p>Choose how aggressively the instant local cut map skips.</p>
+          <p>Choose how boldly Smart Skip jumps low-value sections.</p>
         </div>
         <label className="ct-options-row">
           <span>
-            <strong>Strictness</strong>
-            <small>Balanced keeps uncertain discussion intact.</small>
+            <strong>Skip intensity</strong>
+            <small>
+              Strict balances information safety with meaningful time savings. Your
+              YouTube speed never changes.
+            </small>
           </span>
           <select
             disabled={disabled}
@@ -209,15 +212,15 @@ export function OptionsView({
             }
             value={settings.smartSkip.strictness}
           >
-            <option value="conservative">Conservative</option>
-            <option value="balanced">Balanced</option>
-            <option value="aggressive">Aggressive</option>
+            <option value="conservative">Safe</option>
+            <option value="balanced">Strict</option>
+            <option value="aggressive">Maximum</option>
           </select>
         </label>
         <label className="ct-options-row">
           <span>
-            <strong>Start skipping immediately</strong>
-            <small>Skips the opening while captions are still loading.</small>
+            <strong>Automatic jumps</strong>
+            <small>Jump safe low-value sections when captions identify them.</small>
           </span>
           <input
             checked={settings.smartSkip.autoSkip}
@@ -234,7 +237,7 @@ export function OptionsView({
           />
         </label>
         <fieldset className="ct-options-smart-skip-categories" disabled={disabled}>
-          <legend>Categories</legend>
+          <legend>Playback targets</legend>
           {SMART_SKIP_CATEGORIES.map((category) => (
             <label key={category}>
               <input
@@ -314,13 +317,12 @@ export function OptionsView({
           </select>
         </label>
         <p className="ct-options-privacy">
-          Watch Better stores no API keys, cookies, analytics, transcripts, or
-          conversations permanently. Ask automatically submits bounded context with a
-          READY-only instruction, then leaves questions to you. Smart Skip starts
-          locally. When enabled and captions load, it automatically sends bounded
-          caption chunks for a separate deep analysis. Results last for the browser
-          session. Each provider applies its own draft, account, retention, and usage
-          policies.
+          YouTube Max stores no API keys, cookies, analytics, transcripts, or
+          conversations permanently. Opening Ask submits bounded context with a
+          READY-only instruction, then leaves questions to you. Smart Skip runs locally
+          and never changes playback speed. Only Start deep scan sends bounded caption
+          chunks for separate provider analysis. Results last for the browser session.
+          Each provider applies its own draft, account, retention, and usage policies.
         </p>
       </section>
 

@@ -39,6 +39,15 @@ describe('production privacy and permission audit', () => {
     expect(background).not.toContain("case 'webchat:preload'");
   });
 
+  it('cannot write the YouTube playback rate', () => {
+    for (const path of [
+      'src/adapters/youtube/playback-controller.ts',
+      'src/features/detach/detached-video.ts',
+      'src/features/smart-skip/smart-skip-engine.ts',
+    ])
+      expect(read(path)).not.toMatch(/\.playbackRate\s*=(?!=)/);
+  });
+
   it('limits web chat to explicit typed provider actions', () => {
     const messages = read('src/messaging/messages.ts');
     const background = read('src/entrypoints/background.ts');
@@ -50,19 +59,24 @@ describe('production privacy and permission audit', () => {
     expect(background).toContain('sendToProviderPage');
   });
 
-  it('requests storage, scoped frame rules, and only supported hosts', () => {
+  it('requests scoped runtime, clipboard, and supported-host access only', () => {
     const config = read('wxt.config.ts');
     expect(config).toContain("minimum_chrome_version: '133'");
-    expect(config).toContain(
-      "permissions: ['storage', 'declarativeNetRequest', 'webNavigation']",
-    );
+    for (const permission of [
+      'storage',
+      'declarativeNetRequest',
+      'webNavigation',
+      'clipboardRead',
+      'clipboardWrite',
+    ])
+      expect(config).toContain(`'${permission}'`);
     expect(config).toContain("'https://www.youtube.com/*'");
     expect(config).toContain("'https://chatgpt.com/*'");
     expect(config).toContain("'https://gemini.google.com/*'");
     expect(config).not.toContain('chat.deepseek.com');
     expect(config).not.toContain('api.openai.com');
     expect(config).not.toMatch(
-      /tabCapture|scripting|<all_urls>|clipboardWrite|cookies|browsingData|webRequest/,
+      /tabCapture|scripting|<all_urls>|cookies|browsingData|webRequest/,
     );
   });
 

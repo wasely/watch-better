@@ -53,6 +53,7 @@ describe('fixture accessibility', () => {
               state: 'disabled',
               timeSavedSeconds: 0,
               lastSkipped: null,
+              basePlaybackRate: 1,
               message: 'Playback is unchanged.',
             },
             transcriptAvailable: true,

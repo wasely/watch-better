@@ -24,11 +24,11 @@ const send = (request: ExtensionRequest): Promise<ExtensionResponse> =>
   browser.runtime.sendMessage(request);
 
 const statusMessage = (status: RuntimeStatus): string => {
-  if (!status.enabled) return 'Turn it on to use Watch Better on videos.';
-  if (!status.supportedPage) return 'Open a YouTube video to use Watch Better.';
+  if (!status.enabled) return 'Turn it on to use YouTube Max on videos.';
+  if (!status.supportedPage) return 'Open a YouTube video to use YouTube Max.';
   return status.panelMounted
     ? 'Ready on this video.'
-    : 'Reload this video to show Watch Better.';
+    : 'Reload this video to show YouTube Max.';
 };
 
 function Popup() {
@@ -61,7 +61,7 @@ function Popup() {
       .catch(() => {
         if (!disposed) {
           setHasError(true);
-          setMessage('Could not read Watch Better status. Try again.');
+          setMessage('Could not read YouTube Max status. Try again.');
         }
       });
 
@@ -110,14 +110,14 @@ function Popup() {
           enabled
             ? updatedStatus
               ? statusMessage(updatedStatus)
-              : 'Watch Better is on.'
-            : 'Watch Better is off.',
+              : 'YouTube Max is on.'
+            : 'YouTube Max is off.',
         );
       } else if (!response.ok) {
         setMessage(response.message);
       }
     } catch {
-      setMessage('Could not update Watch Better. Try again.');
+      setMessage('Could not update YouTube Max. Try again.');
     } finally {
       setBusyAction(null);
     }

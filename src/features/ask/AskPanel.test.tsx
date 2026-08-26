@@ -197,7 +197,7 @@ describe('AskPanel', () => {
     ).toHaveLength(1);
   });
 
-  it('auto-submits the entire video context without using the explicit send action', async () => {
+  it('submits the entire video context when Ask is visible', async () => {
     const onPrime = vi
       .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
       .mockResolvedValue(undefined);
@@ -225,7 +225,52 @@ describe('AskPanel', () => {
     expect(await screen.findByText('Video context ready in Gemini.')).toBeVisible();
   });
 
-  it('focuses the primed composer only when Ask becomes visible', async () => {
+  it('answers a Quick Learn thumbnail directly without READY priming', async () => {
+    const onPrime = vi
+      .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
+      .mockResolvedValue(undefined);
+    let finishAnswer!: (result: ChatTurnResult) => void;
+    const onSend = vi.fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>(
+      () =>
+        new Promise((resolve) => {
+          finishAnswer = resolve;
+        }),
+    );
+
+    render(
+      <AskPanel
+        onPrimeWebChat={onPrime}
+        onSendWebChat={onSend}
+        providerStatuses={readyStatuses}
+        quickLearn={{
+          thumbnailUrl: 'https://i.ytimg.com/vi/tutorial/hqdefault.jpg',
+        }}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
+    expect(onPrime).not.toHaveBeenCalled();
+    expect(onSend.mock.calls[0]?.[0]).toMatchObject({
+      provider: 'gemini',
+      newConversation: false,
+      imageUrl: 'https://i.ytimg.com/vi/tutorial/hqdefault.jpg',
+    });
+    expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
+    expect(onSend.mock.calls[0]?.[0].message).toMatch(/why.*worth watching/i);
+    expect(onSend.mock.calls[0]?.[0].message).not.toContain('Reply only READY');
+    expect(
+      await screen.findByText('Answering the video’s click question in Gemini…'),
+    ).toBeVisible();
+    finishAnswer({
+      text: '',
+      responseId: 'quick-learn-answer',
+      provider: 'gemini',
+    });
+    expect(await screen.findByText('Quick answer sent to Gemini.')).toBeVisible();
+  });
+
+  it('shares and focuses video context only after Ask becomes visible', async () => {
     const onPrime = vi
       .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
       .mockResolvedValue(undefined);
@@ -242,7 +287,10 @@ describe('AskPanel', () => {
       />,
     );
 
-    await waitFor(() => expect(onPrime).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(screen.getByTitle('Gemini embedded chat')).toBeInTheDocument(),
+    );
+    expect(onPrime).not.toHaveBeenCalled();
     expect(onFocus).not.toHaveBeenCalled();
     view.rerender(
       <AskPanel
@@ -254,9 +302,76 @@ describe('AskPanel', () => {
       />,
     );
 
+    await waitFor(() => expect(onPrime).toHaveBeenCalledOnce());
     await waitFor(() =>
       expect(onFocus).toHaveBeenCalledWith('gemini', expect.any(String)),
     );
+  });
+
+  it('re-primes a revisited video after another context replaced it', async () => {
+    const onPrime = vi
+      .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
+      .mockResolvedValue(undefined);
+    const secondTranscript = {
+      ...tutorialTranscript,
+      videoId: 'second-video',
+      videoTitle: 'Second video',
+    };
+    const view = render(
+      <AskPanel
+        onPrimeWebChat={onPrime}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+        visible
+      />,
+    );
+
+    await waitFor(() => expect(onPrime).toHaveBeenCalledTimes(1));
+    view.rerender(
+      <AskPanel
+        onPrimeWebChat={onPrime}
+        providerStatuses={readyStatuses}
+        transcript={secondTranscript}
+        visible
+      />,
+    );
+    await waitFor(() => expect(onPrime).toHaveBeenCalledTimes(2));
+    view.rerender(
+      <AskPanel
+        onPrimeWebChat={onPrime}
+        providerStatuses={readyStatuses}
+        transcript={tutorialTranscript}
+        visible
+      />,
+    );
+
+    await waitFor(() => expect(onPrime).toHaveBeenCalledTimes(3));
+  });
+
+  it('does not auto-prime over an explicit transcript send', async () => {
+    const onPrime = vi
+      .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
+      .mockResolvedValue(undefined);
+    const onSend = vi
+      .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
+      .mockResolvedValue({
+        text: '',
+        responseId: 'explicit-context',
+        provider: 'gemini',
+      });
+    render(
+      <AskPanel
+        onPrimeWebChat={onPrime}
+        onSendWebChat={onSend}
+        providerStatuses={readyStatuses}
+        sendRequestId={1}
+        transcript={tutorialTranscript}
+        visible
+      />,
+    );
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
+    await waitFor(() => expect(onPrime).not.toHaveBeenCalled());
   });
 
   it('sends the provider frame transcript context exactly once per request', async () => {

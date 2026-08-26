@@ -8,13 +8,15 @@ import {
   type WebChatPageResponse,
 } from '@/services/web-chat';
 import {
+  attachImageFile,
   composerText,
+  fetchImageFile,
   fillComposer,
   firstVisible,
   focusComposerAtEnd,
   isGenerating,
   responseTexts,
-  submitComposer,
+  submitComposerWhenReady,
 } from '@/services/web-chat-dom';
 
 /** Tight: every wait here is on the critical path between a click and a sent prompt. */
@@ -23,7 +25,9 @@ const COMPOSER_TIMEOUT_MS = 15_000;
 /** Status answers must not block the panel's poll loop, so they barely wait at all. */
 const STATUS_TIMEOUT_MS = 250;
 const FILL_TIMEOUT_MS = 1_500;
-const SUBMIT_CONFIRM_TIMEOUT_MS = 1_500;
+const SUBMIT_READY_TIMEOUT_MS = 5_000;
+const SUBMIT_RETRY_TIMEOUT_MS = 1_500;
+const SUBMIT_CONFIRM_TIMEOUT_MS = 3_000;
 const RESPONSE_TIMEOUT_MS = 180_000;
 const RESPONSE_POLL_INTERVAL_MS = 250;
 const STABLE_RESPONSE_POLLS = 3;
@@ -228,21 +232,42 @@ export default defineContentScript({
       try {
         if (message.newConversation) composer = await startNewConversation(definition);
         const responseCount = responseTexts(definition).length;
+        if (message.type === 'watchbetter:webchat-page-send' && message.imageUrl) {
+          const image = await fetchImageFile(message.imageUrl);
+          if (!image || !(await attachImageFile(composer, image)))
+            return {
+              ok: false,
+              type: 'webchat-page:error',
+              code: 'send-failed',
+              message: `${definition.displayName} could not attach the video thumbnail. Try again.`,
+            };
+        }
         fillComposer(composer, message.message);
         if (!(await waitForComposerText(composer, message.message.trim()))) {
           fillComposer(composer, message.message);
-          if (!(await waitForComposerText(composer, message.message.trim())))
-            throw new Error(`${definition.displayName} did not accept the prompt.`);
+          // Rich provider editors can virtualize long drafts and make their DOM text
+          // unverifiable even when the send button holds the complete prompt. Submit
+          // once, then use the provider's own empty-composer/generation state as truth.
         }
 
-        submitComposer(definition, composer);
+        let submitted =
+          (await submitComposerWhenReady(definition, composer, {
+            timeoutMs: SUBMIT_READY_TIMEOUT_MS,
+          })) && (await waitForSubmission(definition, composer, responseCount));
+        // A provider can acknowledge a programmatic click only after its UI settles.
+        // Retry once only while the same draft is visibly still waiting in the composer.
+        if (submitted === false && composerText(composer) !== '')
+          submitted =
+            (await submitComposerWhenReady(definition, composer, {
+              timeoutMs: SUBMIT_RETRY_TIMEOUT_MS,
+            })) && (await waitForSubmission(definition, composer, responseCount));
 
-        if (!(await waitForSubmission(definition, composer, responseCount)))
+        if (!submitted)
           return {
             ok: false,
             type: 'webchat-page:error',
             code: 'send-failed',
-            message: `${definition.displayName} did not accept the prompt. Open its tab and try again.`,
+            message: `${definition.displayName} did not start the answer. Try again.`,
           };
 
         if (message.type === 'watchbetter:webchat-page-prime') {

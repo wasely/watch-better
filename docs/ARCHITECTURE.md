@@ -26,31 +26,39 @@ YouTube captions -> normalized transcript -> bounded timestamped prompt
                                             v
 Transcript Ask -> typed background prompt -> ChatGPT/Gemini verified frame
 
-Thumbnail click -> floating Watch Better card -> embedded Gemini + bounded transcript
+Thumbnail click -> floating Watch Better card -> attached thumbnail + bounded transcript
+                                                -> direct Gemini click-hook answer
 
-Video starts -> provisional opening cut -> local seek engine
-Captions load -> instant local classification -> updated cut map
+Captions load -> raw speech timing + local classification -> skip-only engine
+                                              |
+                                              v
+                                 optional semantic refinement
 
 YouTube rail panel -> state-preserving detach -> movable in-page per-video card
                                       \----> fresh rail runtime for next video
 ```
 
-The initially selected Ask provider loads alongside the transcript. Once its verified
-frame and captions are ready, Watch Better auto-submits bounded context with a
-`READY`-only instruction. The viewer types a question into the focused composer and submits through
+The initially selected Ask provider loads alongside the transcript. After the viewer
+opens Ask and its verified frame and captions are ready, Watch Better submits bounded
+context with a `READY`-only instruction. The viewer types a question into the focused composer and submits through
 the provider UI. **Send to AI** remains an explicit focused-context submission. Other
 providers load only when selected; mounted frames stay alive across panel tabs,
 collapse, and YouTube video changes. Quick Learn creates the same floating runtime used
-by Pop Out, starts on Ask/Gemini, and stays inside the YouTube page.
+by Pop Out, starts on Ask/Gemini, attaches only an allowlisted YouTube thumbnail, and
+submits the direct briefing prompt to the already-loaded blank composer without the
+normal `READY` handshake or a new-conversation reset.
 
 No provider credential, cookie, token, or API key crosses this flow. No direct model
 API is called.
 
-Smart Skip installs a short provisional opening cut as soon as a video is detected,
-then synchronously classifies available caption segments. Opening Smart Skip mounts a
-separate provider frame that asynchronously adds validated high-confidence semantic
-cuts, including middle tangents and repetition. The Ask composer is never reused, and
-provider sign-in, latency, or failure cannot block or disable local playback skipping.
+Smart Skip waits for captions matching the current video; it never performs a blind
+opening jump. It preserves raw caption cue timing separately from sentence-level text,
+uses padded long gaps and explicit low-value spans as jumps, and never changes the
+viewer-selected YouTube speed. An
+isolated provider frame starts only after **Start deep scan** and asynchronously adds
+validated high-confidence semantic jumps, including middle tangents and repetition. The Ask
+composer is never reused, and provider sign-in, latency, or failure cannot block or
+disable local skipping.
 
 Before mounting ChatGPT or Gemini, the YouTube panel creates a one-use frame session
 ID and registers it with the background worker. After load, the panel sends that
@@ -102,6 +110,10 @@ The extension never deletes or reparents YouTube or third-party content.
 Quick Learn uses one mutation-batched listing controller and creates a per-video floating
 runtime only after a direct click. Repeated clicks bring the existing card forward. The
 card reuses the normal transcript loader, Gemini frame bridge, and move/resize controls.
+Its prompt answers the questions implied by the title and thumbnail, grounds video claims
+in timestamps, checks the click hook against the transcript, and requests official links
+without inventing them. Thumbnail attachment is best-effort; its allowlisted URL remains
+in the prompt as visual context fallback.
 
 ## Storage
 
@@ -131,30 +143,36 @@ Public extension requests are strict discriminated unions:
 
 Provider-page requests use a separate internal allowlist with status and send only.
 Unknown fields, unsupported providers, empty messages, and messages over 24,000
-characters are rejected.
+characters are rejected. Optional image context is accepted only for `webchat:send` and
+only from bounded HTTPS YouTube thumbnail hosts.
 
 ## Permissions
 
 - `storage` for typed settings and optional session cache.
 - `declarativeNetRequest` for YouTube-initiated provider subframes only.
 - `webNavigation` to verify registered provider frames are direct YouTube children.
+- `clipboardRead` and `clipboardWrite` to stage one public Quick Learn thumbnail for
+  Gemini's paste-only image input, then restore the prior clipboard contents.
 - YouTube host access for the panel and captions.
 - Exact ChatGPT/Gemini host access for the user-initiated web-session bridge.
 
-There is no requested `tabs`, `cookies`, `scripting`, `tabCapture`, clipboard,
+There is no requested `tabs`, `cookies`, `scripting`, `tabCapture`,
 `browsingData`, broad-host, main-frame rewrite, or remote-code permission. Standard
 tab methods are used only for the explicit full-tab sign-in fallback.
 
 ## Smart Skip boundary
 
-Smart Skip activates on video detection when its saved master switch is on. A short
-opening cut works before captions are ready; the remaining classifications require
-available YouTube captions. Local rules activate immediately; an isolated provider
-pass begins during browser idle after captions load and merges only validated cuts.
-It has no audio capture or speech-to-text fallback. The local engine suspends during
-ads/unsupported playback, supports per-cut disable and undo, and never changes playback
-speed. Maps are session-only and keyed by video, track, transcript fingerprint,
-categories, and intensity.
+Smart Skip activates only in the normal rail runtime when its saved master switch is on
+and matching YouTube captions are available. Local rules and raw cue-gap analysis build
+the first map; an isolated provider pass begins only after **Start deep scan** and merges only
+validated semantic jumps. Long dead air and low-value spans seek across padded
+boundaries; Safe/Strict/Maximum changes classification only. The viewer's chosen YouTube
+speed remains untouched. It has no audio capture or speech-to-text fallback. The engine
+suspends during ads and unsupported playback,
+supports per-action disable and undo, and credits only confirmed playback advancement.
+Automatic hard jumps never exceed 35% of video duration; lower-confidence excess jumps
+remain disabled for review. Maps are session-only and keyed by video, track, transcript
+fingerprint, categories, and intensity.
 
 ## Verification
 

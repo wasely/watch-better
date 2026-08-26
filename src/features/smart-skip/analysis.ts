@@ -50,7 +50,7 @@ const analysisPrompt = (
   chunkTotal: number,
 ): string =>
   [
-    'You are the ruthless but accurate editor behind Smart Skip. Compress the video by removing every span that adds no new viewer value without losing its promised information, reasoning, evidence, or instructions.',
+    'You are the ruthless but accurate editor behind Smart Skip. Shorten the video by removing every span that adds no new viewer value without losing its promised information, reasoning, evidence, or instructions.',
     `This is chunk ${chunkIndex + 1} of ${chunkTotal}. Judge every supplied line, including material buried in the middle.`,
     `Cut policy: ${{ conservative: 'safe', balanced: 'strict', aggressive: 'maximum' }[configuration.strictness]}.`,
     `Allowed categories: ${configuration.categories.join(', ')}.`,
@@ -157,10 +157,10 @@ const parseJson = (text: string): unknown => {
 const rawCutsFrom = (value: unknown): readonly unknown[] => {
   if (Array.isArray(value)) return value;
   if (typeof value !== 'object' || value === null)
-    throw new Error('The AI response did not contain a Smart Skip cut list.');
+    throw new Error('The AI response did not contain a Smart Skip action list.');
   const cuts = (value as { readonly cuts?: unknown }).cuts;
   if (!Array.isArray(cuts))
-    throw new Error('The AI response did not contain a Smart Skip cut list.');
+    throw new Error('The AI response did not contain a Smart Skip action list.');
   return cuts;
 };
 
@@ -250,6 +250,7 @@ export const normalizeSmartSkipIntervals = (
         reason: cut.reason,
         confidence: cut.confidence,
         enabled: true,
+        action: 'skip',
         source: 'deep',
       },
     ];
@@ -329,18 +330,14 @@ export const mergeSmartSkipAnalyses = (
       continue;
     }
 
-    const opening = previous.id.endsWith(':instant-opening') ? previous : null;
     const preferred =
-      opening ??
-      (candidate.source === 'deep' || candidate.confidence > previous.confidence
+      candidate.source === 'deep' || candidate.confidence > previous.confidence
         ? candidate
-        : previous);
-    const source = opening || preferred.source === 'instant' ? 'instant' : 'deep';
+        : previous;
+    const source = preferred.source === 'instant' ? 'instant' : 'deep';
     merged[merged.length - 1] = {
       ...preferred,
-      id: opening
-        ? opening.id
-        : `${instant.videoId}:${source}-${Math.min(previous.startSegmentIndex, candidate.startSegmentIndex)}-${Math.max(previous.endSegmentIndex, candidate.endSegmentIndex)}`,
+      id: `${instant.videoId}:${source}-${Math.min(previous.startSegmentIndex, candidate.startSegmentIndex)}-${Math.max(previous.endSegmentIndex, candidate.endSegmentIndex)}`,
       startSegmentIndex: Math.min(
         previous.startSegmentIndex,
         candidate.startSegmentIndex,
@@ -350,6 +347,7 @@ export const mergeSmartSkipAnalyses = (
       endSeconds: Math.max(previous.endSeconds, candidate.endSeconds),
       confidence: Math.max(previous.confidence, candidate.confidence),
       enabled: previous.enabled && candidate.enabled,
+      action: 'skip',
       source,
     };
   }
@@ -359,7 +357,9 @@ export const mergeSmartSkipAnalyses = (
   const maximumEnabledDuration = duration * 0.35;
   const instantDuration = merged.reduce(
     (total, interval) =>
-      interval.enabled && interval.source !== 'deep'
+      interval.enabled &&
+      interval.source !== 'deep' &&
+      (interval.action ?? 'skip') === 'skip'
         ? total + interval.endSeconds - interval.startSeconds
         : total,
     0,
@@ -390,19 +390,24 @@ export const mergeSmartSkipAnalyses = (
     ...instant,
     intervals,
     analyzedAt: Date.now(),
-    reviewRequired: deep.reviewRequired || safetyCapApplied,
+    reviewRequired: instant.reviewRequired || deep.reviewRequired || safetyCapApplied,
   };
 };
 
 export const transcriptFingerprint = (document: TranscriptDocument): string => {
   let hash = 0x811c9dc5;
-  for (const segment of document.segments) {
-    const value = `${segment.startSeconds}|${segment.endSeconds}|${segment.text}\n`;
+  const update = (value: string) => {
     for (let index = 0; index < value.length; index += 1) {
       hash ^= value.charCodeAt(index);
       hash = Math.imul(hash, 0x01000193);
     }
-  }
+  };
+
+  update(`duration|${document.durationSeconds ?? 'unknown'}\n`);
+  for (const range of document.speechRanges ?? [])
+    update(`speech|${range.startSeconds}|${range.endSeconds}\n`);
+  for (const segment of document.segments)
+    update(`${segment.startSeconds}|${segment.endSeconds}|${segment.text}\n`);
   return (hash >>> 0).toString(16).padStart(8, '0');
 };
 
@@ -415,7 +420,8 @@ export const smartSkipAnalysisCacheKey = (
     document.videoId,
     trackId,
     transcriptFingerprint(document),
+    configuration.provider,
     configuration.strictness,
     [...configuration.categories].sort().join(','),
-    'hybrid-v4',
+    'skip-v9',
   ].join(':');

@@ -57,4 +57,15 @@ describe('normalizeSettings', () => {
   it('migrates the legacy skip tab to Smart Skip', () => {
     expect(normalizeSettings({ defaultTab: 'skip' }).defaultTab).toBe('smart-skip');
   });
+
+  it('preserves the legacy Jump Cut consent choice', () => {
+    expect(
+      normalizeSettings({ schemaVersion: 2, pause: { enabled: false } }).smartSkip
+        .autoSkip,
+    ).toBe(false);
+    expect(
+      normalizeSettings({ schemaVersion: 2, pause: { enabled: true } }).smartSkip
+        .autoSkip,
+    ).toBe(true);
+  });
 });

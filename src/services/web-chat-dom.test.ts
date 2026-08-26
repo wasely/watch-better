@@ -2,14 +2,69 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { WEB_CHAT_PROVIDERS } from './web-chat';
 import {
+  attachImageFile,
   composerText,
+  fetchImageFile,
   fillComposer,
   focusComposerAtEnd,
+  pasteImageFromSystemClipboard,
   responseTexts,
   submitComposer,
+  submitComposerWhenReady,
 } from './web-chat-dom';
 
 describe('web chat DOM adapter', () => {
+  it('fetches and attaches a YouTube thumbnail to the provider composer', async () => {
+    document.body.innerHTML = `
+      <textarea></textarea>
+      <input accept="image/*" type="file" />
+    `;
+    const composer = document.querySelector('textarea');
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!composer || !input) throw new Error('Expected provider attachment controls.');
+    input.addEventListener('change', () =>
+      document.body.append(document.createElement('file-preview')),
+    );
+    const fetcher = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        headers: { get: () => 'image/jpeg' },
+        blob: () => Promise.resolve(new Blob(['thumbnail'], { type: 'image/jpeg' })),
+      } as unknown as Response),
+    );
+
+    const file = await fetchImageFile(
+      'https://i.ytimg.com/vi/example/hqdefault.jpg',
+      fetcher,
+    );
+    expect(file).toMatchObject({ name: 'youtube-thumbnail.jpg', type: 'image/jpeg' });
+    expect(file && (await attachImageFile(composer, file))).toBe(true);
+    expect(input.files?.[0]).toMatchObject({
+      name: 'youtube-thumbnail.jpg',
+      type: 'image/jpeg',
+    });
+  });
+
+  it('rejects an oversized thumbnail before reading its body', async () => {
+    const readBody = vi.fn(() =>
+      Promise.resolve(new Blob(['not read'], { type: 'image/jpeg' })),
+    );
+    const fetcher = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        headers: {
+          get: (name: string) => (name === 'content-length' ? '5000001' : 'image/jpeg'),
+        },
+        blob: readBody,
+      } as unknown as Response),
+    );
+
+    await expect(
+      fetchImageFile('https://i.ytimg.com/vi/example/hqdefault.jpg', fetcher),
+    ).resolves.toBeNull();
+    expect(readBody).not.toHaveBeenCalled();
+  });
+
   it('fills textarea and contenteditable composers', () => {
     const textarea = document.createElement('textarea');
     fillComposer(textarea, 'Transcript question');
@@ -53,12 +108,112 @@ describe('web chat DOM adapter', () => {
     submitComposer(WEB_CHAT_PROVIDERS.gemini, composer);
     expect(click).toHaveBeenCalledOnce();
 
-    sendButton.disabled = true;
+    sendButton.remove();
     const enter = vi.fn();
     composer.addEventListener('keydown', enter);
-    submitComposer(WEB_CHAT_PROVIDERS.gemini, composer);
+    submitComposer(WEB_CHAT_PROVIDERS.chatgpt, composer);
     expect(enter).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'Enter', code: 'Enter' }),
     );
+  });
+
+  it('clicks the enabled Gemini arrow instead of a disabled duplicate', () => {
+    document.body.innerHTML = `
+      <button class="send-button" disabled>Hidden duplicate</button>
+      <input-area-v2>
+        <textarea></textarea>
+        <button aria-label="Send message" class="send-button">Send</button>
+      </input-area-v2>
+    `;
+    const composer = document.querySelector('textarea');
+    const buttons = document.querySelectorAll<HTMLButtonElement>('button');
+    if (!composer || buttons.length !== 2) throw new Error('Expected Gemini controls.');
+    const click = vi.fn();
+    buttons[1]?.addEventListener('click', click);
+
+    submitComposer(WEB_CHAT_PROVIDERS.gemini, composer);
+
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('waits for Gemini to enable its send arrow before clicking', async () => {
+    document.body.innerHTML = `
+      <input-area-v2>
+        <textarea></textarea>
+        <button aria-label="Send message" class="send-button" disabled>Send</button>
+      </input-area-v2>
+    `;
+    const composer = document.querySelector('textarea');
+    const sendButton = document.querySelector('button');
+    if (!composer || !sendButton) throw new Error('Expected Gemini controls.');
+    const click = vi.fn();
+    sendButton.addEventListener('click', click);
+    window.setTimeout(() => {
+      sendButton.disabled = false;
+    }, 10);
+
+    await expect(
+      submitComposerWhenReady(WEB_CHAT_PROVIDERS.gemini, composer, {
+        pollIntervalMs: 5,
+        timeoutMs: 100,
+      }),
+    ).resolves.toBe(true);
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('waits for Gemini to render its send arrow instead of pressing Enter early', async () => {
+    document.body.innerHTML = '<input-area-v2><textarea></textarea></input-area-v2>';
+    const container = document.querySelector('input-area-v2');
+    const composer = document.querySelector('textarea');
+    if (!container || !composer) throw new Error('Expected Gemini composer.');
+    const enter = vi.fn();
+    const click = vi.fn();
+    composer.addEventListener('keydown', enter);
+    window.setTimeout(() => {
+      const sendButton = document.createElement('button');
+      sendButton.className = 'send-button';
+      sendButton.addEventListener('click', click);
+      container.append(sendButton);
+    }, 10);
+
+    await expect(
+      submitComposerWhenReady(WEB_CHAT_PROVIDERS.gemini, composer, {
+        pollIntervalMs: 5,
+        timeoutMs: 100,
+      }),
+    ).resolves.toBe(true);
+    expect(click).toHaveBeenCalledOnce();
+    expect(enter).not.toHaveBeenCalled();
+  });
+
+  it('stages an image on the system clipboard, pastes it, then restores the clipboard', async () => {
+    const composer = document.createElement('div');
+    composer.contentEditable = 'true';
+    composer.tabIndex = 0;
+    document.body.append(composer);
+    const previous = [{ types: ['text/plain'] }] as unknown as ClipboardItems;
+    const staged = { types: ['image/png'] } as unknown as ClipboardItem;
+    const write = vi.fn(() => Promise.resolve());
+    const paste = vi.fn(() => true);
+    const file = new File(['thumbnail'], 'youtube-thumbnail.png', {
+      type: 'image/png',
+    });
+
+    await expect(
+      pasteImageFromSystemClipboard(composer, file, {
+        clipboard: {
+          read: () => Promise.resolve(previous),
+          write,
+        },
+        createClipboardItem: () => staged,
+        convertToPng: (image) => Promise.resolve(image),
+        paste,
+      }),
+    ).resolves.toBe(true);
+
+    expect(paste).toHaveBeenCalledOnce();
+    expect(write).toHaveBeenNthCalledWith(1, [staged]);
+    expect(write).toHaveBeenNthCalledWith(2, previous);
+    expect(document.activeElement).toBe(composer);
   });
 });

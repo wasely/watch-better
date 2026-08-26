@@ -78,8 +78,9 @@ Every normal-text pair must meet WCAG AA. Color never carries state alone.
 - **Status:** dot/icon plus text. Never dot/color alone.
 - **Advanced settings:** native disclosure pattern; no modal for routine controls.
 - **Feedback:** inline status or polite live region; avoid toast stacking.
-- **Smart Skip:** reuse neutral surfaces and white-metal controls; distinguish instant
-  and deep cuts with labels plus solid/hatched markers, not a separate feature palette.
+- **Smart Skip:** reuse neutral surfaces and white-metal controls; distinguish jumps from
+  boosts and local from deep actions with labels plus action/source markers, not a
+  separate feature palette.
 
 ## Interaction
 
@@ -105,10 +106,11 @@ Every normal-text pair must meet WCAG AA. Color never carries state alone.
 
 ## Forbidden
 
-Huge headings; pink/blue multi-accent palette; gradients as decoration; glass blur; deep shadows; excessive rounded cards; generic chatbot bubbles; emoji icons; remote fonts; host-page `rem`; fixed rigid width; low-contrast metadata; hidden focus; auto-sending data.
+Huge headings; pink/blue multi-accent palette; gradients as decoration; glass blur; deep shadows; excessive rounded cards; generic chatbot bubbles; emoji icons; remote fonts; host-page `rem`; fixed rigid width; low-contrast metadata; hidden focus; undisclosed data sending.
 
 ## Visual review matrix
 
 Dark/light × 320/402/480px; default/loading/error/selection/long transcript; Ask
-composed/oversized; Smart Skip idle/analyzing/error/empty/ready and expanded cuts;
+composed/oversized; Smart Skip waiting/analyzing/error/empty/ready, expanded actions,
+and safety warning;
 collapsed; neighbor-extension content; keyboard focus; reduced motion; 200% text zoom.

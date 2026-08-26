@@ -1,16 +1,23 @@
 # Status
 
-Updated: 2026-08-19
+Updated: 2026-08-25
 
 ## Current state
 
 **Smart Skip development build.** Watch Better includes Transcript, Ask, and Smart
 Skip. Ask embeds ChatGPT and Gemini. Quick Learn opens the same movable in-page card as
-Pop Out, starting on Gemini after its thumbnail button is pressed. No model API or provider credential collection is used. A clean-profile
+Pop Out, attaches the clicked video's YouTube thumbnail, and sends a direct click-hook
+briefing to Gemini after its thumbnail button is pressed. No model API or provider credential collection is used. A clean-profile
 Chrome smoke test passes; signed-in-provider checks in the daily profile remain the gate.
 
 ## Implemented
 
+- Strengthened local Smart Skip jump cut detection: a sponsor brand lexicon seeds
+  cuts when the word "sponsor" is never spoken, promotional-support boundary growth
+  extends each seed across its whole section with per-strictness caps, and tangent
+  ("hot take", story time) plus filler-run seeds cut announced rants and low-information
+  stretches under Strict/Maximum. A fresh local map that lands just after playback
+  enters a span now catches up immediately; deep provider merges stay deferred.
 - Renamed every user-facing product label to Watch Better while preserving stable
   package, repository, file, and storage identifiers.
 - Added compact ChatGPT/Gemini selection and provider readiness states.
@@ -30,7 +37,7 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
   closes or leaves YouTube; top-level pages are unchanged.
 - Uses one-use frame session bindings plus direct-child `webNavigation`
   verification before routing provider status or prompt messages.
-- Auto-submits bounded transcript context with a `READY`-only instruction, then focuses
+- After Ask opens, submits bounded transcript context with a `READY`-only instruction, then focuses
   the cleared composer. **Send to AI** remains an explicit focused submission;
   follow-ups use the provider composer.
 - Retains transcript navigation, search, selection, seek, and SPA lifecycle handling.
@@ -59,40 +66,54 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
   **Manage extension** action.
 - Keeps memory-only transcript handling by default, with bounded session caching as
   an explicit opt-in.
-- Replaced provider-gated Smart Skip with an instant local pipeline: a provisional
-  opening cut activates before captions finish loading, then caption rules update the
-  cut map without AI sign-in or a network request.
-- Added session-only Smart Skip caching, a semantic seek engine, ad/unsupported-state
-  suspension, per-cut disable, immediate undo, and stale-navigation rejection.
-- Added the third-tab cut-map UI, strictness/category controls, saved-time reporting,
-  instant/no-caption/empty states, and responsive harness fixtures.
-- Added an isolated, non-blocking Gemini deep scan for subtle middle-video tangents,
-  restatements, housekeeping, and false starts; validated cuts merge into the live map
-  without touching Ask or resetting saved-time state. It begins during browser idle
-  after captions load rather than waiting for the Smart Skip tab.
-- Reworked Smart Skip into the shared white-metal visual system with labeled solid and
-  hatched cut sources, accessible scan progress, a restrained edge sheen, and a Strict
-  default.
-- Ask submits bounded transcript context before its tab opens, verifies provider
+- Replaced blind opening deletion with caption-gated skipping: long padded dead-air
+  spans and explicit low-value speech jump while the viewer's chosen YouTube speed stays
+  untouched.
+- Preserves raw caption-cue speech timing separately from sentence transcript timing,
+  enabling precise pause handling without audio capture or new permissions.
+- Added session-only Smart Skip caching, ad/pause/unsupported-state suspension,
+  confirmed-seek accounting, speed preservation, per-action disable, immediate undo,
+  stale-navigation rejection, and a 35% automatic hard-jump budget.
+- Rebuilt the third-tab UI around Safe/Strict/Maximum skip intensity, estimated versus
+  confirmed savings, a jump timeline, explicit speed-preservation status, and accessible
+  controls.
+- Added an explicit, isolated, non-blocking Gemini deep scan for subtle middle-video tangents,
+  restatements, housekeeping, and false starts; validated jumps merge into the live map
+  without touching Ask or resetting saved-time state. It begins only after the viewer
+  presses **Start deep scan**.
+- Reworked Smart Skip into the shared white-metal visual system with restrained material
+  accents, solid/hatched source markers, action-specific styling, accessible scan
+  progress, larger targets, and responsive narrow-panel behavior.
+- Ask submits bounded transcript context only after its tab opens, verifies provider
   acceptance, then focuses the empty composer for the user's question.
 - Adds Quick Learn controls to standard video and Short thumbnails. A click fetches
-  captions without navigating, opens a movable in-page Ask/Gemini card, and submits
-  bounded timestamped context with a `READY` instruction.
+  captions without navigating, opens a movable in-page Ask/Gemini card, attaches the
+  allowlisted YouTube thumbnail, and directly asks Gemini to explain the title/thumbnail
+  promise, important claims, why they matter, caveats, usefulness, and official links.
+- Keeps Quick Learn visible through YouTube hover-preview DOM replacement and owns the
+  thumbnail's top-left slot so bottom-left download-extension controls cannot cover it.
 
 ## Validation results
 
-- Canonical validation passed: Prettier, ESLint, strict TypeScript, 34 Vitest
-  files / 176 tests, and WXT production build.
-- Build: `.output/chrome-mv3/`, 688.78 kB.
+- Canonical offline validation passed: Prettier, ESLint, strict TypeScript, 36 Vitest
+  files / 246 tests, and WXT production build.
+- Quick Learn regressions cover hover-removal re-mounting, delayed mutation delivery,
+  and the collision-free top-left thumbnail slot.
+- Build: `.output/chrome-mv3/`.
+- Production-dependency audit reports zero known vulnerabilities.
 - Built manifest: `storage`, scoped `declarativeNetRequest`, direct-frame
-  `webNavigation`, and exact YouTube, ChatGPT, and Gemini hosts.
+  `webNavigation`, clipboard stage/restore, and exact YouTube, ChatGPT, and Gemini hosts.
 - Browser harness: the Quick Learn floating card was inspected at 320px dark and
   480px light with all tabs and window controls visible and no horizontal overflow.
-- Browser harness: Smart Skip's metallic ready/analyzing states were inspected at
-  320/402/480px across dark and light themes with no clipping or overlap.
+- Smart Skip harness fixtures cover ready/analyzing/error/empty jump maps and functional
+  controls. Skip-only speed-preservation UI was inspected at 320px dark and 480px light
+  with no horizontal overflow.
 - Clean-profile Chrome: live YouTube captions loaded; the Gemini frame rendered;
   a detached Ask card kept a 418px × 452px provider frame; minimize, restore,
   maximize, two-video SPA persistence, two simultaneous cards, and close cleanup passed.
+- Daily Chrome: unpacked extension reloaded and a live YouTube tab refreshed. Playback
+  measured about 1×; a simulated 2× user rate remained exactly 2×. Smart Skip showed
+  speed unchanged, optional deep scan, and no deep-analysis frame before the button.
 - Production audit tests reject provider API endpoints, cookie access, credential
   handling, broad host access, excess permissions, and Quick Learn tab/window creation.
 - `src/test/youtube-content-lifecycle.test.tsx` covers the previously untested
@@ -101,9 +122,13 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
 
 ## Remaining release gate
 
-- Reload `C:\Code\watch-better\.output\chrome-mv3` in the daily Chrome profile.
-- Verify Quick Learn opens the movable in-page Gemini card, receives `READY`, accepts a
-  follow-up, reuses its card, and leaves the YouTube page unchanged.
+- Inspect the redesigned Smart Skip panel at narrow watch/Short docks in light and dark
+  themes; verify jumps preserve speech edges, user speed is never changed, ads suspend
+  skipping, undo works, and navigation cannot
+  reuse a stale map.
+- Verify Quick Learn opens the movable in-page Gemini card, attaches the thumbnail,
+  streams the direct click-hook answer without a `READY` turn, accepts a follow-up,
+  reuses its card, and leaves the YouTube page unchanged.
 - Sign in at ChatGPT and Gemini, then verify embedded frames, provider switch,
   first Ask, follow-up, and new-chat behavior.
 - Verify caption fetch, selection Ask, seek, SPA navigation, theater/fullscreen,
@@ -119,8 +144,9 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
 - Requires usable YouTube captions; no speech-to-text fallback.
 - ChatGPT/Gemini embedding depends on each site's frame behavior, rendered UI, and
   active user session.
-- Smart Skip starts locally on video detection. Its automatic idle deep refinement
-  requires the selected signed-in provider; failure never disables instant cuts.
+- Smart Skip begins locally after matching captions load. Optional deep refinement starts
+  only after **Start deep scan** and requires the selected signed-in provider; failure
+  never disables local jumps.
 - No live streams, mobile, backend, account, sync, analytics, or model API.
 
 ## Shorts verification

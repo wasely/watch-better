@@ -4,7 +4,7 @@ export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'Watch Better',
+    name: 'YouTube Max',
     minimum_chrome_version: '133',
     description:
       'Preview YouTube videos from captions, ask signed-in AI, and skip unnecessary sections.',
@@ -14,14 +14,20 @@ export default defineConfig({
       48: 'icon/48.png',
       128: 'icon/128.png',
     },
-    permissions: ['storage', 'declarativeNetRequest', 'webNavigation'],
+    permissions: [
+      'storage',
+      'declarativeNetRequest',
+      'webNavigation',
+      'clipboardRead',
+      'clipboardWrite',
+    ],
     host_permissions: [
       'https://www.youtube.com/*',
       'https://chatgpt.com/*',
       'https://gemini.google.com/*',
     ],
     action: {
-      default_title: 'Watch Better',
+      default_title: 'YouTube Max',
       default_icon: {
         16: 'icon/16.png',
         32: 'icon/32.png',

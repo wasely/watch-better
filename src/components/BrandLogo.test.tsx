@@ -5,10 +5,12 @@ import { BrandLogo } from './BrandLogo';
 
 describe('BrandLogo', () => {
   it('always preserves the complete logo frame', () => {
-    render(<BrandLogo alt="Watch Better" style={{ objectFit: 'cover' }} />);
+    render(<BrandLogo alt="YouTube Max" style={{ objectFit: 'cover' }} />);
 
-    expect(screen.getByRole('img', { name: 'Watch Better' })).toHaveStyle({
+    const logo = screen.getByRole('img', { name: 'YouTube Max' });
+    expect(logo).toHaveStyle({
       objectFit: 'contain',
     });
+    expect(logo.getAttribute('src')).toContain('data:image/svg+xml');
   });
 });

@@ -1,17 +1,16 @@
 import { parseYouTubeVideoUrl } from '@/adapters/youtube/youtube-url';
+import { isWebChatImageUrl } from '@/services/web-chat';
 
-const THUMBNAIL_SELECTOR = [
-  'ytd-thumbnail a[href*="/watch?"]',
-  'ytd-thumbnail a[href*="/shorts/"]',
-  'a#thumbnail[href*="/watch?"]',
-  'a#thumbnail[href*="/shorts/"]',
-  'a.yt-lockup-view-model__content-image[href*="/watch?"]',
-  'a.yt-lockup-view-model__content-image[href*="/shorts/"]',
-  'yt-thumbnail-view-model a[href*="/watch?"]',
-  'yt-thumbnail-view-model a[href*="/shorts/"]',
-  'ytd-reel-item-renderer a[href*="/shorts/"]',
-  'ytm-shorts-lockup-view-model a[href*="/shorts/"]',
-].join(',');
+/**
+ * Every video link, regardless of layout. YouTube renames its lockup classes freely
+ * (`__content-image`, `__content-image-link`, `-wiz__content-image-link`, …), so the
+ * thumbnail is identified by structure — a video link that wraps an image — rather
+ * than by any class name that can be renamed out from under us.
+ */
+const VIDEO_LINK_SELECTOR = 'a[href*="/watch?"], a[href*="/shorts/"]';
+
+/** What makes a link the thumbnail rather than the title or the channel. */
+const IMAGE_SELECTOR = 'img, yt-image, yt-thumbnail-view-model, ytd-thumbnail';
 
 const CARD_SELECTOR = [
   'ytd-rich-item-renderer',
@@ -24,15 +23,31 @@ const CARD_SELECTOR = [
   'ytm-shorts-lockup-view-model',
 ].join(',');
 
+// The element the button is placed inside. On classic cards it is an ancestor of the
+// thumbnail link; in the newer lockup layout the thumbnail lives *inside* the link.
+const THUMBNAIL_BOX_SELECTOR = [
+  'ytd-thumbnail',
+  'yt-thumbnail-view-model',
+  'ytd-reel-item-renderer',
+  'ytm-shorts-lockup-view-model',
+].join(',');
+
 const BUTTON_ATTRIBUTE = 'data-watchbetter-quick-learn-button';
 const STYLE_ATTRIBUTE = 'data-watchbetter-quick-learn-style';
 const POPUP_ATTRIBUTE = 'data-watchbetter-quick-learn-popup';
+
+const isElementNode = (node: unknown): node is Element =>
+  (node as Node | null)?.nodeType === 1;
+
+const isHtmlElementNode = (node: Element): node is HTMLElement =>
+  'style' in node && 'dataset' in node;
 
 export interface QuickLearnOverlayRequest {
   readonly videoId: string;
   readonly videoKind: 'watch' | 'shorts';
   readonly videoUrl: string;
   readonly videoTitle: string;
+  readonly thumbnailUrl: string;
 }
 
 export type QuickLearnOverlayOpener = (
@@ -54,6 +69,7 @@ const PAGE_STYLES = `
     border: 1px solid rgba(244, 241, 236, .34) !important;
     border-radius: 999px !important;
     box-shadow: 0 5px 18px rgba(0, 0, 0, .35) !important;
+    bottom: auto !important;
     box-sizing: border-box !important;
     color: #f4f1ec !important;
     cursor: pointer !important;
@@ -206,6 +222,23 @@ const cardTitleFor = (anchor: HTMLAnchorElement): string => {
     .trim();
 };
 
+const thumbnailUrlFor = (anchor: HTMLAnchorElement): string | undefined => {
+  const image = anchor.querySelector<HTMLImageElement>('img');
+  for (const candidate of [image?.currentSrc, image?.src, image?.getAttribute('src')]) {
+    if (!candidate) continue;
+    try {
+      const absolute = new URL(candidate, anchor.ownerDocument.location.href).href;
+      if (isWebChatImageUrl(absolute)) return absolute;
+    } catch {
+      // Keep looking: YouTube can leave a transient placeholder before the real image.
+    }
+  }
+  return undefined;
+};
+
+const fallbackThumbnailUrl = (videoId: string): string =>
+  `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg`;
+
 interface PopupElements {
   readonly host: HTMLElement;
   readonly frame: HTMLElement;
@@ -243,10 +276,9 @@ export class QuickLearnController {
     this.#scan(this.documentRef);
     const observer = new MutationObserver((records: readonly MutationRecord[]) => {
       for (const record of records) {
-        if (record.type === 'attributes' && record.target instanceof Element)
-          this.#scanRoots.add(record.target);
+        if (isElementNode(record.target)) this.#scanRoots.add(record.target);
         for (const node of record.addedNodes)
-          if (node instanceof Element) this.#scanRoots.add(node);
+          if (isElementNode(node)) this.#scanRoots.add(node);
       }
       if (this.#activeButton && !this.#activeButton.isConnected) this.#close(false);
       this.#scheduleScan();
@@ -274,6 +306,12 @@ export class QuickLearnController {
     this.documentRef
       .querySelectorAll<HTMLElement>(`[${BUTTON_ATTRIBUTE}]`)
       .forEach((button) => button.remove());
+    this.documentRef
+      .querySelectorAll<HTMLElement>('[data-watchbetter-quick-learn-anchored]')
+      .forEach((host) => {
+        host.style.removeProperty('position');
+        delete host.dataset.watchbetterQuickLearnAnchored;
+      });
     this.#style?.remove();
     this.#style = null;
     this.#popup?.host.remove();
@@ -295,25 +333,68 @@ export class QuickLearnController {
   };
 
   #scan(root: ParentNode): void {
-    const anchors = new Set<HTMLAnchorElement>();
-    if (root instanceof HTMLAnchorElement && root.matches(THUMBNAIL_SELECTOR))
-      anchors.add(root);
-    root
-      .querySelectorAll<HTMLAnchorElement>(THUMBNAIL_SELECTOR)
-      .forEach((anchor) => anchors.add(anchor));
-    for (const anchor of anchors) this.#addButton(anchor);
+    const cards = new Set<Element>();
+    if (isElementNode(root) && root.matches(CARD_SELECTOR)) cards.add(root);
+    root.querySelectorAll(CARD_SELECTOR).forEach((card) => cards.add(card));
+    if (isElementNode(root)) {
+      const owner = root.closest(CARD_SELECTOR);
+      if (owner) cards.add(owner);
+    }
+    for (const card of cards) {
+      const anchor = this.#thumbnailLinkIn(card);
+      if (anchor) this.#addButton(anchor);
+    }
+  }
+
+  /**
+   * The one link per card that points at the video and carries its image. Nested cards
+   * are excluded so a shelf never claims the thumbnail of the card inside it.
+   */
+  #thumbnailLinkIn(card: Element): HTMLAnchorElement | null {
+    const links = [...card.querySelectorAll<HTMLAnchorElement>(VIDEO_LINK_SELECTOR)];
+    for (const link of links) {
+      if (link.closest(CARD_SELECTOR) !== card) continue;
+      if (!parseYouTubeVideoUrl(link.href)) continue;
+      if (link.id === 'thumbnail' || link.querySelector(IMAGE_SELECTOR)) return link;
+    }
+    return null;
+  }
+
+  /**
+   * Classic cards wrap the link in a thumbnail element; lockup cards put the thumbnail
+   * inside the link. Resolving both keeps the button pinned to the image itself rather
+   * than to whatever ancestor happens to be positioned.
+   */
+  #hostFor(anchor: HTMLAnchorElement): Element | null {
+    return (
+      anchor.closest(THUMBNAIL_BOX_SELECTOR) ??
+      anchor.querySelector(THUMBNAIL_BOX_SELECTOR) ??
+      // Lockup layouts make the link itself the image frame. Placing the button there
+      // is safe: every pointer and click event it fires is stopped before YouTube
+      // can navigate.
+      (anchor.querySelector('img, yt-image') ? anchor : anchor.parentElement)
+    );
+  }
+
+  /** An absolutely positioned button needs a positioned host or it escapes the card. */
+  #anchorHost(host: Element): void {
+    if (!isHtmlElementNode(host)) return;
+    if (this.#window.getComputedStyle(host).position !== 'static') return;
+    host.dataset.watchbetterQuickLearnAnchored = 'true';
+    host.style.position = 'relative';
   }
 
   #addButton(anchor: HTMLAnchorElement): void {
-    const thumbnail = anchor.closest(
-      'ytd-thumbnail, yt-thumbnail-view-model, ytd-reel-item-renderer, ytm-shorts-lockup-view-model',
-    );
+    const buttonHost = this.#hostFor(anchor);
+    const card = anchor.closest(CARD_SELECTOR);
     if (
-      anchor.querySelector(`[${BUTTON_ATTRIBUTE}]`) ||
-      thumbnail?.querySelector(`[${BUTTON_ATTRIBUTE}]`) ||
+      !buttonHost ||
+      card?.querySelector(`[${BUTTON_ATTRIBUTE}]`) ||
+      buttonHost.querySelector(`[${BUTTON_ATTRIBUTE}]`) ||
       !parseYouTubeVideoUrl(anchor.href)
     )
       return;
+    this.#anchorHost(buttonHost);
     const button = this.documentRef.createElement('button');
     button.type = 'button';
     button.setAttribute(BUTTON_ATTRIBUTE, '');
@@ -329,12 +410,17 @@ export class QuickLearnController {
       event.stopImmediatePropagation();
       void this.#toggle(anchor, button);
     });
-    anchor.append(button);
+    buttonHost.append(button);
   }
 
   async #toggle(anchor: HTMLAnchorElement, button: HTMLButtonElement): Promise<void> {
     const page = parseYouTubeVideoUrl(anchor.href);
     if (!page) return;
+    if (
+      this.#activeVideoId === page.videoId &&
+      this.#activeButton?.dataset.loading === 'true'
+    )
+      return;
     if (this.#activeButton === button && this.#activeVideoId === page.videoId) {
       this.#close(true);
       return;
@@ -343,11 +429,13 @@ export class QuickLearnController {
     this.#close(false);
     this.#activeButton = button;
     this.#activeVideoId = page.videoId;
+    const thumbnailUrl = thumbnailUrlFor(anchor) ?? fallbackThumbnailUrl(page.videoId);
     this.#activeRequest = {
       videoId: page.videoId,
       videoKind: page.kind,
       videoUrl: anchor.href,
       videoTitle: cardTitleFor(anchor),
+      thumbnailUrl,
     };
     button.setAttribute('aria-expanded', 'true');
     button.setAttribute('aria-busy', 'true');

@@ -77,6 +77,8 @@ describe('YouTubeTranscriptProvider', () => {
         JSON.stringify({
           events: [
             { tStartMs: 1000, dDurationMs: 1500, segs: [{ utf8: 'Evidence.' }] },
+            { tStartMs: 89_500, dDurationMs: 5_000, segs: [{ utf8: 'Tail.' }] },
+            { tStartMs: 91_000, dDurationMs: 1_000, segs: [{ utf8: 'Past end.' }] },
           ],
         }),
         { status: 200 },
@@ -98,6 +100,13 @@ describe('YouTubeTranscriptProvider', () => {
       durationSeconds: 90,
     });
     expect(transcript.segments[0]?.text).toBe('Evidence.');
+    expect(transcript.segments).toHaveLength(2);
+    expect(transcript.segments[1]).toMatchObject({
+      text: 'Tail.',
+      startSeconds: 89.5,
+      endSeconds: 90,
+    });
+    expect(transcript.speechRanges?.at(-1)?.endSeconds).toBe(90);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('fmt=json3');
   });
 

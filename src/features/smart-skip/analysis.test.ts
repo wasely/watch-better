@@ -80,7 +80,7 @@ describe('Smart Skip analysis', () => {
     );
     if (!chunk) throw new Error('Expected one chunk.');
     expect(() => parseSmartSkipAnalysisResponse('{"message":"done"}', chunk)).toThrow(
-      'cut list',
+      'action list',
     );
   });
 
@@ -121,6 +121,45 @@ describe('Smart Skip analysis', () => {
     expect(
       smartSkipAnalysisCacheKey(document, 'en', DEFAULT_SMART_SKIP_CONFIGURATION),
     ).toContain('video-1:en:');
+    expect(
+      smartSkipAnalysisCacheKey(document, 'en', DEFAULT_SMART_SKIP_CONFIGURATION),
+    ).not.toBe(
+      smartSkipAnalysisCacheKey(document, 'en', {
+        ...DEFAULT_SMART_SKIP_CONFIGURATION,
+        provider: 'chatgpt',
+      }),
+    );
+  });
+
+  it('invalidates skip caches when duration or raw cue timing changes', () => {
+    const withSpeechRanges: TranscriptDocument = {
+      ...document,
+      speechRanges: [
+        { startSeconds: 0, endSeconds: 4.5 },
+        { startSeconds: 5.2, endSeconds: 14.8 },
+      ],
+    };
+    const changedRange: TranscriptDocument = {
+      ...withSpeechRanges,
+      speechRanges: [
+        { startSeconds: 0, endSeconds: 4.5 },
+        { startSeconds: 6.2, endSeconds: 14.8 },
+      ],
+    };
+
+    expect(transcriptFingerprint(withSpeechRanges)).not.toBe(
+      transcriptFingerprint(changedRange),
+    );
+    expect(transcriptFingerprint(document)).not.toBe(
+      transcriptFingerprint({ ...document, durationSeconds: 101 }),
+    );
+    expect(
+      smartSkipAnalysisCacheKey(
+        withSpeechRanges,
+        'en',
+        DEFAULT_SMART_SKIP_CONFIGURATION,
+      ),
+    ).toContain('skip-v9');
   });
 
   it('adds high-confidence semantic cuts without replacing instant cuts', () => {

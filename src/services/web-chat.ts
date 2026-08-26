@@ -22,6 +22,7 @@ export interface WebChatPageSendRequest {
   readonly type: 'watchbetter:webchat-page-send';
   readonly message: string;
   readonly newConversation: boolean;
+  readonly imageUrl?: string;
 }
 
 export interface WebChatPagePrimeRequest {
@@ -78,6 +79,28 @@ export interface WebChatProviderDefinition {
 
 export const MAX_WEB_CHAT_MESSAGE_CHARACTERS = 24_000;
 export const MAX_WEB_CHAT_SESSION_ID_CHARACTERS = 160;
+export const MAX_WEB_CHAT_IMAGE_URL_CHARACTERS = 2_048;
+
+export const isWebChatImageUrl = (value: unknown): value is string => {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > MAX_WEB_CHAT_IMAGE_URL_CHARACTERS
+  )
+    return false;
+  try {
+    const url = new URL(value);
+    const hostname = url.hostname.toLocaleLowerCase();
+    return (
+      url.protocol === 'https:' &&
+      (hostname === 'img.youtube.com' ||
+        hostname === 'i.ytimg.com' ||
+        /^i\d+\.ytimg\.com$/.test(hostname))
+    );
+  } catch {
+    return false;
+  }
+};
 
 export const WEB_CHAT_PROVIDERS: Readonly<
   Record<WebChatProviderId, WebChatProviderDefinition>
@@ -177,22 +200,34 @@ export const isWebChatPageRequest = (value: unknown): value is WebChatPageReques
     readonly type?: unknown;
     readonly message?: unknown;
     readonly newConversation?: unknown;
+    readonly imageUrl?: unknown;
   };
   if (
     request.type === 'watchbetter:webchat-page-status' ||
     request.type === 'watchbetter:webchat-page-focus'
   )
     return Object.keys(request).length === 1;
+  const isPromptRequest =
+    request.type === 'watchbetter:webchat-page-prime' ||
+    request.type === 'watchbetter:webchat-page-send' ||
+    request.type === 'watchbetter:webchat-page-analyze';
+  if (!isPromptRequest) return false;
+  const hasImage = request.imageUrl !== undefined;
   return (
-    (request.type === 'watchbetter:webchat-page-prime' ||
-      request.type === 'watchbetter:webchat-page-send' ||
-      request.type === 'watchbetter:webchat-page-analyze') &&
     typeof request.message === 'string' &&
     request.message.trim().length > 0 &&
     request.message.length <= MAX_WEB_CHAT_MESSAGE_CHARACTERS &&
     typeof request.newConversation === 'boolean' &&
+    (!hasImage ||
+      (request.type === 'watchbetter:webchat-page-send' &&
+        isWebChatImageUrl(request.imageUrl))) &&
     Object.keys(request).every((key) =>
-      ['type', 'message', 'newConversation'].includes(key),
+      [
+        'type',
+        'message',
+        'newConversation',
+        ...(hasImage ? ['imageUrl'] : []),
+      ].includes(key),
     )
   );
 };

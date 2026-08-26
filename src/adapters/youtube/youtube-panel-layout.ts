@@ -20,9 +20,15 @@ export const applyYouTubePanelHostLayout = (
     host.dataset.watchbetterShortsDock = 'true';
     setHostStyle(host, 'display', 'block');
     setHostStyle(host, 'position', 'fixed');
-    setHostStyle(host, 'top', '96px');
+    setHostStyle(host, 'top', 'clamp(12px, 9dvh, 96px)');
     setHostStyle(host, 'right', '16px');
     setHostStyle(host, 'width', 'min(420px, calc(100vw - 32px))');
+    setHostStyle(
+      host,
+      '--watchbetter-player-height',
+      'calc(100dvh - clamp(12px, 9dvh, 96px) - 16px)',
+    );
+    setHostStyle(host, 'max-height', 'calc(100dvh - clamp(12px, 9dvh, 96px) - 16px)');
     setHostStyle(host, 'margin-bottom', '0');
     setHostStyle(host, 'z-index', '2147483000');
     return;
@@ -33,6 +39,8 @@ export const applyYouTubePanelHostLayout = (
   host.style.removeProperty('display');
   host.style.removeProperty('top');
   host.style.removeProperty('right');
+  host.style.removeProperty('--watchbetter-player-height');
+  host.style.removeProperty('max-height');
   host.style.width = '100%';
   host.style.marginBottom = '12px';
   host.style.removeProperty('z-index');

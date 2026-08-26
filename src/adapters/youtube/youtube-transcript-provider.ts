@@ -2,6 +2,7 @@ import type {
   TranscriptDocument,
   TranscriptProvider,
   TranscriptSegment,
+  TranscriptSpeechRange,
   TranscriptTrack,
 } from '@/features/transcript/domain';
 import { TranscriptProviderError } from '@/features/transcript/domain';
@@ -112,6 +113,63 @@ interface RawCue {
   readonly text: string;
 }
 
+interface ParsedCaptionTrack {
+  readonly segments: readonly TranscriptSegment[];
+  readonly speechRanges: readonly TranscriptSpeechRange[];
+}
+
+const captionTrackWithinDuration = (
+  track: ParsedCaptionTrack,
+  durationSeconds: number | null,
+): ParsedCaptionTrack => {
+  if (
+    durationSeconds === null ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds <= 0
+  )
+    return track;
+  const withinDuration = <
+    T extends { readonly startSeconds: number; readonly endSeconds: number },
+  >(
+    item: T,
+  ): T | null => {
+    if (item.startSeconds >= durationSeconds) return null;
+    const endSeconds = Math.min(durationSeconds, item.endSeconds);
+    return endSeconds > item.startSeconds ? { ...item, endSeconds } : null;
+  };
+  return {
+    segments: track.segments.flatMap((segment) => withinDuration(segment) ?? []),
+    speechRanges: track.speechRanges.flatMap((range) => withinDuration(range) ?? []),
+  };
+};
+
+const speechRangesFrom = (
+  cues: readonly RawCue[],
+): readonly TranscriptSpeechRange[] => {
+  const ordered = [...cues]
+    .filter(
+      (cue) =>
+        Number.isFinite(cue.startSeconds) &&
+        Number.isFinite(cue.endSeconds) &&
+        cue.startSeconds >= 0 &&
+        cue.endSeconds > cue.startSeconds,
+    )
+    .sort((left, right) => left.startSeconds - right.startSeconds);
+  const ranges: TranscriptSpeechRange[] = [];
+  for (const cue of ordered) {
+    const previous = ranges.at(-1);
+    if (!previous || cue.startSeconds > previous.endSeconds + 0.04) {
+      ranges.push({ startSeconds: cue.startSeconds, endSeconds: cue.endSeconds });
+      continue;
+    }
+    ranges[ranges.length - 1] = {
+      startSeconds: previous.startSeconds,
+      endSeconds: Math.max(previous.endSeconds, cue.endSeconds),
+    };
+  }
+  return ranges;
+};
+
 const sentenceSegments = (
   cues: readonly RawCue[],
   trackId: string,
@@ -168,11 +226,12 @@ const sentenceSegments = (
   return output;
 };
 
-export const parseJson3Transcript = (
+const parseJson3CaptionTrack = (
   payload: unknown,
   trackId: string,
-): readonly TranscriptSegment[] => {
-  if (!isRecord(payload) || !Array.isArray(payload.events)) return [];
+): ParsedCaptionTrack => {
+  if (!isRecord(payload) || !Array.isArray(payload.events))
+    return { segments: [], speechRanges: [] };
   const cues: RawCue[] = [];
   for (const event of payload.events) {
     if (!isRecord(event) || !Array.isArray(event.segs)) continue;
@@ -189,13 +248,18 @@ export const parseJson3Transcript = (
       text,
     });
   }
-  return sentenceSegments(cues, trackId);
+  return {
+    segments: sentenceSegments(cues, trackId),
+    speechRanges: speechRangesFrom(cues),
+  };
 };
 
-export const parseXmlTranscript = (
-  source: string,
+export const parseJson3Transcript = (
+  payload: unknown,
   trackId: string,
-): readonly TranscriptSegment[] => {
+): readonly TranscriptSegment[] => parseJson3CaptionTrack(payload, trackId).segments;
+
+const parseXmlCaptionTrack = (source: string, trackId: string): ParsedCaptionTrack => {
   const xml = new DOMParser().parseFromString(source, 'text/xml');
   const cues = Array.from(xml.querySelectorAll('text')).flatMap((node) => {
     const start = numberFrom(node.getAttribute('start'));
@@ -211,8 +275,16 @@ export const parseXmlTranscript = (
           },
         ];
   });
-  return sentenceSegments(cues, trackId);
+  return {
+    segments: sentenceSegments(cues, trackId),
+    speechRanges: speechRangesFrom(cues),
+  };
 };
+
+export const parseXmlTranscript = (
+  source: string,
+  trackId: string,
+): readonly TranscriptSegment[] => parseXmlCaptionTrack(source, trackId).segments;
 
 const sourceFromResponse = (
   response: JsonRecord,
@@ -320,30 +392,32 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
     source: VideoSource,
     caption: CaptionSource,
   ): Promise<TranscriptDocument> {
-    let segments: readonly TranscriptSegment[] = [];
+    let captionTrack: ParsedCaptionTrack = { segments: [], speechRanges: [] };
     try {
-      segments = await this.#loadCaptionSegments(
+      captionTrack = await this.#loadCaptionTrack(
         caption.baseUrl,
         caption.track.id,
+        source.durationSeconds,
         NEVER_ABORTED,
       );
     } catch {
       // Fall through to the Android caption endpoint below.
     }
-    if (segments.length === 0) {
+    if (captionTrack.segments.length === 0) {
       const androidCaption = await this.#loadAndroidCaption(
         source.videoId,
         caption,
         NEVER_ABORTED,
       );
       if (androidCaption)
-        segments = await this.#loadCaptionSegments(
+        captionTrack = await this.#loadCaptionTrack(
           androidCaption.baseUrl,
           caption.track.id,
+          source.durationSeconds,
           NEVER_ABORTED,
         );
     }
-    if (segments.length === 0)
+    if (captionTrack.segments.length === 0)
       throw new TranscriptProviderError(
         'invalid-data',
         'YouTube returned an empty or malformed caption track.',
@@ -356,7 +430,8 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
       languageLabel: caption.track.languageLabel,
       isAutomatic: caption.track.isAutomatic,
       durationSeconds: source.durationSeconds,
-      segments,
+      segments: captionTrack.segments,
+      speechRanges: captionTrack.speechRanges,
     };
   }
 
@@ -371,22 +446,29 @@ export class YouTubeTranscriptProvider implements TranscriptProvider {
       if (key.startsWith(`${videoId}:`)) this.#documents.delete(key);
   }
 
-  async #loadCaptionSegments(
+  async #loadCaptionTrack(
     baseUrl: string,
     trackId: string,
+    durationSeconds: number | null,
     signal: AbortSignal,
-  ): Promise<readonly TranscriptSegment[]> {
+  ): Promise<ParsedCaptionTrack> {
     const url = new URL(baseUrl);
     url.searchParams.set('fmt', 'json3');
     const response = await this.#fetch(url, { credentials: 'include', signal });
-    if (!response.ok) return [];
+    if (!response.ok) return { segments: [], speechRanges: [] };
     const body = await response.text();
-    if (!body.trim()) return [];
+    if (!body.trim()) return { segments: [], speechRanges: [] };
     try {
       const payload: unknown = JSON.parse(body);
-      return parseJson3Transcript(payload, trackId);
+      return captionTrackWithinDuration(
+        parseJson3CaptionTrack(payload, trackId),
+        durationSeconds,
+      );
     } catch {
-      return parseXmlTranscript(body, trackId);
+      return captionTrackWithinDuration(
+        parseXmlCaptionTrack(body, trackId),
+        durationSeconds,
+      );
     }
   }
 

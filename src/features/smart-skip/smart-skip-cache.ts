@@ -43,6 +43,7 @@ const isInterval = (value: unknown): value is SmartSkipInterval => {
     interval.confidence >= 0 &&
     interval.confidence <= 1 &&
     typeof interval.enabled === 'boolean' &&
+    (interval.action === undefined || interval.action === 'skip') &&
     (interval.source === undefined ||
       interval.source === 'instant' ||
       interval.source === 'deep')
@@ -107,10 +108,14 @@ export class SmartSkipCache {
     const data = cacheDataFrom(stored[STORAGE_KEY]);
     const entry = data.entries.find((candidate) => candidate.key === key);
     if (!entry) return null;
-    await this.saveEntries([
-      { ...entry, accessedAt: Date.now() },
-      ...data.entries.filter((candidate) => candidate.key !== key),
-    ]);
+    try {
+      await this.saveEntries([
+        { ...entry, accessedAt: Date.now() },
+        ...data.entries.filter((candidate) => candidate.key !== key),
+      ]);
+    } catch {
+      // A best-effort LRU touch must never turn a valid cache hit into a miss.
+    }
     return entry.analysis;
   }
 

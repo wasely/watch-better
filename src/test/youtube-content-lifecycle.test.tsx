@@ -45,6 +45,7 @@ const rendered = vi.hoisted(() => ({
   minimized: false,
   initialTab: null as string | null,
   initialWebChatProvider: null as string | null,
+  quickLearnThumbnailUrl: null as string | null,
   videoTitle: null as string | null,
 }));
 
@@ -59,6 +60,7 @@ vi.mock('@/app/WatchBetterRuntime', () => ({
     onToggleMaximized?: () => void;
     initialTab?: string;
     initialWebChatProvider?: string;
+    quickLearn?: { thumbnailUrl?: string };
     videoTitle?: string;
   }) => {
     if (props.onDetach) rendered.onDetach = props.onDetach;
@@ -69,6 +71,7 @@ vi.mock('@/app/WatchBetterRuntime', () => ({
       rendered.minimized = props.minimized ?? false;
       rendered.initialTab = props.initialTab ?? null;
       rendered.initialWebChatProvider = props.initialWebChatProvider ?? null;
+      rendered.quickLearnThumbnailUrl = props.quickLearn?.thumbnailUrl ?? null;
       rendered.videoTitle = props.videoTitle ?? null;
     }
     props.onVisibilityChange?.(true);
@@ -211,6 +214,7 @@ describe('youtube content script lifecycle', () => {
     rendered.minimized = false;
     rendered.initialTab = null;
     rendered.initialWebChatProvider = null;
+    rendered.quickLearnThumbnailUrl = null;
     rendered.videoTitle = null;
     rendered.onClose = null;
     browserState.tabsCreate.mockClear();
@@ -268,7 +272,7 @@ describe('youtube content script lifecycle', () => {
       'afterbegin',
       `<ytd-rich-item-renderer>
         <ytd-thumbnail>
-          <a id="thumbnail" href="https://www.youtube.com/watch?v=quick"><img alt="" /></a>
+          <a id="thumbnail" href="https://www.youtube.com/watch?v=quick"><img alt="" src="https://i.ytimg.com/vi/quick/hqdefault.jpg" /></a>
         </ytd-thumbnail>
         <a id="video-title" title="Quick video">Quick video</a>
       </ytd-rich-item-renderer>`,
@@ -290,6 +294,9 @@ describe('youtube content script lifecycle', () => {
     ).toHaveLength(8);
     expect(rendered.initialTab).toBe('ask');
     expect(rendered.initialWebChatProvider).toBe('gemini');
+    expect(rendered.quickLearnThumbnailUrl).toBe(
+      'https://i.ytimg.com/vi/quick/hqdefault.jpg',
+    );
     expect(rendered.videoTitle).toBe('Quick video');
     expect(browserState.tabsCreate).not.toHaveBeenCalled();
 

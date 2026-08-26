@@ -94,11 +94,6 @@ export class DetachedPlaybackController implements PlaybackController {
     this.#live?.seek(seconds);
   }
 
-  public setPlaybackRate(rate: number): void {
-    if (!Number.isFinite(rate)) return;
-    this.#live?.setPlaybackRate(rate);
-  }
-
   public subscribe(listener: (snapshot: PlaybackSnapshot) => void): () => void {
     this.#listeners.add(listener);
     listener(this.#snapshot);

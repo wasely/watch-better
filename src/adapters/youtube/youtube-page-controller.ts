@@ -54,6 +54,7 @@ export class BrowserYouTubePageController implements YouTubePageController {
     this.#unobserve = observeDocumentMutations(
       this.windowRef.document,
       this.#onPageSignal,
+      true,
     );
     this.#refresh();
   }
@@ -92,14 +93,14 @@ export class BrowserYouTubePageController implements YouTubePageController {
 
   #refresh(): void {
     const next = readPage(this.windowRef.location.href, this.#snapshot.generation);
-    if (
-      next.kind === this.#snapshot.kind &&
-      next.url === this.#snapshot.url &&
-      next.videoId === this.#snapshot.videoId
-    )
-      return;
+    const sameVideo =
+      next.kind === this.#snapshot.kind && next.videoId === this.#snapshot.videoId;
+    if (sameVideo && next.url === this.#snapshot.url) return;
 
-    this.#snapshot = { ...next, generation: this.#snapshot.generation + 1 };
+    this.#snapshot = {
+      ...next,
+      generation: sameVideo ? this.#snapshot.generation : this.#snapshot.generation + 1,
+    };
     for (const listener of this.#listeners) listener(this.#snapshot);
   }
 }

@@ -119,8 +119,19 @@ describe('extension message validation', () => {
         sessionId: 'chatgpt:frame-1',
         message: 'Use the transcript.',
         newConversation: true,
+        imageUrl: 'https://i.ytimg.com/vi/example/hqdefault.jpg',
       }),
     ).toBe(true);
+    expect(
+      isExtensionRequest({
+        type: 'webchat:send',
+        provider: 'chatgpt',
+        sessionId: 'chatgpt:frame-1',
+        message: 'Use the transcript.',
+        newConversation: true,
+        imageUrl: 'https://attacker.example/track.jpg',
+      }),
+    ).toBe(false);
     expect(
       isExtensionRequest({
         type: 'webchat:send',

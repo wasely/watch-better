@@ -94,6 +94,7 @@ export default defineContentScript({
       floatingControls: FloatingControls | null;
       playerSizeSync: ReturnType<typeof createYouTubePlayerSizeSync> | null;
       quickLearn: boolean;
+      thumbnailUrl?: string;
       floatingCleanup?: () => void;
     }
     type RuntimeUi = Awaited<ReturnType<typeof createShadowRootUi<MountedRuntime>>>;
@@ -176,6 +177,11 @@ export default defineContentScript({
               ? {
                   initialTab: 'ask' as const,
                   initialWebChatProvider: 'gemini' as const,
+                  quickLearn: {
+                    ...(runtime.thumbnailUrl
+                      ? { thumbnailUrl: runtime.thumbnailUrl }
+                      : {}),
+                  },
                 }
               : {})}
             theaterMode={runtime.presentation === 'panel' && runtime.theaterMode}
@@ -524,6 +530,7 @@ export default defineContentScript({
             floatingControls: null,
             playerSizeSync: null,
             quickLearn: true,
+            ...(request.thumbnailUrl ? { thumbnailUrl: request.thumbnailUrl } : {}),
           };
           renderRuntime(ui, runtime);
           return runtime;
@@ -772,7 +779,7 @@ export default defineContentScript({
           return {
             ok: false,
             type: 'error',
-            message: 'Watch Better is still loading on this page.',
+            message: 'YouTube Max is still loading on this page.',
           };
         try {
           await runtime.controls.restore();

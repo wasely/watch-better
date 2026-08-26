@@ -7,10 +7,20 @@ import {
   type SmartSkipConfiguration,
   type SmartSkipInterval,
   type SmartSkipRefinementState,
+  type SmartSkipStrictness,
 } from '@/features/smart-skip/domain';
 import type { SmartSkipEngineSnapshot } from '@/features/smart-skip/smart-skip-engine';
 
 import './SmartSkipPanel.css';
+
+const STRICTNESS_OPTIONS: readonly {
+  value: SmartSkipStrictness;
+  label: string;
+}[] = [
+  { value: 'conservative', label: 'Safe' },
+  { value: 'balanced', label: 'Strict' },
+  { value: 'aggressive', label: 'Maximum' },
+];
 
 const formatDuration = (seconds: number): string => {
   const total = Number.isFinite(seconds) ? Math.max(0, Math.round(seconds)) : 0;
@@ -26,8 +36,17 @@ const formatTimestamp = (seconds: number): string => {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 };
 
+const formatRate = (rate: number): string =>
+  `${Number.isInteger(rate) ? rate : Number(rate.toFixed(2))}×`;
+
 const intervalDuration = (interval: SmartSkipInterval): number =>
   Math.max(0, interval.endSeconds - interval.startSeconds);
+
+const estimatedIntervalSavings = (
+  interval: SmartSkipInterval,
+  basePlaybackRate: number,
+): number =>
+  intervalDuration(interval) / Math.min(16, Math.max(0.25, basePlaybackRate));
 
 export interface SmartSkipPanelProps {
   readonly configuration: SmartSkipConfiguration;
@@ -36,14 +55,16 @@ export interface SmartSkipPanelProps {
   readonly engineSnapshot: SmartSkipEngineSnapshot;
   readonly durationSeconds: number | null;
   readonly transcriptAvailable: boolean;
+  readonly refinementRequested?: boolean;
   readonly onConfigurationChange?: (configuration: SmartSkipConfiguration) => void;
   readonly onEnabledChange?: (enabled: boolean) => void;
   readonly onIntervalEnabledChange?: (intervalId: string, enabled: boolean) => void;
   readonly onUndo?: () => void;
   readonly onSeek?: (seconds: number) => void;
+  readonly onRefinementRequest?: () => void;
 }
 
-const cutPosition = (
+const actionPosition = (
   interval: SmartSkipInterval,
   durationSeconds: number | null,
 ): 'Open' | 'Middle' | 'End' => {
@@ -60,23 +81,38 @@ export function SmartSkipPanel({
   engineSnapshot,
   durationSeconds,
   transcriptAvailable,
+  refinementRequested = false,
   onConfigurationChange,
   onEnabledChange,
   onIntervalEnabledChange,
   onUndo,
   onSeek,
+  onRefinementRequest,
 }: SmartSkipPanelProps) {
   const analysis = analysisState.kind === 'ready' ? analysisState.analysis : null;
   const intervals = analysis?.intervals ?? [];
-  const activeCuts = intervals.filter((interval) => interval.enabled);
-  const proposedSavings = activeCuts.reduce(
-    (total, interval) => total + intervalDuration(interval),
+  const jumpIntervals = intervals;
+  const enabledJumps = jumpIntervals.filter((interval) => interval.enabled);
+  const basePlaybackRate = Math.min(
+    16,
+    Math.max(0.25, engineSnapshot.basePlaybackRate),
+  );
+  const proposedSavings = enabledJumps.reduce(
+    (total, interval) => total + estimatedIntervalSavings(interval, basePlaybackRate),
     0,
   );
-  const deepCutCount = intervals.filter(
+  const deepActionCount = jumpIntervals.filter(
     (interval) => interval.source === 'deep',
   ).length;
-  const enabled = engineSnapshot.state !== 'disabled';
+  const runtimeReady = transcriptAvailable && analysisState.kind === 'ready';
+  const enabled = configuration.autoSkip && runtimeReady;
+  const switchLabel = !transcriptAvailable
+    ? 'Needs captions'
+    : analysisState.kind !== 'ready'
+      ? 'Preparing'
+      : enabled
+        ? 'On'
+        : 'Off';
   const scanning =
     refinementState.kind === 'connecting' || refinementState.kind === 'analyzing';
   const refinementProgress =
@@ -90,7 +126,11 @@ export function SmartSkipPanel({
   const refinementLabel = (() => {
     switch (refinementState.kind) {
       case 'idle':
-        return transcriptAvailable ? 'Deep scan queued' : 'Waiting for captions';
+        return transcriptAvailable
+          ? refinementRequested
+            ? 'Deep scan queued'
+            : 'Optional deep scan'
+          : 'Waiting for captions';
       case 'connecting':
         return 'Deep scan connecting';
       case 'analyzing':
@@ -98,18 +138,24 @@ export function SmartSkipPanel({
       case 'complete':
         return refinementState.addedCuts === 0
           ? 'Deep scan complete'
-          : `${refinementState.addedCuts} deeper ${refinementState.addedCuts === 1 ? 'cut' : 'cuts'} found`;
+          : `${refinementState.addedCuts} deeper ${refinementState.addedCuts === 1 ? 'jump' : 'jumps'} found`;
       case 'unavailable':
         return 'Strict local scan active';
     }
   })();
+  const canRequestRefinement =
+    transcriptAvailable &&
+    analysisState.kind === 'ready' &&
+    !refinementRequested &&
+    refinementState.kind !== 'complete';
+  const refinementProvider = configuration.provider === 'gemini' ? 'Gemini' : 'ChatGPT';
 
   const updateConfiguration = (patch: Partial<SmartSkipConfiguration>) =>
     onConfigurationChange?.({ ...configuration, ...patch });
 
   const toggleCategory = (category: SmartSkipCategory, checked: boolean) => {
     const categories = checked
-      ? [...configuration.categories, category]
+      ? [...new Set([...configuration.categories, category])]
       : configuration.categories.filter((candidate) => candidate !== category);
     if (categories.length > 0) updateConfiguration({ categories });
   };
@@ -122,23 +168,60 @@ export function SmartSkipPanel({
             <Icon name="spark" />
           </span>
           <span>
-            <small>Cut intelligence</small>
+            <small>Automatic skipping</small>
             <strong>Smart Skip</strong>
           </span>
         </div>
         <button
           aria-checked={enabled}
+          aria-label={
+            runtimeReady
+              ? 'Automatic Smart Skip'
+              : transcriptAvailable
+                ? 'Automatic Smart Skip is preparing'
+                : 'Automatic Smart Skip requires captions'
+          }
           className="ct-smart-skip__switch"
-          disabled={!onEnabledChange}
-          onClick={() => onEnabledChange?.(!enabled)}
+          disabled={!onEnabledChange || !runtimeReady}
+          onClick={() => onEnabledChange?.(!configuration.autoSkip)}
           role="switch"
           type="button"
         >
           <span aria-hidden="true">
             <i />
           </span>
-          {enabled ? 'Live' : 'Off'}
+          {switchLabel}
         </button>
+      </section>
+
+      <section className="ct-smart-skip__profile" aria-labelledby="smart-skip-profile">
+        <div className="ct-smart-skip__profile-heading">
+          <span>
+            <strong id="smart-skip-profile">Skip intensity</strong>
+            <small>Playback stays at your YouTube speed</small>
+          </span>
+          <span className="ct-smart-skip__rates" aria-label="Playback speed behavior">
+            <i>YouTube speed · {formatRate(basePlaybackRate)}</i>
+            <i>Never changed</i>
+          </span>
+        </div>
+        <div
+          aria-label="Skip intensity"
+          className="ct-smart-skip__segments"
+          role="group"
+        >
+          {STRICTNESS_OPTIONS.map((option) => (
+            <button
+              aria-pressed={configuration.strictness === option.value}
+              disabled={!onConfigurationChange}
+              key={option.value}
+              onClick={() => updateConfiguration({ strictness: option.value })}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section
@@ -146,65 +229,78 @@ export function SmartSkipPanel({
       >
         <div aria-label="Smart Skip summary" className="ct-smart-skip__summary">
           <div>
-            <small>Queued</small>
+            <small>Full-video potential</small>
             <strong>{formatDuration(proposedSavings)}</strong>
           </div>
           <div>
-            <small>Saved</small>
+            <small>Saved this play</small>
             <strong>{formatDuration(engineSnapshot.timeSavedSeconds)}</strong>
           </div>
           <div>
-            <small>Cuts</small>
-            <strong>{activeCuts.length}</strong>
+            <small>Jumps</small>
+            <strong>{enabledJumps.length}</strong>
+          </div>
+          <div>
+            <small>Speed</small>
+            <strong>Yours</strong>
           </div>
         </div>
 
-        <div
-          aria-label="Video cut map"
-          className={`ct-smart-skip__map${scanning ? ' ct-smart-skip__map--scanning' : ''}`}
-          role="region"
-        >
+        <div aria-label="Video action map" className="ct-smart-skip__map" role="region">
           <div className="ct-smart-skip__map-track">
             {durationSeconds && durationSeconds > 0
-              ? activeCuts.map((interval) => (
-                  <button
-                    aria-label={`${SMART_SKIP_CATEGORY_LABELS[interval.category]} at ${formatTimestamp(interval.startSeconds)}`}
-                    className="ct-smart-skip__map-cut"
-                    data-source={interval.source ?? 'instant'}
-                    key={interval.id}
-                    onClick={() => onSeek?.(interval.startSeconds)}
-                    style={{
-                      left: `${Math.max(0, (interval.startSeconds / durationSeconds) * 100)}%`,
-                      width: `${Math.max(1.2, (intervalDuration(interval) / durationSeconds) * 100)}%`,
-                    }}
-                    title={interval.reason}
-                    type="button"
-                  />
-                ))
+              ? jumpIntervals.map((interval) => {
+                  const actionLabel = 'Jump';
+                  return (
+                    <span
+                      className="ct-smart-skip__map-marker"
+                      data-action="skip"
+                      data-enabled={interval.enabled}
+                      data-source={interval.source ?? 'instant'}
+                      key={interval.id}
+                      style={{
+                        left: `${Math.max(0, (interval.startSeconds / durationSeconds) * 100)}%`,
+                        width: `${Math.max(1.2, (intervalDuration(interval) / durationSeconds) * 100)}%`,
+                      }}
+                    >
+                      <button
+                        aria-label={`${interval.enabled ? actionLabel : `Held ${actionLabel.toLocaleLowerCase()}`} ${SMART_SKIP_CATEGORY_LABELS[interval.category]} at ${formatTimestamp(interval.startSeconds)}`}
+                        className="ct-smart-skip__map-action"
+                        disabled={!onSeek}
+                        onClick={() => onSeek?.(interval.startSeconds)}
+                        title={`${interval.enabled ? actionLabel : `Held ${actionLabel.toLocaleLowerCase()}`} · ${interval.reason}`}
+                        type="button"
+                      />
+                    </span>
+                  );
+                })
               : null}
-            {scanning ? (
-              <i aria-hidden="true" className="ct-smart-skip__scan-beam" />
-            ) : null}
           </div>
           <div className="ct-smart-skip__map-labels">
             <span>0:00</span>
             <span className="ct-smart-skip__map-legend">
-              <i data-source="instant" /> Instant
-              <i data-source="deep" /> Deep
+              <span>
+                <i data-action="skip" /> Jump
+              </span>
+              {jumpIntervals.some((interval) => !interval.enabled) ? (
+                <span>
+                  <i data-enabled="false" /> Held
+                </span>
+              ) : null}
             </span>
             <span>{formatTimestamp(durationSeconds ?? 0)}</span>
           </div>
         </div>
       </section>
 
-      {engineSnapshot.lastSkipped ? (
-        <div className="ct-smart-skip__undo" role="status">
-          <span>{engineSnapshot.message}</span>
-          <button onClick={onUndo} type="button">
+      <div className="ct-smart-skip__runtime" role="status">
+        <span>{engineSnapshot.message}</span>
+        {engineSnapshot.lastSkipped ? (
+          <button disabled={!onUndo} onClick={onUndo} type="button">
             Undo
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <section className="ct-smart-skip__control" aria-labelledby="smart-skip-control">
         <div className="ct-smart-skip__control-status">
@@ -216,11 +312,15 @@ export function SmartSkipPanel({
           <div className="ct-smart-skip__status-copy">
             <strong id="smart-skip-control">{refinementLabel}</strong>
             <small>
-              {refinementState.kind === 'unavailable'
-                ? refinementState.message
-                : deepCutCount > 0
-                  ? 'Context-aware cuts use hatched markers.'
-                  : 'Instant cuts stay active during analysis.'}
+              {analysisState.kind === 'error'
+                ? analysisState.message
+                : refinementState.kind === 'unavailable'
+                  ? refinementState.message
+                  : canRequestRefinement
+                    ? `Sends bounded caption chunks to ${refinementProvider} only when you start it.`
+                    : deepActionCount > 0
+                      ? 'Deeper context jumps use hatched markers.'
+                      : 'Local jumps work immediately.'}
             </small>
             {refinementProgress ? (
               <div className="ct-smart-skip__progress">
@@ -246,33 +346,26 @@ export function SmartSkipPanel({
               </div>
             ) : null}
           </div>
+          {canRequestRefinement ? (
+            <button
+              className="ct-smart-skip__refine"
+              disabled={!onRefinementRequest}
+              onClick={onRefinementRequest}
+              type="button"
+            >
+              Start deep scan
+            </button>
+          ) : null}
         </div>
 
-        <label className="ct-smart-skip__intensity">
-          <span>Skip intensity</span>
-          <select
-            aria-label="Skip intensity"
-            onChange={(event) =>
-              updateConfiguration({
-                strictness: event.currentTarget
-                  .value as SmartSkipConfiguration['strictness'],
-              })
-            }
-            value={configuration.strictness}
-          >
-            <option value="conservative">Safe</option>
-            <option value="balanced">Strict</option>
-            <option value="aggressive">Maximum</option>
-          </select>
-        </label>
-
         <details className="ct-smart-skip__categories">
-          <summary>Cut targets</summary>
+          <summary>Skip targets</summary>
           <div>
             {SMART_SKIP_CATEGORIES.map((category) => (
               <label key={category}>
                 <input
                   checked={configuration.categories.includes(category)}
+                  disabled={!onConfigurationChange}
                   onChange={(event) =>
                     toggleCategory(category, event.currentTarget.checked)
                   }
@@ -286,60 +379,68 @@ export function SmartSkipPanel({
 
         {analysis?.reviewRequired ? (
           <p className="ct-smart-skip__warning" role="alert">
-            Large cut map. Review the hatched middle cuts before leaving it on.
+            Safety limit reached. Lower-confidence jumps beyond 35% of the video are
+            held off until you review and enable them.
           </p>
         ) : null}
       </section>
 
-      {analysis && intervals.length === 0 ? (
+      {analysis && jumpIntervals.length === 0 ? (
         <section className="ct-smart-skip__empty">
-          <strong>No safe cuts found</strong>
-          <p>The strict pass kept the full video.</p>
+          <strong>No safe jumps found</strong>
+          <p>The current profile kept the full video.</p>
         </section>
       ) : null}
 
-      {intervals.length > 0 ? (
-        <section className="ct-smart-skip__cuts" aria-labelledby="smart-skip-cuts">
+      {jumpIntervals.length > 0 ? (
+        <section
+          className="ct-smart-skip__actions"
+          aria-labelledby="smart-skip-actions"
+        >
           <div className="ct-smart-skip__section-heading">
             <span>
-              <small>Editorial queue</small>
-              <strong id="smart-skip-cuts">Cut list</strong>
+              <small>Playback map</small>
+              <strong id="smart-skip-actions">Actions</strong>
             </span>
-            <span>{intervals.length} mapped</span>
+            <span>{jumpIntervals.length} mapped</span>
           </div>
-          <div className="ct-smart-skip__cut-list">
-            {intervals.map((interval) => {
+          <div className="ct-smart-skip__action-list">
+            {jumpIntervals.map((interval) => {
               const source = interval.source ?? 'instant';
               return (
                 <article
-                  className="ct-smart-skip__cut"
+                  className="ct-smart-skip__action"
                   data-source={source}
                   key={interval.id}
                 >
                   <button
+                    aria-label={`Seek to ${formatTimestamp(interval.startSeconds)}`}
                     className="ct-smart-skip__timestamp"
+                    disabled={!onSeek}
                     onClick={() => onSeek?.(interval.startSeconds)}
                     type="button"
                   >
                     {formatTimestamp(interval.startSeconds)}
                   </button>
                   <div>
-                    <div className="ct-smart-skip__cut-title">
+                    <div className="ct-smart-skip__action-title">
                       <strong>{SMART_SKIP_CATEGORY_LABELS[interval.category]}</strong>
+                      <span data-action="skip">Jump</span>
                       <span data-source={source}>
-                        {source === 'deep' ? 'Deep' : 'Instant'}
+                        {source === 'deep' ? 'Deep' : 'Local'}
                       </span>
-                      <span>{cutPosition(interval, durationSeconds)}</span>
+                      <span>{actionPosition(interval, durationSeconds)}</span>
                     </div>
                     <p>{interval.reason}</p>
                     <small>
-                      {formatDuration(intervalDuration(interval))} cut ·{' '}
+                      {formatDuration(intervalDuration(interval))} jumped ·{' '}
                       {Math.round(interval.confidence * 100)}% confidence
                     </small>
                   </div>
                   <input
-                    aria-label={`${interval.enabled ? 'Disable' : 'Enable'} ${SMART_SKIP_CATEGORY_LABELS[interval.category]} cut at ${formatTimestamp(interval.startSeconds)}`}
+                    aria-label={`${interval.enabled ? 'Disable' : 'Enable'} ${SMART_SKIP_CATEGORY_LABELS[interval.category]} jump at ${formatTimestamp(interval.startSeconds)}`}
                     checked={interval.enabled}
+                    disabled={!onIntervalEnabledChange}
                     onChange={(event) =>
                       onIntervalEnabledChange?.(
                         interval.id,

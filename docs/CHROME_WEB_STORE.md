@@ -23,7 +23,8 @@ optional signed-in deep Smart Skip playback controls.
   or generated screenshots as product evidence.
 - Provide an accurate support URL and this repository's `PRIVACY.md` URL.
 - Disclose YouTube, ChatGPT, Gemini, storage, `declarativeNetRequest`, and
-  `webNavigation` access exactly as documented in the README.
+  `webNavigation` access exactly as documented in the README. Disclose temporary
+  clipboard read/write for Gemini thumbnail paste and immediate restoration.
 - State that ChatGPT/Gemini embedding can require normal-tab sign-in,
   a full tab, and provider interfaces may need compatibility updates.
 
@@ -35,11 +36,13 @@ optional signed-in deep Smart Skip playback controls.
 - Load the production build from `.output/chrome-mv3/` in a clean Chrome profile.
 - Verify selected-provider frame load, automatic context submission with `READY` only,
   explicit single send, provider switching, and errors.
+- Verify Quick Learn attaches the clicked YouTube thumbnail and streams its direct
+  title/thumbnail briefing without a `READY` turn.
 - Verify transcript load, search, selection, copy, seek, SPA navigation, theater,
   fullscreen, 200% zoom, and dark/light themes.
-- Verify instant local Smart Skip cuts before provider readiness, semantic middle-cut
-  refinement after opening the tab, graceful provider failure, per-cut controls, undo,
-  and browser-session cache behavior.
+- Verify caption-gated local jumps, unchanged user-selected playback speed, semantic
+  middle-jump refinement without opening the tab, graceful provider failure, the 35%
+  hard-jump budget, per-action controls, undo, and browser-session cache behavior.
 - Inspect the packaged manifest and archive; include no source maps, credentials,
   private data, test output, or unrelated files.
 - Confirm the listing privacy disclosures match `PRIVACY.md` and actual behavior.

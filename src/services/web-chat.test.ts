@@ -68,6 +68,7 @@ describe('web chat provider contract', () => {
         type: 'watchbetter:webchat-page-send',
         message: 'Use this transcript.',
         newConversation: true,
+        imageUrl: 'https://i.ytimg.com/vi/example/hqdefault.jpg',
       }),
     ).toBe(true);
     expect(
@@ -89,6 +90,22 @@ describe('web chat provider contract', () => {
       isWebChatPageRequest({
         type: 'watchbetter:webchat-page-focus',
         message: 'hidden data',
+      }),
+    ).toBe(false);
+    expect(
+      isWebChatPageRequest({
+        type: 'watchbetter:webchat-page-send',
+        message: 'Inspect this thumbnail.',
+        newConversation: false,
+        imageUrl: 'https://attacker.example/track.jpg',
+      }),
+    ).toBe(false);
+    expect(
+      isWebChatPageRequest({
+        type: 'watchbetter:webchat-page-prime',
+        message: 'Hidden image transfer.',
+        newConversation: true,
+        imageUrl: 'https://i.ytimg.com/vi/example/hqdefault.jpg',
       }),
     ).toBe(false);
   });

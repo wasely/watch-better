@@ -48,4 +48,25 @@ describe('BrowserYouTubePageController', () => {
     expect(listener).toHaveBeenCalledTimes(5);
     controller.dispose();
   });
+
+  it('updates same-video URLs without resetting page generation', async () => {
+    history.replaceState({}, '', '/watch?v=alpha');
+    const controller = new BrowserYouTubePageController(window);
+    const listener = vi.fn();
+    controller.subscribe(listener);
+    controller.start();
+
+    history.pushState({}, '', '/watch?v=alpha&t=42');
+    document.dispatchEvent(new Event('yt-navigate-finish'));
+    await Promise.resolve();
+
+    expect(controller.snapshot).toMatchObject({
+      kind: 'watch',
+      videoId: 'alpha',
+      generation: 0,
+    });
+    expect(controller.snapshot.url).toContain('t=42');
+    expect(listener).toHaveBeenCalledTimes(2);
+    controller.dispose();
+  });
 });

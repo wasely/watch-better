@@ -33,16 +33,13 @@ import {
   parseSmartSkipAnalysisResponse,
   smartSkipAnalysisCacheKey,
 } from '@/features/smart-skip/analysis';
-import type {
-  SmartSkipAnalysis,
-  SmartSkipAnalysisState,
-  SmartSkipRefinementState,
+import {
+  type SmartSkipAnalysis,
+  type SmartSkipAnalysisState,
+  type SmartSkipRefinementState,
 } from '@/features/smart-skip/domain';
 import { SmartSkipCache } from '@/features/smart-skip/smart-skip-cache';
-import {
-  buildInstantSmartSkipAnalysis,
-  createInstantOpeningInterval,
-} from '@/features/smart-skip/instant-analysis';
+import { buildInstantSmartSkipAnalysis } from '@/features/smart-skip/instant-analysis';
 import {
   SmartSkipEngine,
   type SmartSkipEngineSnapshot,
@@ -83,6 +80,20 @@ const EMPTY_SEGMENTS: readonly TranscriptSegment[] = [];
  */
 const ASK_TIME_BUCKET_SECONDS = 5;
 
+const sameCategories = (left: readonly string[], right: readonly string[]): boolean =>
+  left.length === right.length && left.every((category) => right.includes(category));
+
+const isCompatibleSmartSkipAnalysis = (
+  cached: SmartSkipAnalysis,
+  instant: SmartSkipAnalysis,
+): boolean =>
+  cached.videoId === instant.videoId &&
+  cached.trackId === instant.trackId &&
+  cached.transcriptFingerprint === instant.transcriptFingerprint &&
+  cached.provider === instant.provider &&
+  cached.strictness === instant.strictness &&
+  sameCategories(cached.categories, instant.categories);
+
 /**
  * Chrome tears down a content script's extension APIs when the extension reloads while
  * the tab stays open. Nothing recovers except reloading the tab, so say so plainly.
@@ -94,7 +105,7 @@ const isExtensionContextLost = (error: unknown): boolean =>
   );
 
 const CONTEXT_LOST_MESSAGE =
-  'Watch Better was reloaded. Refresh this tab to reconnect the panel.';
+  'YouTube Max was reloaded. Refresh this tab to reconnect the panel.';
 
 const send = async (request: ExtensionRequest): Promise<ExtensionResponse> => {
   const response: unknown = await browser.runtime.sendMessage(request);
@@ -109,7 +120,7 @@ const send = async (request: ExtensionRequest): Promise<ExtensionResponse> => {
     ok: false,
     type: 'error',
     message:
-      'Watch Better background did not respond. Reload the extension and refresh YouTube.',
+      'YouTube Max background did not respond. Reload the extension and refresh YouTube.',
   };
 };
 
@@ -129,6 +140,9 @@ export interface WatchBetterRuntimeProps {
   readonly presentation?: 'panel' | 'floating';
   readonly initialTab?: PanelTab;
   readonly initialWebChatProvider?: WebChatProviderId;
+  readonly quickLearn?: {
+    readonly thumbnailUrl?: string;
+  };
   readonly videoTitle?: string;
   readonly onDetach?: (context: DetachedVideoContext) => void | Promise<void>;
   readonly onClose?: () => void;
@@ -160,6 +174,7 @@ export function WatchBetterRuntime({
   presentation = 'panel',
   initialTab,
   initialWebChatProvider = 'gemini',
+  quickLearn,
   videoTitle,
   onDetach,
   onClose,
@@ -215,6 +230,9 @@ export function WatchBetterRuntime({
     useState<WebChatConnectionState>('not-open');
   const [smartSkipRefinementFrameEnabled, setSmartSkipRefinementFrameEnabled] =
     useState(false);
+  const [smartSkipRefinementRequestKey, setSmartSkipRefinementRequestKey] = useState<
+    string | null
+  >(null);
   const [smartSkipRefinementRetryToken, setSmartSkipRefinementRetryToken] = useState(0);
   const [smartSkipEngineSnapshot, setSmartSkipEngineSnapshot] =
     useState<SmartSkipEngineSnapshot>(smartSkipEngine.snapshot);
@@ -267,22 +285,26 @@ export function WatchBetterRuntime({
       pageRef.current = next;
       setPage(next);
       if (changedVideo) {
+        loadAbortRef.current?.abort();
+        loadGenerationRef.current += 1;
+        setTranscript(
+          next.videoId &&
+            settingsRef.current.extensionEnabled &&
+            settingsRef.current.autoLoadTranscript
+            ? { kind: 'loading' }
+            : { kind: 'disabled' },
+        );
         setSelectedSegmentIds(new Set());
         smartSkipGenerationRef.current += 1;
         smartSkipRefinementRunKeyRef.current = null;
+        setSmartSkipRefinementRequestKey(null);
+        setSmartSkipRefinementFrameEnabled(false);
+        setSmartSkipRefinementSession(null);
+        setSmartSkipRefinementProviderState('not-open');
         setSmartSkipAnalysisState({ kind: 'idle' });
         setSmartSkipRefinementState({ kind: 'idle' });
         smartSkipEngine.setEnabled(false);
-        const opening = next.videoId
-          ? createInstantOpeningInterval(
-              next.videoId,
-              playback.snapshot.durationSeconds,
-              settingsRef.current.smartSkip,
-            )
-          : null;
-        smartSkipEngine.setIntervals(opening ? [opening] : []);
-        if (opening && settingsRef.current.smartSkip.autoSkip)
-          smartSkipEngine.setEnabled(true);
+        smartSkipEngine.setIntervals([]);
         setActiveTab(resolveDefaultTab(settingsRef.current.defaultTab));
       }
     });
@@ -291,7 +313,7 @@ export function WatchBetterRuntime({
       unsubscribe();
       pageController.dispose();
     };
-  }, [pageController, playback, resolveDefaultTab, smartSkipEngine]);
+  }, [pageController, resolveDefaultTab, smartSkipEngine]);
 
   /**
    * Playback ticks four times a second. Keeping the raw snapshot in state re-rendered
@@ -312,9 +334,7 @@ export function WatchBetterRuntime({
 
   useEffect(
     () =>
-      playback.subscribe((snapshot: PlaybackSnapshot) =>
-        applyPlaybackTime(snapshot.currentTimeSeconds),
-      ),
+      playback.subscribe(() => applyPlaybackTime(playback.snapshot.currentTimeSeconds)),
     [applyPlaybackTime, playback],
   );
 
@@ -620,7 +640,9 @@ export function WatchBetterRuntime({
   ]);
 
   const transcriptDocument: TranscriptDocument | null =
-    transcript.kind === 'ready' ? transcript.document : null;
+    transcript.kind === 'ready' && transcript.document.videoId === page.videoId
+      ? transcript.document
+      : null;
   const resolvedVideoTitle =
     (
       transcriptDocument?.videoTitle ??
@@ -638,36 +660,84 @@ export function WatchBetterRuntime({
   }, [applyPlaybackTime, transcriptDocument]);
 
   const selectedTranscriptTrackId =
-    transcript.kind === 'ready' ? transcript.selectedTrackId : null;
+    transcript.kind === 'ready' && transcript.document.videoId === page.videoId
+      ? transcript.selectedTrackId
+      : null;
+  const smartSkipRuntimeAvailable =
+    presentation === 'panel' &&
+    settingsLoaded &&
+    settings.extensionEnabled &&
+    Boolean(page.videoId);
+  const smartSkipRefinementContextKey =
+    transcriptDocument && selectedTranscriptTrackId
+      ? smartSkipAnalysisCacheKey(
+          transcriptDocument,
+          selectedTranscriptTrackId,
+          settings.smartSkip,
+        )
+      : null;
+  const smartSkipRefinementRequested =
+    smartSkipRefinementContextKey !== null &&
+    smartSkipRefinementRequestKey === smartSkipRefinementContextKey;
 
   useEffect(() => {
     if (
+      smartSkipRefinementRequestKey === null ||
+      smartSkipRefinementRequestKey === smartSkipRefinementContextKey
+    )
+      return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setSmartSkipRefinementRequestKey(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [smartSkipRefinementContextKey, smartSkipRefinementRequestKey]);
+
+  useEffect(() => {
+    if (smartSkipRuntimeAvailable && smartSkipRefinementRequested) return;
+    if (!smartSkipRuntimeAvailable) {
+      smartSkipEngine.setEnabled(false);
+      smartSkipEngine.setIntervals([]);
+    }
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSmartSkipRefinementFrameEnabled(false);
+      setSmartSkipRefinementSession(null);
+      setSmartSkipRefinementProviderState('not-open');
+      if (!smartSkipRuntimeAvailable) {
+        setSmartSkipRefinementRequestKey(null);
+        setSmartSkipRefinementState({ kind: 'idle' });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [smartSkipEngine, smartSkipRefinementRequested, smartSkipRuntimeAvailable]);
+
+  useEffect(() => {
+    if (
+      !smartSkipRuntimeAvailable ||
+      !smartSkipRefinementRequested ||
       smartSkipRefinementFrameEnabled ||
       !transcriptDocument ||
-      !selectedTranscriptTrackId ||
-      !settings.smartSkip.autoSkip
+      !selectedTranscriptTrackId
     )
       return;
     let disposed = false;
-    const enable = () => {
+    queueMicrotask(() => {
       if (!disposed) setSmartSkipRefinementFrameEnabled(true);
-    };
-    if (typeof window.requestIdleCallback === 'function') {
-      const idleId = window.requestIdleCallback(enable, { timeout: 1_500 });
-      return () => {
-        disposed = true;
-        window.cancelIdleCallback(idleId);
-      };
-    }
-    const timer = window.setTimeout(enable, 500);
+    });
     return () => {
       disposed = true;
-      window.clearTimeout(timer);
     };
   }, [
     selectedTranscriptTrackId,
-    settings.smartSkip.autoSkip,
     smartSkipRefinementFrameEnabled,
+    smartSkipRefinementRequested,
+    smartSkipRuntimeAvailable,
     transcriptDocument,
   ]);
 
@@ -696,7 +766,7 @@ export function WatchBetterRuntime({
       } catch (error: unknown) {
         setSmartSkipRefinementState({
           kind: 'unavailable',
-          message: 'Deep scan reconnecting; strict local cuts remain active.',
+          message: 'Deep scan reconnecting; strict local jumps remain active.',
         });
         throw error;
       }
@@ -737,19 +807,19 @@ export function WatchBetterRuntime({
           if (response.state === 'sign-in-required') {
             setSmartSkipRefinementState({
               kind: 'unavailable',
-              message: 'Sign in to Gemini for deeper middle-of-video cuts.',
+              message: 'Sign in to Gemini for deeper middle-of-video jumps.',
             });
             return;
           }
         }
       } catch {
-        // Deep analysis is optional. Local cuts must remain uninterrupted.
+        // Deep analysis is optional. Local pacing must remain uninterrupted.
       }
       attempt += 1;
       if (attempt === 9) {
         setSmartSkipRefinementState({
           kind: 'unavailable',
-          message: 'Deep scan reconnecting; strict local cuts remain active.',
+          message: 'Deep scan reconnecting; strict local jumps remain active.',
         });
       }
       timer = window.setTimeout(
@@ -771,13 +841,34 @@ export function WatchBetterRuntime({
   }, [smartSkipRefinementSession]);
 
   const applySmartSkipAnalysis = useCallback(
-    (analysis: SmartSkipAnalysis, cached: boolean, generation: number) => {
-      smartSkipEngine.setEnabled(false);
-      smartSkipEngine.setIntervals(analysis.intervals);
-      if (settingsRef.current.smartSkip.autoSkip) smartSkipEngine.setEnabled(true);
+    (
+      analysis: SmartSkipAnalysis,
+      cached: boolean,
+      generation: number,
+      preserveRuntime = false,
+    ) => {
+      if (
+        generation !== smartSkipGenerationRef.current ||
+        analysis.videoId !== pageRef.current.videoId
+      )
+        return;
+      // Catch-up applies to locally derived maps (instant analysis or a settings
+      // change). Deep provider merges call updateIntervals themselves and stay
+      // deferred until playback leaves a span.
+      if (preserveRuntime)
+        smartSkipEngine.updateIntervals(analysis.intervals, {
+          allowCatchUp: true,
+        });
+      else {
+        smartSkipEngine.setEnabled(false);
+        smartSkipEngine.setIntervals(analysis.intervals, analysis.videoId);
+      }
+      smartSkipEngine.setEnabled(settingsRef.current.smartSkip.autoSkip);
+      const nextState = { kind: 'ready', analysis, cached } as const;
+      smartSkipAnalysisStateRef.current = nextState;
       queueMicrotask(() => {
         if (generation === smartSkipGenerationRef.current)
-          setSmartSkipAnalysisState({ kind: 'ready', analysis, cached });
+          setSmartSkipAnalysisState(nextState);
       });
     },
     [smartSkipEngine],
@@ -787,7 +878,7 @@ export function WatchBetterRuntime({
     const generation = ++smartSkipGenerationRef.current;
     let disposed = false;
     const configuration = settings.smartSkip;
-    if (!page.videoId) {
+    if (!smartSkipRuntimeAvailable) {
       smartSkipEngine.setEnabled(false);
       smartSkipEngine.setIntervals([]);
       queueMicrotask(() => {
@@ -802,14 +893,8 @@ export function WatchBetterRuntime({
     }
 
     if (!transcriptDocument || !selectedTranscriptTrackId) {
-      const opening = createInstantOpeningInterval(
-        page.videoId,
-        playback.snapshot.durationSeconds,
-        configuration,
-      );
       smartSkipEngine.setEnabled(false);
-      smartSkipEngine.setIntervals(opening ? [opening] : []);
-      if (opening && configuration.autoSkip) smartSkipEngine.setEnabled(true);
+      smartSkipEngine.setIntervals([]);
       queueMicrotask(() => {
         if (!disposed && generation === smartSkipGenerationRef.current) {
           setSmartSkipAnalysisState({ kind: 'idle' });
@@ -826,34 +911,50 @@ export function WatchBetterRuntime({
       selectedTranscriptTrackId,
       configuration,
     );
-    queueMicrotask(() => {
-      if (disposed || generation !== smartSkipGenerationRef.current) return;
-      setSmartSkipRefinementState(
-        smartSkipRefinementSession ? { kind: 'connecting' } : { kind: 'idle' },
-      );
-    });
-    applySmartSkipAnalysis(instantAnalysis, false, generation);
+    const currentAnalysis = smartSkipAnalysisStateRef.current;
+    const preserveRuntime =
+      currentAnalysis.kind === 'ready' &&
+      currentAnalysis.analysis.videoId === instantAnalysis.videoId;
     const key = smartSkipAnalysisCacheKey(
       transcriptDocument,
       selectedTranscriptTrackId,
       configuration,
     );
-    void smartSkipCache
-      .get(key)
-      .then((analysis) => {
-        if (disposed || generation !== smartSkipGenerationRef.current) return;
-        if (analysis) {
-          applySmartSkipAnalysis(analysis, true, generation);
-          const deepCuts = analysis.intervals.filter(
-            (interval) => interval.source === 'deep',
-          ).length;
-          if (deepCuts > 0) {
-            smartSkipRefinementRunKeyRef.current = key;
-            setSmartSkipRefinementState({ kind: 'complete', addedCuts: deepCuts });
-          }
-        }
-      })
-      .catch(() => undefined);
+
+    // A cached map also stores per-action user overrides. Keep execution stopped
+    // until that map resolves so a previously disabled action cannot fire first.
+    smartSkipEngine.setEnabled(false);
+    smartSkipAnalysisStateRef.current = { kind: 'idle' };
+    queueMicrotask(() => {
+      if (disposed || generation !== smartSkipGenerationRef.current) return;
+      setSmartSkipAnalysisState({ kind: 'idle' });
+      setSmartSkipRefinementState({ kind: 'idle' });
+    });
+
+    const applyResolvedMap = (cachedAnalysis: SmartSkipAnalysis | null) => {
+      if (disposed || generation !== smartSkipGenerationRef.current) return;
+      const compatibleCached =
+        cachedAnalysis && isCompatibleSmartSkipAnalysis(cachedAnalysis, instantAnalysis)
+          ? cachedAnalysis
+          : null;
+      const resolved = compatibleCached ?? instantAnalysis;
+      applySmartSkipAnalysis(
+        resolved,
+        compatibleCached !== null,
+        generation,
+        preserveRuntime,
+      );
+      if (!compatibleCached) return;
+      const deepCuts = compatibleCached.intervals.filter(
+        (interval) => interval.source === 'deep',
+      ).length;
+      if (deepCuts > 0) {
+        smartSkipRefinementRunKeyRef.current = key;
+        setSmartSkipRefinementState({ kind: 'complete', addedCuts: deepCuts });
+      }
+    };
+
+    void smartSkipCache.get(key).then(applyResolvedMap, () => applyResolvedMap(null));
     return () => {
       disposed = true;
     };
@@ -862,20 +963,19 @@ export function WatchBetterRuntime({
     selectedTranscriptTrackId,
     smartSkipCache,
     smartSkipEngine,
-    page.videoId,
-    playback,
+    smartSkipRuntimeAvailable,
     settings.smartSkip,
-    smartSkipRefinementSession,
     transcriptDocument,
   ]);
 
   useEffect(() => {
     if (
+      !smartSkipRuntimeAvailable ||
       !transcriptDocument ||
       !selectedTranscriptTrackId ||
+      !smartSkipRefinementRequested ||
       !smartSkipRefinementSession ||
-      smartSkipRefinementProviderState !== 'ready' ||
-      !settings.smartSkip.autoSkip
+      smartSkipRefinementProviderState !== 'ready'
     )
       return;
 
@@ -889,6 +989,7 @@ export function WatchBetterRuntime({
     if (smartSkipRefinementRunKeyRef.current === cacheKey) return;
     const generation = smartSkipGenerationRef.current;
     let disposed = false;
+    let completed = false;
     let retryTimer: number | null = null;
 
     const refine = async () => {
@@ -928,7 +1029,7 @@ export function WatchBetterRuntime({
             }
           }
           if (!parsedCuts)
-            throw lastError ?? new Error('Deep scan did not return cuts.');
+            throw lastError ?? new Error('Deep scan did not return jumps.');
           rawCuts.push(...parsedCuts);
           if (disposed || generation !== smartSkipGenerationRef.current) return;
           setSmartSkipRefinementState({
@@ -974,7 +1075,12 @@ export function WatchBetterRuntime({
         ).length;
         smartSkipRefinementFailureCountRef.current = 0;
         setSmartSkipRefinementState({ kind: 'complete', addedCuts });
-        await smartSkipCache.set(cacheKey, merged);
+        completed = true;
+        try {
+          await smartSkipCache.set(cacheKey, merged);
+        } catch (error: unknown) {
+          console.warn('[watchbetter] could not cache the deep Smart Skip map', error);
+        }
       } catch (error: unknown) {
         if (disposed || generation !== smartSkipGenerationRef.current) return;
         smartSkipRefinementRunKeyRef.current = null;
@@ -985,7 +1091,7 @@ export function WatchBetterRuntime({
         smartSkipRefinementFailureCountRef.current += 1;
         setSmartSkipRefinementState({
           kind: 'unavailable',
-          message: `Deep scan reconnecting; strict local cuts remain active. ${
+          message: `Deep scan reconnecting; strict local jumps remain active. ${
             error instanceof Error ? error.message : ''
           }`.trim(),
         });
@@ -1009,6 +1115,8 @@ export function WatchBetterRuntime({
     });
     return () => {
       disposed = true;
+      if (!completed && smartSkipRefinementRunKeyRef.current === cacheKey)
+        smartSkipRefinementRunKeyRef.current = null;
       if (retryTimer !== null) window.clearTimeout(retryTimer);
     };
   }, [
@@ -1017,6 +1125,8 @@ export function WatchBetterRuntime({
     smartSkipCache,
     smartSkipEngine,
     smartSkipRefinementProviderState,
+    smartSkipRefinementRequested,
+    smartSkipRuntimeAvailable,
     smartSkipRefinementRetryToken,
     smartSkipRefinementSession,
     transcriptDocument,
@@ -1024,7 +1134,9 @@ export function WatchBetterRuntime({
 
   const displayedTranscript: TranscriptViewState = contextLost
     ? { kind: 'error', message: CONTEXT_LOST_MESSAGE }
-    : transcript;
+    : transcript.kind === 'ready' && transcript.document.videoId !== page.videoId
+      ? { kind: 'loading' }
+      : transcript;
 
   const theme: ResolvedTheme =
     settings.theme === 'system' ? systemTheme : settings.theme;
@@ -1051,7 +1163,7 @@ export function WatchBetterRuntime({
       isMounted: () => visible,
       restore: async () => {
         if (!settingsRef.current.extensionEnabled)
-          throw new Error('Enable Watch Better before restoring the panel.');
+          throw new Error('Enable YouTube Max before restoring the panel.');
         await patchSettings({ panelCollapsed: false });
       },
     };
@@ -1071,7 +1183,9 @@ export function WatchBetterRuntime({
 
   return (
     <>
-      {smartSkipRefinementFrameEnabled ? (
+      {smartSkipRuntimeAvailable &&
+      smartSkipRefinementRequested &&
+      smartSkipRefinementFrameEnabled ? (
         <SmartSkipRefinementFrame
           key={settings.smartSkip.provider}
           onPrepare={prepareSmartSkipRefinement}
@@ -1147,12 +1261,19 @@ export function WatchBetterRuntime({
           configuration: settings.smartSkip,
           analysisState: smartSkipAnalysisState,
           refinementState: smartSkipRefinementState,
+          refinementRequested: smartSkipRefinementRequested,
           engineSnapshot: smartSkipEngineSnapshot,
           durationSeconds:
             transcriptDocument?.durationSeconds ?? playback.snapshot.durationSeconds,
           transcriptAvailable: Boolean(transcriptDocument),
           onConfigurationChange: (configuration) => {
             void patchSettings({ smartSkip: configuration }).catch(() => undefined);
+          },
+          onRefinementRequest: () => {
+            if (!smartSkipRefinementContextKey) return;
+            smartSkipRefinementFailureCountRef.current = 0;
+            setSmartSkipRefinementState({ kind: 'connecting' });
+            setSmartSkipRefinementRequestKey(smartSkipRefinementContextKey);
           },
           onEnabledChange: (enabled) => {
             smartSkipEngine.setEnabled(enabled);
@@ -1178,7 +1299,9 @@ export function WatchBetterRuntime({
                 );
                 void smartSkipCache.set(key, analysis).catch(() => undefined);
               }
-              return { ...current, analysis };
+              const nextState = { ...current, analysis };
+              smartSkipAnalysisStateRef.current = nextState;
+              return nextState;
             });
           },
           onUndo: () => {
@@ -1193,6 +1316,7 @@ export function WatchBetterRuntime({
           providerStatuses,
           selectedProvider: selectedWebChatProvider,
           sendRequestId,
+          ...(quickLearn ? { quickLearn } : {}),
           onProviderChange: setSelectedWebChatProvider,
           onProviderSessionChange: registerAskProviderSession,
           onPrimeWebChat: primeAskWebChat,

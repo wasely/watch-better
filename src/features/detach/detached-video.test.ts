@@ -45,7 +45,6 @@ describe('detached video controllers', () => {
         supported: true,
       },
       seek: vi.fn(),
-      setPlaybackRate: vi.fn(),
       subscribe: vi.fn((listener: (snapshot: PlaybackSnapshot) => void) => {
         listener(live.snapshot);
         return () => undefined;
@@ -72,7 +71,6 @@ describe('detached video controllers', () => {
         supported: true,
       },
       seek: vi.fn(),
-      setPlaybackRate: vi.fn(),
       subscribe: vi.fn(() => unsubscribe),
       dispose: vi.fn(),
     };
@@ -96,7 +94,6 @@ describe('detached video controllers', () => {
         supported: true,
       },
       seek: vi.fn(),
-      setPlaybackRate: vi.fn(),
       subscribe: vi.fn((listener: (snapshot: PlaybackSnapshot) => void) => {
         listener(live.snapshot);
         return () => undefined;

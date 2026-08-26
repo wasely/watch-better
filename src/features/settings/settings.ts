@@ -77,7 +77,10 @@ const normalizeCategories = (value: unknown): readonly SmartSkipCategory[] => {
     : DEFAULT_SMART_SKIP_CONFIGURATION.categories;
 };
 
-const normalizeSmartSkip = (value: unknown): SmartSkipConfiguration => {
+const normalizeSmartSkip = (
+  value: unknown,
+  autoSkipFallback = DEFAULT_SMART_SKIP_CONFIGURATION.autoSkip,
+): SmartSkipConfiguration => {
   const source = isRecord(value) ? value : {};
   const provider: WebChatProviderId = isWebChatProviderId(source.provider)
     ? source.provider
@@ -90,12 +93,18 @@ const normalizeSmartSkip = (value: unknown): SmartSkipConfiguration => {
       DEFAULT_SMART_SKIP_CONFIGURATION.strictness,
     ),
     categories: normalizeCategories(source.categories),
-    autoSkip: booleanOr(source.autoSkip, DEFAULT_SMART_SKIP_CONFIGURATION.autoSkip),
+    autoSkip: booleanOr(source.autoSkip, autoSkipFallback),
   };
 };
 
 export const normalizeSettings = (value: unknown): WatchBetterSettings => {
   const source = isRecord(value) ? value : {};
+  const legacyPause = isRecord(source.pause) ? source.pause : null;
+  const legacySettings =
+    source.schemaVersion === 2 || source.defaultTab === 'skip' || legacyPause !== null;
+  const smartSkipAutoFallback = legacySettings
+    ? booleanOr(legacyPause?.enabled, false)
+    : DEFAULT_SMART_SKIP_CONFIGURATION.autoSkip;
   return {
     schemaVersion: 3,
     extensionEnabled: booleanOr(
@@ -122,7 +131,7 @@ export const normalizeSettings = (value: unknown): WatchBetterSettings => {
       DEFAULT_SETTINGS.theme,
     ),
     panelCollapsed: booleanOr(source.panelCollapsed, DEFAULT_SETTINGS.panelCollapsed),
-    smartSkip: normalizeSmartSkip(source.smartSkip),
+    smartSkip: normalizeSmartSkip(source.smartSkip, smartSkipAutoFallback),
     transcriptCachePolicy: oneOf<TranscriptCachePolicy>(
       source.transcriptCachePolicy,
       ['memory-only', 'session'],
