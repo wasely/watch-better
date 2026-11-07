@@ -121,7 +121,7 @@ describe('extension message validation', () => {
         newConversation: true,
         imageUrl: 'https://i.ytimg.com/vi/example/hqdefault.jpg',
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isExtensionRequest({
         type: 'webchat:send',

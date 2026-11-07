@@ -110,6 +110,65 @@ describe('YouTubeTranscriptProvider', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('fmt=json3');
   });
 
+  it('exposes YouTube English translation captions for a non-English video', async () => {
+    history.replaceState({}, '', '/watch?v=arabic-video');
+    const script = document.createElement('script');
+    script.textContent = `var ytInitialPlayerResponse = ${JSON.stringify({
+      videoDetails: {
+        videoId: 'arabic-video',
+        title: 'Arabic source video',
+        lengthSeconds: '60',
+      },
+      captions: {
+        playerCaptionsTracklistRenderer: {
+          captionTracks: [
+            {
+              baseUrl: 'https://www.youtube.com/api/timedtext?v=arabic-video&lang=ar',
+              languageCode: 'ar',
+              name: { simpleText: 'Arabic' },
+              vssId: '.ar',
+            },
+          ],
+          translationLanguages: [
+            { languageCode: 'en', languageName: { simpleText: 'English' } },
+          ],
+        },
+      },
+    })};`;
+    document.head.append(script);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          events: [
+            {
+              tStartMs: 0,
+              dDurationMs: 1_000,
+              segs: [{ utf8: 'English translated caption.' }],
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const provider = new YouTubeTranscriptProvider(document, fetchMock);
+    const signal = new AbortController().signal;
+
+    const tracks = await provider.listTracks('arabic-video', signal);
+    const englishTrack = tracks.find((candidate) => candidate.languageCode === 'en');
+    expect(englishTrack).toMatchObject({
+      languageCode: 'en',
+      languageLabel: 'English (translated)',
+    });
+
+    const transcript = await provider.load(
+      { videoId: 'arabic-video', trackId: englishTrack?.id ?? null },
+      signal,
+    );
+    expect(transcript.languageCode).toBe('en');
+    expect(transcript.segments[0]?.text).toBe('English translated caption.');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('tlang=en');
+  });
+
   it('loads caption metadata directly from the active Short', async () => {
     history.replaceState({}, '', '/shorts/short-1');
     const script = document.createElement('script');

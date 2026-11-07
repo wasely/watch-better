@@ -105,7 +105,7 @@ const isExtensionContextLost = (error: unknown): boolean =>
   );
 
 const CONTEXT_LOST_MESSAGE =
-  'YouTube Max was reloaded. Refresh this tab to reconnect the panel.';
+  'Watch Better was reloaded. Refresh this tab to reconnect the panel.';
 
 const send = async (request: ExtensionRequest): Promise<ExtensionResponse> => {
   const response: unknown = await browser.runtime.sendMessage(request);
@@ -120,7 +120,7 @@ const send = async (request: ExtensionRequest): Promise<ExtensionResponse> => {
     ok: false,
     type: 'error',
     message:
-      'YouTube Max background did not respond. Reload the extension and refresh YouTube.',
+      'Watch Better background did not respond. Reload the extension and refresh YouTube.',
   };
 };
 
@@ -570,8 +570,19 @@ export function WatchBetterRuntime({
           videoId,
           abortController.signal,
         );
+        const quickLearnEnglishTrack = quickLearn
+          ? tracks
+              .filter((track) => /^en(?:-|$)/i.test(track.languageCode))
+              .sort(
+                (left, right) =>
+                  Number(Boolean(left.isAutomatic)) -
+                  Number(Boolean(right.isAutomatic)),
+              )[0]
+          : undefined;
         const selectedTrack =
-          tracks.find((track) => track.id === requestedTrackId) ?? tracks[0];
+          tracks.find((track) => track.id === requestedTrackId) ??
+          quickLearnEnglishTrack ??
+          tracks[0];
         if (!selectedTrack)
           throw new TranscriptProviderError(
             'unavailable',
@@ -609,7 +620,7 @@ export function WatchBetterRuntime({
         setTranscript(errorState(error));
       }
     },
-    [cache, transcriptProvider],
+    [cache, quickLearn, transcriptProvider],
   );
 
   useEffect(() => {
@@ -1163,7 +1174,7 @@ export function WatchBetterRuntime({
       isMounted: () => visible,
       restore: async () => {
         if (!settingsRef.current.extensionEnabled)
-          throw new Error('Enable YouTube Max before restoring the panel.');
+          throw new Error('Enable Watch Better before restoring the panel.');
         await patchSettings({ panelCollapsed: false });
       },
     };

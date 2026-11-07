@@ -127,6 +127,7 @@ export function WatchBetterApp({
     transcript:
       transcriptProps.state.kind === 'ready' ? transcriptProps.state.document : null,
   };
+  const quickLearnMode = Boolean(askProps.quickLearn);
   const smartSkipProps: SmartSkipPanelProps = smartSkip ?? {
     configuration: DEFAULT_SMART_SKIP_CONFIGURATION,
     analysisState: { kind: 'idle' },
@@ -215,16 +216,17 @@ export function WatchBetterApp({
       data-collapsed={collapsed}
       data-minimized={minimized}
       data-presentation={presentation}
+      data-quick-learn={quickLearnMode}
       data-theme={theme}
       data-transcript-font-size={transcriptFontSize}
       ref={rootRef}
     >
       {collapsed ? (
         <button
-          aria-label={`Expand YouTube Max. ${status.label}.`}
+          aria-label={`Expand Watch Better. ${status.label}.`}
           className="ct-launcher"
           onClick={() => setPanelCollapsed(false)}
-          title={`Expand YouTube Max — ${status.label}`}
+          title={`Expand Watch Better — ${status.label}`}
           type="button"
         >
           <span className="ct-launcher__brand" aria-hidden="true">
@@ -236,7 +238,7 @@ export function WatchBetterApp({
             />
           </span>
           <span className="ct-launcher__copy">
-            <strong>YouTube Max</strong>
+            <strong>Watch Better</strong>
             <small>{status.label}</small>
           </span>
           <Icon name="arrow-right" />
@@ -244,14 +246,14 @@ export function WatchBetterApp({
       ) : null}
 
       <section
-        aria-label="YouTube Max video companion"
+        aria-label="Watch Better video companion"
         className="ct-panel"
         hidden={collapsed}
       >
         <header className="ct-header">
           <div className="ct-identity">
             <div className="ct-identity__copy">
-              <strong>YouTube Max</strong>
+              <strong>{quickLearnMode ? 'Quick Learn' : 'Watch Better'}</strong>
               {videoTitle ? (
                 <span className="ct-video-title" title={videoTitle}>
                   {videoTitle}
@@ -271,7 +273,7 @@ export function WatchBetterApp({
           <div className="ct-header__actions">
             {onDetach ? (
               <button
-                aria-label="Detach YouTube Max for this video"
+                aria-label="Detach Watch Better for this video"
                 className="ct-icon-button"
                 disabled={detachState === 'opening'}
                 onClick={detachPanel}
@@ -286,7 +288,7 @@ export function WatchBetterApp({
               </button>
             ) : null}
             <button
-              aria-label="Open YouTube Max settings"
+              aria-label="Open Watch Better settings"
               className="ct-icon-button"
               disabled={!onOpenSettings}
               onClick={onOpenSettings}
@@ -297,7 +299,7 @@ export function WatchBetterApp({
             </button>
             {allowCollapse ? (
               <button
-                aria-label="Collapse YouTube Max"
+                aria-label="Collapse Watch Better"
                 className="ct-icon-button"
                 onClick={() => setPanelCollapsed(true)}
                 title="Collapse"
@@ -310,8 +312,8 @@ export function WatchBetterApp({
               <button
                 aria-label={
                   minimized
-                    ? 'Restore detached YouTube Max'
-                    : 'Minimize detached YouTube Max'
+                    ? 'Restore detached Watch Better'
+                    : 'Minimize detached Watch Better'
                 }
                 className="ct-icon-button"
                 onClick={() => onMinimizedChange(!minimized)}
@@ -323,7 +325,7 @@ export function WatchBetterApp({
             ) : null}
             {presentation === 'floating' && onToggleMaximized ? (
               <button
-                aria-label="Maximize or restore detached YouTube Max"
+                aria-label="Maximize or restore detached Watch Better"
                 className="ct-icon-button"
                 onClick={onToggleMaximized}
                 title="Maximize / restore (or double-click this bar)"
@@ -334,7 +336,7 @@ export function WatchBetterApp({
             ) : null}
             {presentation === 'floating' && onClose ? (
               <button
-                aria-label="Close detached YouTube Max"
+                aria-label="Close detached Watch Better"
                 className="ct-icon-button"
                 onClick={onClose}
                 title="Close detached card"
@@ -345,9 +347,9 @@ export function WatchBetterApp({
             ) : null}
             <span aria-live="polite" className="ct-sr-only">
               {detachState === 'opening'
-                ? 'Detaching YouTube Max into a movable card.'
+                ? 'Detaching Watch Better into a movable card.'
                 : detachState === 'error'
-                  ? 'Could not detach YouTube Max.'
+                  ? 'Could not detach Watch Better.'
                   : ''}
             </span>
           </div>
@@ -357,7 +359,7 @@ export function WatchBetterApp({
         </header>
 
         <nav
-          aria-label="YouTube Max sections"
+          aria-label="Watch Better sections"
           className={`ct-tabs ct-tabs--${availableTabs.length}`}
           data-active-tab={activeTab}
           hidden={minimized}

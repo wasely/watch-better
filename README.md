@@ -169,7 +169,6 @@ production extension build. `npm run zip` creates the install archive in `.outpu
 | `storage`               | Save settings, optional session transcripts, and embedded-frame routing IDs.         |
 | `declarativeNetRequest` | Permit one prepared provider subframe in a YouTube panel or detached workspace.      |
 | `webNavigation`         | Verify the registered provider is Watch Better's direct child before prompt routing. |
-| `clipboardRead/Write`   | Briefly stage a Quick Learn thumbnail for Gemini paste, then restore prior contents. |
 | `youtube.com`           | Add Quick Learn to listings, mount the panel, and read on-demand captions.           |
 | `chatgpt.com`           | Prefill and use its signed-in composer when ChatGPT is selected in Ask.              |
 | `gemini.google.com`     | Use signed-in Gemini inside Ask and the in-page Quick Learn card.                    |
@@ -182,8 +181,8 @@ Watch Better stores no API keys and sends no analytics. Transcripts and conversa
 are not persisted by default. The optional browser-session transcript cache is bounded
 and cleared with the browser session. Detached cards stay only in the current YouTube
 tab and browser memory. Quick Learn fetches captions only after its thumbnail button
-is pressed, then sends the YouTube thumbnail and bounded timestamped context to Gemini
-embedded in its in-page card for one direct briefing.
+is pressed, keeps that thumbnail local for identification, and sends bounded English
+timestamped context to Gemini for one direct briefing.
 Opening Ask submits bounded context to the selected provider with a `READY`-only
 instruction; the provider applies its own account, retention, and usage policies.
 Smart Skip starts locally and changes no playback speed. Its optional **Start deep

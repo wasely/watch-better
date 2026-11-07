@@ -28,6 +28,14 @@ const bareLockupCard = (videoId: string, title: string): string => `
     <div class="yt-lockup-metadata-view-model__title">${title}</div>
   </yt-lockup-view-model>`;
 
+const shortCard = (videoId: string, title: string): string => `
+  <ytd-reel-item-renderer>
+    <a id="thumbnail" href="https://www.youtube.com/shorts/${videoId}">
+      <img alt="" />
+    </a>
+    <a id="video-title" title="${title}">${title}</a>
+  </ytd-reel-item-renderer>`;
+
 const buttons = (): readonly HTMLButtonElement[] => [
   ...document.querySelectorAll<HTMLButtonElement>(
     '[data-watchbetter-quick-learn-button]',
@@ -117,7 +125,64 @@ describe('QuickLearnController', () => {
     expect(host?.style.position).toBe('relative');
     controller.dispose();
     expect(host?.style.position).toBe('');
-    expect(host?.dataset.watchbetterQuickLearnAnchored).toBeUndefined();
+    expect(host?.dataset.kaiYoutubeOverlayAnchorOwners).toBeUndefined();
+  });
+
+  it('shares thumbnail positioning without releasing another extension lease', () => {
+    document.body.innerHTML = lockupCard('lockup', 'Lockup video');
+    const host = document.querySelector<HTMLElement>('yt-thumbnail-view-model');
+    if (!host) throw new Error('Missing thumbnail host');
+    host.dataset.kaiYoutubeOverlayAnchorOwners = 'script-gen';
+    host.dataset.kaiYoutubeOverlayAnchorPatched = 'true';
+    host.dataset.kaiYoutubeOverlayAnchorOriginal = '';
+    host.style.position = 'relative';
+
+    const controller = new QuickLearnController(document, () => Promise.resolve());
+    controller.start();
+
+    expect(host.dataset.kaiYoutubeOverlayAnchorOwners?.split(' ').sort()).toEqual([
+      'script-gen',
+      'watch-better',
+    ]);
+    controller.dispose();
+    expect(host.dataset.kaiYoutubeOverlayAnchorOwners).toBe('script-gen');
+    expect(host.style.position).toBe('relative');
+    expect(host.dataset.kaiYoutubeOverlayAnchorPatched).toBe('true');
+  });
+
+  it('declares its shared owner/slot and clears a top-start vidIQ control', () => {
+    document.body.innerHTML = card('alpha', 'Battery guide');
+    const host = document.querySelector<HTMLElement>('ytd-thumbnail');
+    if (!host) throw new Error('Missing thumbnail host');
+    host.innerHTML +=
+      '<div class="vidiq-scope"><button aria-label="vidIQ action"></button></div>';
+    host.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 320,
+        bottom: 180,
+        width: 320,
+        height: 180,
+      }) as DOMRect;
+    const vidiq = host.querySelector<HTMLElement>('.vidiq-scope button');
+    if (!vidiq) throw new Error('Missing vidIQ fixture');
+    vidiq.getBoundingClientRect = () =>
+      ({ left: 8, top: 8, right: 42, bottom: 42, width: 34, height: 34 }) as DOMRect;
+
+    const controller = new QuickLearnController(document, () => Promise.resolve());
+    controller.start();
+    const [button] = buttons();
+
+    expect(button?.dataset.kaiYoutubeOverlayOwner).toBe('watch-better');
+    expect(button?.dataset.kaiYoutubeOverlaySlot).toBe('top-start');
+    expect(
+      Number.parseInt(
+        button?.style.getPropertyValue('--kai-youtube-overlay-block-start') ?? '',
+        10,
+      ),
+    ).toBeGreaterThan(8);
+    controller.dispose();
   });
 
   it('leaves a thumbnail that is already positioned alone', () => {
@@ -236,6 +301,33 @@ describe('QuickLearnController', () => {
     controller.dispose();
   });
 
+  it('keeps a labeled Quick Learn pill visible on every Shorts card without hover', () => {
+    document.body.innerHTML = [
+      shortCard('short-a', 'First Short'),
+      shortCard('short-b', 'Second Short'),
+      shortCard('short-c', 'Third Short'),
+    ].join('');
+    const controller = new QuickLearnController(document, () => Promise.resolve());
+    controller.start();
+
+    expect(buttons()).toHaveLength(3);
+    for (const button of buttons()) {
+      const label = button.querySelector('span');
+      expect(label).toHaveTextContent('Quick Learn');
+      expect(label).toBeVisible();
+      expect(label ? getComputedStyle(label).whiteSpace : '').toBe('nowrap');
+      expect(getComputedStyle(button).pointerEvents).toBe('auto');
+      button
+        .closest('ytd-reel-item-renderer')
+        ?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      button.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      button.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      expect(label).toBeVisible();
+    }
+
+    controller.dispose();
+  });
+
   it('uses the page realm while delivering a delayed hover mutation', async () => {
     document.body.innerHTML = card('alpha', 'Delayed hover preview');
     const controller = new QuickLearnController(document, () => Promise.resolve());
@@ -259,8 +351,10 @@ describe('QuickLearnController', () => {
     const [button] = buttons();
     const style = button ? getComputedStyle(button) : null;
 
-    expect(style?.top).toBe('8px');
-    expect(style?.left).toBe('8px');
+    expect(button?.style.getPropertyValue('--kai-youtube-overlay-block-start')).toBe(
+      '8px',
+    );
+    expect(style?.insetInlineStart).toBe('8px');
     expect(style?.bottom).toBe('auto');
     controller.dispose();
   });

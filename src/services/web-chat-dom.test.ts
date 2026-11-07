@@ -6,6 +6,7 @@ import {
   composerText,
   fetchImageFile,
   fillComposer,
+  fillComposerWithOptionalImage,
   focusComposerAtEnd,
   pasteImageFromSystemClipboard,
   responseTexts,
@@ -63,6 +64,137 @@ describe('web chat DOM adapter', () => {
       fetchImageFile('https://i.ytimg.com/vi/example/hqdefault.jpg', fetcher),
     ).resolves.toBeNull();
     expect(readBody).not.toHaveBeenCalled();
+  });
+
+  it('uses a provider image input rendered outside the composer container', async () => {
+    document.body.innerHTML = `
+      <input-area-v2><textarea></textarea></input-area-v2>
+      <input accept="image/*" type="file" />
+    `;
+    const composer = document.querySelector('textarea');
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    const composerRoot = document.querySelector('input-area-v2');
+    if (!composer || !input || !composerRoot)
+      throw new Error('Expected provider attachment controls.');
+    input.addEventListener('change', () =>
+      composerRoot.append(document.createElement('file-preview')),
+    );
+    const file = new File(['thumbnail'], 'youtube-thumbnail.jpg', {
+      type: 'image/jpeg',
+    });
+
+    await expect(attachImageFile(composer, file, document)).resolves.toBe(true);
+    expect(input.files?.[0]).toMatchObject({
+      name: 'youtube-thumbnail.jpg',
+      type: 'image/jpeg',
+    });
+  });
+
+  it('attaches through a direct file paste without system clipboard access', async () => {
+    document.body.innerHTML = `
+      <input-area-v2>
+        <div aria-label="Enter a prompt here" contenteditable="true"></div>
+      </input-area-v2>
+    `;
+    const composer = document.querySelector<HTMLElement>('[contenteditable="true"]');
+    const composerRoot = document.querySelector('input-area-v2');
+    if (!composer || !composerRoot) throw new Error('Expected Gemini composer.');
+    let pastedFile: File | null = null;
+    composer.addEventListener('paste', (event) => {
+      pastedFile = event.clipboardData?.files[0] ?? null;
+      composerRoot.append(document.createElement('file-preview'));
+      event.preventDefault();
+    });
+    const file = new File(['thumbnail'], 'youtube-thumbnail.jpg', {
+      type: 'image/jpeg',
+    });
+
+    await expect(attachImageFile(composer, file, document)).resolves.toBe(true);
+    expect(pastedFile).toMatchObject({
+      name: 'youtube-thumbnail.jpg',
+      type: 'image/jpeg',
+    });
+  });
+
+  it('opens Gemini Add files and uses the file input it creates', async () => {
+    document.body.innerHTML = `
+      <input-area-v2>
+        <div aria-label="Enter a prompt here" contenteditable="true"></div>
+        <button aria-label="Add files" type="button">Attach</button>
+      </input-area-v2>
+    `;
+    const composer = document.querySelector<HTMLElement>('[contenteditable="true"]');
+    const composerRoot = document.querySelector('input-area-v2');
+    const addFiles = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add files"]',
+    );
+    if (!composer || !composerRoot || !addFiles)
+      throw new Error('Expected Gemini attachment controls.');
+    addFiles.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', () =>
+        composerRoot.append(document.createElement('file-preview')),
+      );
+      document.body.append(input);
+    });
+    const file = new File(['thumbnail'], 'youtube-thumbnail.jpg', {
+      type: 'image/jpeg',
+    });
+
+    await expect(attachImageFile(composer, file, document)).resolves.toBe(true);
+    expect(addFiles).toHaveFocus();
+    expect(
+      document.querySelector<HTMLInputElement>('input[type="file"]')?.files?.[0],
+    ).toMatchObject({ name: 'youtube-thumbnail.jpg', type: 'image/jpeg' });
+  });
+
+  it('uses Gemini upload menu as soon as it appears', async () => {
+    vi.useFakeTimers();
+    try {
+      document.body.innerHTML = `
+        <input-area-v2>
+          <div aria-label="Enter a prompt here" contenteditable="true"></div>
+          <button aria-label="Add files" type="button">Attach</button>
+        </input-area-v2>
+      `;
+      const composer = document.querySelector<HTMLElement>('[contenteditable="true"]');
+      const composerRoot = document.querySelector('input-area-v2');
+      const addFiles = document.querySelector<HTMLButtonElement>(
+        'button[aria-label="Add files"]',
+      );
+      if (!composer || !composerRoot || !addFiles)
+        throw new Error('Expected Gemini attachment controls.');
+      addFiles.addEventListener('click', () => {
+        const upload = document.createElement('button');
+        upload.setAttribute('role', 'menuitem');
+        upload.textContent = 'Upload files';
+        upload.addEventListener('click', () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.addEventListener('change', () =>
+            composerRoot.append(document.createElement('file-preview')),
+          );
+          document.body.append(input);
+        });
+        document.body.append(upload);
+      });
+      const file = new File(['thumbnail'], 'youtube-thumbnail.jpg', {
+        type: 'image/jpeg',
+      });
+      let result: boolean | undefined;
+
+      void attachImageFile(composer, file, document).then((attached) => {
+        result = attached;
+      });
+      await vi.advanceTimersByTimeAsync(120);
+
+      expect(result).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('fills textarea and contenteditable composers', () => {
@@ -215,5 +347,66 @@ describe('web chat DOM adapter', () => {
     expect(write).toHaveBeenNthCalledWith(1, [staged]);
     expect(write).toHaveBeenNthCalledWith(2, previous);
     expect(document.activeElement).toBe(composer);
+  });
+
+  it('dispatches an image paste when Chrome rejects execCommand paste', async () => {
+    const composer = document.createElement('div');
+    composer.contentEditable = 'true';
+    document.body.append(composer);
+    const previous = [{ types: ['text/plain'] }] as unknown as ClipboardItems;
+    const staged = { types: ['image/png'] } as unknown as ClipboardItem;
+    const write = vi.fn(() => Promise.resolve());
+    const paste = vi.fn(() => false);
+    const file = new File(['thumbnail'], 'youtube-thumbnail.png', {
+      type: 'image/png',
+    });
+    let pastedFile: File | null = null;
+    composer.addEventListener('paste', (event) => {
+      pastedFile = event.clipboardData?.files[0] ?? null;
+      event.preventDefault();
+    });
+
+    await expect(
+      pasteImageFromSystemClipboard(composer, file, {
+        clipboard: {
+          read: () => Promise.resolve(previous),
+          write,
+        },
+        createClipboardItem: () => staged,
+        convertToPng: (image) => Promise.resolve(image),
+        paste,
+      }),
+    ).resolves.toBe(true);
+
+    expect(paste).toHaveBeenCalledOnce();
+    expect(pastedFile).toMatchObject({
+      name: 'youtube-thumbnail.png',
+      type: 'image/png',
+    });
+    expect(write).toHaveBeenNthCalledWith(1, [staged]);
+    expect(write).toHaveBeenNthCalledWith(2, previous);
+  });
+
+  it('fills the transcript prompt when thumbnail attachment fails', async () => {
+    const composer = document.createElement('textarea');
+    const image = new File(['thumbnail'], 'youtube-thumbnail.jpg', {
+      type: 'image/jpeg',
+    });
+    const fetchImage = vi.fn(() => Promise.resolve(image));
+    const attachImage = vi.fn(() => Promise.resolve(false));
+
+    await expect(
+      fillComposerWithOptionalImage(
+        composer,
+        'TRANSCRIPT CONTEXT\n[00:00] Opening claim',
+        'https://i.ytimg.com/vi/example/hqdefault.jpg',
+        document,
+        { fetchImage, attachImage },
+      ),
+    ).resolves.toBe(false);
+
+    expect(composerText(composer)).toContain('TRANSCRIPT CONTEXT');
+    expect(fetchImage).toHaveBeenCalledOnce();
+    expect(attachImage).toHaveBeenCalledOnce();
   });
 });

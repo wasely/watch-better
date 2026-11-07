@@ -142,6 +142,13 @@ const spanishTrack: TranscriptTrack = {
   isAutomatic: false,
 };
 
+const arabicTrack: TranscriptTrack = {
+  id: 'ar',
+  languageCode: 'ar',
+  languageLabel: 'Arabic',
+  isAutomatic: false,
+};
+
 const documentFor = (videoId: string): TranscriptDocument => ({
   videoId,
   videoTitle: `Video ${videoId}`,
@@ -170,6 +177,20 @@ const spanishDocumentFor = (videoId: string): TranscriptDocument => ({
       startSeconds: 0,
       endSeconds: 2,
       text: `Primera evidencia para ${videoId}.`,
+    },
+  ],
+});
+
+const arabicDocumentFor = (videoId: string): TranscriptDocument => ({
+  ...documentFor(videoId),
+  languageCode: arabicTrack.languageCode,
+  languageLabel: arabicTrack.languageLabel,
+  segments: [
+    {
+      id: `${videoId}-ar-a`,
+      startSeconds: 0,
+      endSeconds: 2,
+      text: `دليل عربي للفيديو ${videoId}.`,
     },
   ],
 });
@@ -833,7 +854,7 @@ describe('WatchBetterRuntime integration', () => {
       await vi.advanceTimersByTimeAsync(5_000);
       await waitFor(() =>
         expect(
-          screen.getByLabelText('YouTube Max video companion'),
+          screen.getByLabelText('Watch Better video companion'),
         ).toBeInTheDocument(),
       );
       expect(get).toHaveBeenCalled();
@@ -900,7 +921,7 @@ describe('WatchBetterRuntime integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Google Gemini' }));
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Detach YouTube Max for this video',
+        name: 'Detach Watch Better for this video',
       }),
     );
 
@@ -940,11 +961,11 @@ describe('WatchBetterRuntime integration', () => {
     expect(screen.getByText('Video one')).toBeVisible();
     expect(
       screen.queryByRole('button', {
-        name: 'Detach YouTube Max for this video',
+        name: 'Detach Watch Better for this video',
       }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Collapse YouTube Max' }),
+      screen.queryByRole('button', { name: 'Collapse Watch Better' }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Ask' })).toHaveAttribute(
       'aria-selected',
@@ -980,14 +1001,16 @@ describe('WatchBetterRuntime integration', () => {
 
     await screen.findByText('First evidence for one.');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Minimize detached YouTube Max' }),
+      screen.getByRole('button', { name: 'Minimize detached Watch Better' }),
     );
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Maximize or restore detached YouTube Max',
+        name: 'Maximize or restore detached Watch Better',
       }),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Close detached YouTube Max' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Close detached Watch Better' }),
+    );
 
     expect(onMinimizedChange).toHaveBeenCalledWith(true);
     expect(onToggleMaximized).toHaveBeenCalledOnce();
@@ -1062,6 +1085,39 @@ describe('WatchBetterRuntime integration', () => {
       { videoId: 'one', trackId: spanishTrack.id },
       expect.any(AbortSignal),
     );
+  });
+
+  it('prefers an English caption track for Quick Learn', async () => {
+    const load = vi.fn((request: { videoId: string; trackId?: string | null }) =>
+      Promise.resolve(
+        request.trackId === track.id
+          ? documentFor(request.videoId)
+          : arabicDocumentFor(request.videoId),
+      ),
+    );
+    const provider: TranscriptProvider = {
+      listTracks: vi.fn(() => Promise.resolve([arabicTrack, track])),
+      load,
+    };
+
+    render(
+      <WatchBetterRuntime
+        initialTab="ask"
+        pageController={new FakePageController()}
+        playback={new FakePlayback()}
+        quickLearn={{
+          thumbnailUrl: 'https://i.ytimg.com/vi/one/hqdefault.jpg',
+        }}
+        transcriptProvider={provider}
+      />,
+    );
+
+    await screen.findByText('First evidence for one.');
+    expect(load).toHaveBeenCalledWith(
+      { videoId: 'one', trackId: track.id },
+      expect.any(AbortSignal),
+    );
+    expect(screen.queryByText(/دليل عربي/)).not.toBeInTheDocument();
   });
 
   it('ignores a stale transcript result after SPA navigation', async () => {

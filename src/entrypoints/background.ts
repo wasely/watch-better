@@ -281,7 +281,7 @@ const focusWebChat = async (
     return {
       ok: false,
       type: 'error',
-      message: `${provider.displayName} is still loading inside YouTube Max.`,
+      message: `${provider.displayName} is still loading inside Watch Better.`,
     };
   const response = await sendToProviderPage(tabId, frame.frameId, {
     type: 'watchbetter:webchat-page-focus',
@@ -304,7 +304,6 @@ const sendWebChat = async (
   newConversation: boolean,
   tabId: number,
   sessionId?: string,
-  imageUrl?: string,
 ): Promise<ExtensionResponse> => {
   const provider = WEB_CHAT_PROVIDERS[providerId];
   const targetTabId = tabId;
@@ -316,7 +315,7 @@ const sendWebChat = async (
     return {
       ok: false,
       type: 'error',
-      message: `${provider.displayName} is still loading inside YouTube Max.`,
+      message: `${provider.displayName} is still loading inside Watch Better.`,
     };
   const targetFrameId = frame.frameId;
 
@@ -324,7 +323,6 @@ const sendWebChat = async (
     type: 'watchbetter:webchat-page-send',
     message,
     newConversation,
-    ...(imageUrl ? { imageUrl } : {}),
   });
   if (!response?.ok) {
     return {
@@ -364,7 +362,7 @@ const primeWebChat = async (
     return {
       ok: false,
       type: 'error',
-      message: `${provider.displayName} is still loading inside YouTube Max.`,
+      message: `${provider.displayName} is still loading inside Watch Better.`,
     };
   const response = await sendToProviderPage(tabId, frame.frameId, {
     type: 'watchbetter:webchat-page-prime',
@@ -401,7 +399,7 @@ const analyzeWebChat = async (
     return {
       ok: false,
       type: 'error',
-      message: `${provider.displayName} is still loading inside YouTube Max.`,
+      message: `${provider.displayName} is still loading inside Watch Better.`,
     };
   const response = await sendToProviderPage(tabId, frame.frameId, {
     type: 'watchbetter:webchat-page-analyze',
@@ -436,7 +434,7 @@ const panelSenderTabId = (sender: MessageSenderContext): number | null =>
 const trustedControlError = (): ExtensionResponse => ({
   ok: false,
   type: 'error',
-  message: 'This action is available only from YouTube Max.',
+  message: 'This action is available only from Watch Better.',
 });
 
 const registerEmbeddedFrame = async (
@@ -531,7 +529,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Provider frames can be prepared only from YouTube Max.',
+          message: 'Provider frames can be prepared only from Watch Better.',
         };
       const ruleId = await installFrameRule(tabId, request.provider);
       try {
@@ -561,7 +559,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Frame reset is available only from YouTube Max.',
+          message: 'Frame reset is available only from Watch Better.',
         };
       await resetEmbeddedFrame(tabId, request.provider, request.sessionId);
       return { ok: true, type: 'acknowledged' };
@@ -572,7 +570,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Embedded provider status is available only inside YouTube Max.',
+          message: 'Embedded provider status is available only inside Watch Better.',
         };
       return {
         ok: true,
@@ -586,7 +584,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Embedded Ask focus is available only inside YouTube Max.',
+          message: 'Embedded Ask focus is available only inside Watch Better.',
         };
       return focusWebChat(request.provider, tabId, request.sessionId);
     }
@@ -596,7 +594,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Embedded Ask is available only inside YouTube Max.',
+          message: 'Embedded Ask is available only inside Watch Better.',
         };
       return sendWebChat(
         request.provider,
@@ -604,7 +602,6 @@ const handleRequest = async (
         request.newConversation,
         tabId,
         request.sessionId,
-        request.imageUrl,
       );
     }
     case 'webchat:prime': {
@@ -613,7 +610,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Ask context preload is available only inside YouTube Max.',
+          message: 'Ask context preload is available only inside Watch Better.',
         };
       return primeWebChat(
         request.provider,
@@ -629,7 +626,7 @@ const handleRequest = async (
         return {
           ok: false,
           type: 'error',
-          message: 'Smart Skip analysis is available only inside YouTube Max.',
+          message: 'Smart Skip analysis is available only inside Watch Better.',
         };
       return analyzeWebChat(
         request.provider,
@@ -663,7 +660,7 @@ const handleRequest = async (
         (await sendToTab(activeTab.id, request)) ?? {
           ok: false,
           type: 'error',
-          message: 'YouTube Max is not connected to this tab yet.',
+          message: 'Watch Better is not connected to this tab yet.',
         }
       );
     }

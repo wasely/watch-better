@@ -36,19 +36,19 @@ export function PopupView({
   const enabled = status?.enabled ?? false;
   const loading = status === null && !error;
   const toggleLabel = loading
-    ? 'YouTube Max status loading'
+    ? 'Watch Better status loading'
     : error
-      ? 'YouTube Max status unavailable'
+      ? 'Watch Better status unavailable'
       : enabled
-        ? 'Turn YouTube Max off'
-        : 'Turn YouTube Max on';
+        ? 'Turn Watch Better off'
+        : 'Turn Watch Better on';
 
   return (
     <main className="ct-popup" data-theme={theme}>
       <header className="ct-popup__header">
         <div className="ct-popup__identity">
           <BrandLogo aria-hidden="true" className="ct-popup__logo" />
-          <strong>YouTube Max</strong>
+          <strong>Watch Better</strong>
         </div>
         <button
           aria-label="Open settings"

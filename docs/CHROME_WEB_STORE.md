@@ -23,8 +23,7 @@ optional signed-in deep Smart Skip playback controls.
   or generated screenshots as product evidence.
 - Provide an accurate support URL and this repository's `PRIVACY.md` URL.
 - Disclose YouTube, ChatGPT, Gemini, storage, `declarativeNetRequest`, and
-  `webNavigation` access exactly as documented in the README. Disclose temporary
-  clipboard read/write for Gemini thumbnail paste and immediate restoration.
+  `webNavigation` access exactly as documented in the README.
 - State that ChatGPT/Gemini embedding can require normal-tab sign-in,
   a full tab, and provider interfaces may need compatibility updates.
 

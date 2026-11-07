@@ -37,15 +37,15 @@ export const clampFloatingSize = (
   ),
 });
 
-/** A card opens as a comfortable reading column, not a near-fullscreen sheet. */
+/** A card opens as a roomy reading column, not a near-fullscreen sheet. */
 export const floatingSize = (
   viewportWidth: number,
   viewportHeight: number,
 ): FloatingSize =>
   clampFloatingSize(
     {
-      width: Math.round(Math.min(440, viewportWidth * 0.34)),
-      height: Math.round(Math.min(620, viewportHeight * 0.68)),
+      width: Math.round(Math.min(560, viewportWidth * 0.39)),
+      height: Math.round(Math.min(760, viewportHeight * 0.74)),
     },
     viewportWidth,
     viewportHeight,

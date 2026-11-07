@@ -143,16 +143,14 @@ Public extension requests are strict discriminated unions:
 
 Provider-page requests use a separate internal allowlist with status and send only.
 Unknown fields, unsupported providers, empty messages, and messages over 24,000
-characters are rejected. Optional image context is accepted only for `webchat:send` and
-only from bounded HTTPS YouTube thumbnail hosts.
+characters are rejected. Provider messages accept text only; Quick Learn thumbnails
+stay local to the floating video passport.
 
 ## Permissions
 
 - `storage` for typed settings and optional session cache.
 - `declarativeNetRequest` for YouTube-initiated provider subframes only.
 - `webNavigation` to verify registered provider frames are direct YouTube children.
-- `clipboardRead` and `clipboardWrite` to stage one public Quick Learn thumbnail for
-  Gemini's paste-only image input, then restore the prior clipboard contents.
 - YouTube host access for the panel and captions.
 - Exact ChatGPT/Gemini host access for the user-initiated web-session bridge.
 

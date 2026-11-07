@@ -5,9 +5,9 @@ import { BrandLogo } from './BrandLogo';
 
 describe('BrandLogo', () => {
   it('always preserves the complete logo frame', () => {
-    render(<BrandLogo alt="YouTube Max" style={{ objectFit: 'cover' }} />);
+    render(<BrandLogo alt="Watch Better" style={{ objectFit: 'cover' }} />);
 
-    const logo = screen.getByRole('img', { name: 'YouTube Max' });
+    const logo = screen.getByRole('img', { name: 'Watch Better' });
     expect(logo).toHaveStyle({
       objectFit: 'contain',
     });

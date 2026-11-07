@@ -262,6 +262,28 @@ select {
   min-height: calc(100vh - 58px);
 }
 
+@media (max-width: 560px) {
+  .harness-controls {
+    gap: 8px 12px;
+    padding-inline: 10px;
+  }
+
+  .harness-controls > div {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .harness-controls label {
+    min-width: 0;
+    flex: 1 1 128px;
+  }
+
+  .harness-controls select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition-duration: 0.01ms !important;

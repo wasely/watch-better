@@ -28,6 +28,13 @@ describe('floating card geometry', () => {
     expect(size.width).toBeGreaterThanOrEqual(MIN_FLOATING_SIZE.width);
   });
 
+  it('opens large enough to read the AI answer without manual resizing', () => {
+    expect(floatingSize(2_048, 1_152)).toEqual({
+      width: 560,
+      height: 760,
+    });
+  });
+
   it('never shrinks below a usable size or grows past the viewport', () => {
     expect(clampFloatingSize({ width: 10, height: 10 }, 1_400, 900)).toEqual(
       MIN_FLOATING_SIZE,

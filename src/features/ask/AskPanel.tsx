@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 
 import { Icon } from '@/components/Icon';
 import type { AIContextScope, AIProvider } from '@/features/ask/ai-provider';
@@ -26,12 +33,47 @@ const PROVIDER_PICKER_LABELS: Readonly<Record<WebChatProviderId, string>> = {
 const PRIME_QUESTION =
   'Load this video transcript as context for my next message. Do not summarize it or answer any question yet. Reply only READY. For later questions, cite useful timestamps and say when the transcript does not establish an answer.';
 
+const videoAccentStyle = (videoId: string): CSSProperties => {
+  const hue = [...videoId].reduce(
+    (total, character) => (total * 31 + character.charCodeAt(0)) % 360,
+    210,
+  );
+  return { '--ct-video-accent': `hsl(${hue} 78% 62%)` } as CSSProperties;
+};
+
+function QuickLearnThumbnail({
+  src,
+  videoTitle,
+}: {
+  readonly src: string | undefined;
+  readonly videoTitle: string;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed)
+    return (
+      <span className="ct-quick-learn-context__fallback" aria-hidden="true">
+        <Icon name="spark" />
+      </span>
+    );
+
+  return (
+    <img
+      alt={`Thumbnail for ${videoTitle}`}
+      draggable={false}
+      height="52"
+      onError={() => setFailed(true)}
+      src={src}
+      width="92"
+    />
+  );
+}
+
 export interface ChatTurnRequest {
   readonly provider: WebChatProviderId;
   readonly sessionId: string;
   readonly message: string;
   readonly newConversation: boolean;
-  readonly imageUrl?: string;
 }
 
 export interface ChatTurnResult {
@@ -344,7 +386,6 @@ export function AskPanel({
       selectedSegmentIds: EMPTY_SELECTION,
       question: buildQuickLearnQuestion({
         videoTitle: transcript.videoTitle,
-        ...(quickLearn.thumbnailUrl ? { thumbnailUrl: quickLearn.thumbnailUrl } : {}),
       }),
     }).text;
   }, [provider, quickLearn, transcript]);
@@ -452,8 +493,7 @@ export function AskPanel({
       provider: selectedProvider,
       sessionId,
       message,
-      newConversation: false,
-      ...(quickLearn.thumbnailUrl ? { imageUrl: quickLearn.thumbnailUrl } : {}),
+      newConversation: true,
     })
       .then(() => {
         primingContextsRef.current.delete(contextKey);
@@ -637,6 +677,28 @@ export function AskPanel({
         className="ct-ask__surface"
         role={focused ? 'dialog' : undefined}
       >
+        {quickLearn && transcript ? (
+          <section
+            aria-label={`Quick Learn video: ${transcript.videoTitle}`}
+            className="ct-quick-learn-context"
+            style={videoAccentStyle(transcript.videoId)}
+          >
+            <QuickLearnThumbnail
+              key={quickLearn.thumbnailUrl}
+              src={quickLearn.thumbnailUrl}
+              videoTitle={transcript.videoTitle}
+            />
+            <span className="ct-quick-learn-context__copy">
+              <span className="ct-quick-learn-context__eyebrow">
+                <i aria-hidden="true" />
+                Current video
+              </span>
+              <strong title={transcript.videoTitle}>{transcript.videoTitle}</strong>
+              <small>{transcript.languageLabel} captions</small>
+            </span>
+          </section>
+        ) : null}
+
         <div className="ct-provider-toolbar">
           <div
             aria-label="AI provider"

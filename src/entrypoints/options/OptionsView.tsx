@@ -49,7 +49,7 @@ export function OptionsView({
           <BrandLogo aria-hidden="true" className="ct-options__logo" />
           <div>
             <span className="ct-options__eyebrow">Extension settings</span>
-            <h1>YouTube Max</h1>
+            <h1>Watch Better</h1>
             <p>Configure your YouTube companion and signed-in AI sessions.</p>
           </div>
         </div>
@@ -67,12 +67,12 @@ export function OptionsView({
       <section aria-labelledby="general-title" className="ct-options-card">
         <div className="ct-options-card__heading">
           <h2 id="general-title">Panel defaults</h2>
-          <p>Choose how YouTube Max appears when a supported video opens.</p>
+          <p>Choose how Watch Better appears when a supported video opens.</p>
         </div>
         <label className="ct-options-row">
           <span>
             <strong>Extension enabled</strong>
-            <small>Show YouTube Max on supported YouTube videos.</small>
+            <small>Show Watch Better on supported YouTube videos.</small>
           </span>
           <input
             checked={settings.extensionEnabled}
@@ -86,7 +86,7 @@ export function OptionsView({
         <label className="ct-options-row">
           <span>
             <strong>Default tab</strong>
-            <small>Shown when YouTube Max mounts on a video.</small>
+            <small>Shown when Watch Better mounts on a video.</small>
           </span>
           <select
             disabled={disabled}
@@ -317,7 +317,7 @@ export function OptionsView({
           </select>
         </label>
         <p className="ct-options-privacy">
-          YouTube Max stores no API keys, cookies, analytics, transcripts, or
+          Watch Better stores no API keys, cookies, analytics, transcripts, or
           conversations permanently. Opening Ask submits bounded context with a
           READY-only instruction, then leaves questions to you. Smart Skip runs locally
           and never changes playback speed. Only Start deep scan sends bounded caption

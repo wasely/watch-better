@@ -1,17 +1,27 @@
 # Status
 
-Updated: 2026-08-25
+Updated: 2026-08-26
 
 ## Current state
 
 **Smart Skip development build.** Watch Better includes Transcript, Ask, and Smart
 Skip. Ask embeds ChatGPT and Gemini. Quick Learn opens the same movable in-page card as
-Pop Out, attaches the clicked video's YouTube thumbnail, and sends a direct click-hook
-briefing to Gemini after its thumbnail button is pressed. No model API or provider credential collection is used. A clean-profile
+Pop Out, keeps the clicked video's thumbnail and title visible in a local identity card,
+and sends a direct click-hook briefing to Gemini after its thumbnail button is pressed.
+No thumbnail is transferred to Gemini. No model API or provider credential collection is used. A clean-profile
 Chrome smoke test passes; signed-in-provider checks in the daily profile remain the gate.
 
 ## Implemented
 
+- Added a persistent Quick Learn video passport with the local thumbnail, a two-line
+  title, caption language, and a stable per-video accent. Floating and minimized cards
+  retain their video identity when several answers are open.
+- Quick Learn prefers a native English caption track, exposes YouTube's translated
+  English track when the source captions are non-English, and asks Gemini to answer only
+  in English.
+- Quick Learn sends the normal bounded transcript context in its first turn, skips image
+  upload, opens a clean provider conversation, and requests one direct 2–4 sentence
+  paragraph capped at 80 words.
 - Strengthened local Smart Skip jump cut detection: a sponsor brand lexicon seeds
   cuts when the word "sponsor" is never spoken, promotional-support boundary growth
   extends each seed across its whole section with per-strictness caps, and tangent
@@ -58,6 +68,8 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
   the video currently being browsed.
 - Detached cards propagate their fixed host height through the Shadow DOM mount,
   keeping Transcript and the embedded AI workspace full-height like the sidebar.
+- Quick Learn cards open at a roomier 560px × 760px desktop target so provider answers
+  are readable without manual resizing, with responsive viewport caps and edge clamping.
 - Keeps the panel height stable when YouTube shrinks its player during page scrolling.
 - Keeps the panel content fixed in its normal page position while scrolling instead of
   adding player-to-masthead overlap as top padding.
@@ -87,22 +99,24 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
 - Ask submits bounded transcript context only after its tab opens, verifies provider
   acceptance, then focuses the empty composer for the user's question.
 - Adds Quick Learn controls to standard video and Short thumbnails. A click fetches
-  captions without navigating, opens a movable in-page Ask/Gemini card, attaches the
-  allowlisted YouTube thumbnail, and directly asks Gemini to explain the title/thumbnail
-  promise, important claims, why they matter, caveats, usefulness, and official links.
-- Keeps Quick Learn visible through YouTube hover-preview DOM replacement and owns the
-  thumbnail's top-left slot so bottom-left download-extension controls cannot cover it.
+  captions without navigating, opens a movable in-page Ask/Gemini card, and directly
+  asks Gemini to explain the title's promise, important claims, why they matter, caveats,
+  usefulness, and official links. The thumbnail identifies the local card only.
+- Keeps a labeled Quick Learn pill visible before, during, and after hover on every
+  standard and Short thumbnail. It survives hover-preview DOM replacement and owns the
+  top-left slot while avoiding neighboring extension controls by their full footprint.
 
 ## Validation results
 
 - Canonical offline validation passed: Prettier, ESLint, strict TypeScript, 36 Vitest
-  files / 246 tests, and WXT production build.
-- Quick Learn regressions cover hover-removal re-mounting, delayed mutation delivery,
-  and the collision-free top-left thumbnail slot.
+  files / 264 tests, and WXT production build.
+- Quick Learn regressions cover persistent labeled controls on every Shorts card,
+  hover-removal re-mounting, delayed mutation delivery, and the collision-free
+  top-left thumbnail slot.
 - Build: `.output/chrome-mv3/`.
 - Production-dependency audit reports zero known vulnerabilities.
 - Built manifest: `storage`, scoped `declarativeNetRequest`, direct-frame
-  `webNavigation`, clipboard stage/restore, and exact YouTube, ChatGPT, and Gemini hosts.
+  `webNavigation`, and exact YouTube, ChatGPT, and Gemini hosts. No clipboard access.
 - Browser harness: the Quick Learn floating card was inspected at 320px dark and
   480px light with all tabs and window controls visible and no horizontal overflow.
 - Smart Skip harness fixtures cover ready/analyzing/error/empty jump maps and functional
@@ -126,9 +140,9 @@ Chrome smoke test passes; signed-in-provider checks in the daily profile remain 
   themes; verify jumps preserve speech edges, user speed is never changed, ads suspend
   skipping, undo works, and navigation cannot
   reuse a stale map.
-- Verify Quick Learn opens the movable in-page Gemini card, attaches the thumbnail,
-  streams the direct click-hook answer without a `READY` turn, accepts a follow-up,
-  reuses its card, and leaves the YouTube page unchanged.
+- Verify Quick Learn opens the movable in-page Gemini card, clearly identifies its video,
+  streams the direct English answer without transferring the thumbnail, accepts a
+  follow-up, reuses its card, and leaves the YouTube page unchanged.
 - Sign in at ChatGPT and Gemini, then verify embedded frames, provider switch,
   first Ask, follow-up, and new-chat behavior.
 - Verify caption fetch, selection Ask, seek, SPA navigation, theater/fullscreen,

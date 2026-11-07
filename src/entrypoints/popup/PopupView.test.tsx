@@ -22,7 +22,7 @@ describe('PopupView', () => {
   it('renders only the essential controls while loading', () => {
     render(<PopupView {...baseProps} message="Checking this tab…" status={null} />);
 
-    expect(screen.getByText('YouTube Max')).toBeInTheDocument();
+    expect(screen.getByText('Watch Better')).toBeInTheDocument();
     expect(screen.getByText('Checking this tab…')).toBeInTheDocument();
     expect(screen.getByRole('switch')).toBeDisabled();
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false');
@@ -43,7 +43,7 @@ describe('PopupView', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('switch', { name: 'Turn YouTube Max off' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Turn Watch Better off' }));
     fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
 
     expect(onSetEnabled).toHaveBeenCalledWith(false);
@@ -55,14 +55,14 @@ describe('PopupView', () => {
     render(
       <PopupView
         {...baseProps}
-        message="Turn it on to use YouTube Max on videos."
+        message="Turn it on to use Watch Better on videos."
         onSetEnabled={onSetEnabled}
         status={{ ...readyStatus, enabled: false }}
       />,
     );
 
     expect(screen.getByText('Disabled')).toBeInTheDocument();
-    const toggle = screen.getByRole('switch', { name: 'Turn YouTube Max on' });
+    const toggle = screen.getByRole('switch', { name: 'Turn Watch Better on' });
     expect(toggle).toHaveAttribute('aria-checked', 'false');
     fireEvent.click(toggle);
     expect(onSetEnabled).toHaveBeenCalledWith(true);
@@ -81,16 +81,16 @@ describe('PopupView', () => {
       <PopupView
         {...baseProps}
         error
-        message="Could not read YouTube Max status. Try again."
+        message="Could not read Watch Better status. Try again."
         status={null}
       />,
     );
 
     expect(
-      screen.getByText('Could not read YouTube Max status. Try again.'),
+      screen.getByText('Could not read Watch Better status. Try again.'),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('switch', { name: 'YouTube Max status unavailable' }),
+      screen.getByRole('switch', { name: 'Watch Better status unavailable' }),
     ).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Open settings' })).toBeEnabled();
   });

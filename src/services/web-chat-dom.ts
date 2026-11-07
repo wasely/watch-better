@@ -4,6 +4,7 @@ const MAX_IMAGE_BYTES = 5_000_000;
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const IMAGE_FETCH_TIMEOUT_MS = 3_000;
 const ATTACHMENT_CONFIRM_TIMEOUT_MS = 3_000;
+const DIRECT_PASTE_CONFIRM_TIMEOUT_MS = 750;
 const ATTACHMENT_POLL_INTERVAL_MS = 60;
 
 const ATTACHMENT_SELECTORS = [
@@ -20,6 +21,20 @@ const ATTACHMENT_SELECTORS = [
   'button[aria-label*="remove attached" i]',
   'button[aria-label*="remove image" i]',
 ] as const;
+
+const IMAGE_UPLOAD_CONTROL_SELECTORS = [
+  'button[aria-label*="add file" i]',
+  'button[aria-label*="attach file" i]',
+  'button[aria-label*="upload" i]',
+  'button[aria-label*="add image" i]',
+  '[role="button"][aria-label*="add file" i]',
+  '[role="button"][aria-label*="attach file" i]',
+  '[role="button"][aria-label*="upload" i]',
+  '[data-testid*="upload" i]',
+  '[data-test-id*="upload" i]',
+] as const;
+const IMAGE_UPLOAD_MENU_PATTERN =
+  /(?:add|attach|upload)(?: an?)? (?:file|files|image|photo)|from (?:computer|device)/i;
 
 const imageExtension = (mimeType: string): string => {
   if (mimeType === 'image/png') return 'png';
@@ -73,6 +88,24 @@ const transferFor = (file: File): DataTransfer => {
   } as unknown as DataTransfer;
 };
 
+const dispatchImagePaste = (composer: HTMLElement, file: File): boolean => {
+  const transfer = transferFor(file);
+  const event =
+    typeof ClipboardEvent === 'function'
+      ? new ClipboardEvent('paste', {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: transfer,
+          composed: true,
+        })
+      : Object.assign(
+          new Event('paste', { bubbles: true, cancelable: true, composed: true }),
+          { clipboardData: transfer },
+        );
+  composer.dispatchEvent(event);
+  return true;
+};
+
 export interface ClipboardImagePasteDependencies {
   readonly clipboard: Pick<Clipboard, 'read' | 'write'>;
   readonly createClipboardItem: (blob: Blob) => ClipboardItem;
@@ -124,7 +157,13 @@ export const pasteImageFromSystemClipboard = async (
     await dependencies.clipboard.write([item]);
     staged = true;
     composer.focus({ preventScroll: true });
-    return dependencies.paste();
+    if (dependencies.paste()) return true;
+    const pastedFile = new File(
+      [blob],
+      `youtube-thumbnail.${imageExtension(blob.type)}`,
+      { type: blob.type },
+    );
+    return dispatchImagePaste(composer, pastedFile);
   } finally {
     if (staged) await dependencies.clipboard.write(previous);
   }
@@ -145,8 +184,9 @@ const attachmentCount = (root: ParentNode): number => {
 const waitForAttachment = async (
   root: ParentNode,
   beforeCount: number,
+  timeoutMs = ATTACHMENT_CONFIRM_TIMEOUT_MS,
 ): Promise<boolean> => {
-  const deadline = Date.now() + ATTACHMENT_CONFIRM_TIMEOUT_MS;
+  const deadline = Date.now() + timeoutMs;
   do {
     if (attachmentCount(root) > beforeCount) return true;
     await new Promise((resolve) =>
@@ -154,6 +194,111 @@ const waitForAttachment = async (
     );
   } while (Date.now() < deadline);
   return false;
+};
+
+const imageInputFrom = (roots: readonly ParentNode[]): HTMLInputElement | null => {
+  const inputs = new Set<HTMLInputElement>();
+  roots.forEach((inputRoot) =>
+    inputRoot
+      .querySelectorAll<HTMLInputElement>('input[type="file"]')
+      .forEach((candidate) => inputs.add(candidate)),
+  );
+  return (
+    [...inputs].find(
+      (candidate) => !candidate.accept || candidate.accept.includes('image'),
+    ) ?? null
+  );
+};
+
+const waitForImageInput = async (
+  roots: readonly ParentNode[],
+  timeoutMs = DIRECT_PASTE_CONFIRM_TIMEOUT_MS,
+): Promise<HTMLInputElement | null> => {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    const input = imageInputFrom(roots);
+    if (input) return input;
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, ATTACHMENT_POLL_INTERVAL_MS),
+    );
+  } while (Date.now() < deadline);
+  return null;
+};
+
+const visibleControl = (element: Element): element is HTMLElement => {
+  if (!(element instanceof HTMLElement)) return false;
+  const style = getComputedStyle(element);
+  return style.display !== 'none' && style.visibility !== 'hidden';
+};
+
+const uploadMenuItemFrom = (
+  roots: readonly ParentNode[],
+  control: HTMLElement,
+): HTMLElement | null => {
+  const menuItems = new Set<HTMLElement>();
+  for (const root of roots)
+    root
+      .querySelectorAll('[role="menuitem"], [role="option"], button, [role="button"]')
+      .forEach((candidate) => {
+        if (candidate !== control && visibleControl(candidate))
+          menuItems.add(candidate);
+      });
+  return (
+    [...menuItems].find((candidate) =>
+      IMAGE_UPLOAD_MENU_PATTERN.test(
+        `${candidate.getAttribute('aria-label') ?? ''} ${candidate.getAttribute('title') ?? ''} ${candidate.textContent ?? ''}`,
+      ),
+    ) ?? null
+  );
+};
+
+const openProviderImageInput = async (
+  roots: readonly ParentNode[],
+): Promise<HTMLInputElement | null> => {
+  const controls = new Set<HTMLElement>();
+  for (const root of roots)
+    for (const selector of IMAGE_UPLOAD_CONTROL_SELECTORS)
+      root.querySelectorAll(selector).forEach((candidate) => {
+        if (visibleControl(candidate)) controls.add(candidate);
+      });
+  const control = [...controls][0];
+  if (!control) return null;
+  control.focus({ preventScroll: true });
+  control.click();
+  const deadline = Date.now() + DIRECT_PASTE_CONFIRM_TIMEOUT_MS;
+  do {
+    const directInput = imageInputFrom(roots);
+    if (directInput) return directInput;
+    const uploadItem = uploadMenuItemFrom(roots, control);
+    if (uploadItem) {
+      uploadItem.focus({ preventScroll: true });
+      uploadItem.click();
+      return waitForImageInput(roots);
+    }
+    await new Promise((resolve) =>
+      window.setTimeout(resolve, ATTACHMENT_POLL_INTERVAL_MS),
+    );
+  } while (Date.now() < deadline);
+  return null;
+};
+
+const attachThroughInput = async (
+  input: HTMLInputElement,
+  transfer: DataTransfer,
+  attachmentRoot: ParentNode,
+  beforeCount: number,
+): Promise<boolean> => {
+  try {
+    input.files = transfer.files;
+  } catch {
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: transfer.files,
+    });
+  }
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  return waitForAttachment(attachmentRoot, beforeCount);
 };
 
 export const attachImageFile = async (
@@ -164,22 +309,20 @@ export const attachImageFile = async (
   const attachmentRoot = attachmentRootFor(composer, root);
   const beforeCount = attachmentCount(attachmentRoot);
   const transfer = transferFor(file);
-  const input = Array.from(
-    attachmentRoot.querySelectorAll<HTMLInputElement>('input[type="file"]'),
-  ).find((candidate) => !candidate.accept || candidate.accept.includes('image'));
-  if (input) {
-    try {
-      input.files = transfer.files;
-    } catch {
-      Object.defineProperty(input, 'files', {
-        configurable: true,
-        value: transfer.files,
-      });
-    }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    return waitForAttachment(attachmentRoot, beforeCount);
-  }
+  const inputRoots = attachmentRoot === root ? [root] : [attachmentRoot, root];
+  const input =
+    imageInputFrom(inputRoots) ?? (await openProviderImageInput(inputRoots));
+  if (input) return attachThroughInput(input, transfer, attachmentRoot, beforeCount);
+
+  dispatchImagePaste(composer, file);
+  if (
+    await waitForAttachment(
+      attachmentRoot,
+      beforeCount,
+      DIRECT_PASTE_CONFIRM_TIMEOUT_MS,
+    )
+  )
+    return true;
 
   try {
     if (!(await pasteImageFromSystemClipboard(composer, file))) return false;
@@ -188,6 +331,11 @@ export const attachImageFile = async (
     return false;
   }
 };
+
+export interface OptionalImageComposerDependencies {
+  readonly fetchImage: typeof fetchImageFile;
+  readonly attachImage: typeof attachImageFile;
+}
 
 const visible = (element: Element): element is HTMLElement => {
   if (!(element instanceof HTMLElement)) return false;
@@ -258,6 +406,28 @@ const setEditableValue = (input: HTMLElement, text: string): void => {
 export const fillComposer = (input: HTMLElement, text: string): void => {
   if (input instanceof HTMLTextAreaElement) setTextAreaValue(input, text);
   else setEditableValue(input, text);
+};
+
+export const fillComposerWithOptionalImage = async (
+  composer: HTMLElement,
+  message: string,
+  imageUrl?: string,
+  root: ParentNode = document,
+  dependencies: OptionalImageComposerDependencies = {
+    fetchImage: fetchImageFile,
+    attachImage: attachImageFile,
+  },
+): Promise<boolean> => {
+  let attached = false;
+  if (imageUrl)
+    try {
+      const image = await dependencies.fetchImage(imageUrl);
+      if (image) attached = await dependencies.attachImage(composer, image, root);
+    } catch {
+      // The transcript remains useful when provider image UI changes or rejects upload.
+    }
+  fillComposer(composer, message);
+  return attached;
 };
 
 export const composerText = (input: HTMLElement): string =>

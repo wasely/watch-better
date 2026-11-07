@@ -68,6 +68,10 @@
   gap: 14px;
 }
 
+.ct-options__identity > div {
+  min-width: 0;
+}
+
 .ct-options__logo {
   display: block;
   width: 44px;
@@ -107,6 +111,7 @@
   color: var(--options-muted);
   font-size: 13px;
   line-height: 19px;
+  overflow-wrap: anywhere;
 }
 
 .ct-options-card {

@@ -1,7 +1,6 @@
 import type { WatchBetterSettings } from '@/features/settings/settings';
 import {
   isWebChatProviderId,
-  isWebChatImageUrl,
   isWebChatSessionId,
   MAX_WEB_CHAT_MESSAGE_CHARACTERS,
   type WebChatProviderId,
@@ -65,7 +64,6 @@ export type ExtensionRequest =
       readonly sessionId: string;
       readonly message: string;
       readonly newConversation: boolean;
-      readonly imageUrl?: string;
     }
   | {
       readonly type: 'webchat:analyze';
@@ -143,7 +141,6 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
     readonly message?: unknown;
     readonly newConversation?: unknown;
     readonly sessionId?: unknown;
-    readonly imageUrl?: unknown;
   };
   const hasOnlyKeys = (...allowed: readonly string[]) =>
     Object.keys(candidate).every((key) => allowed.includes(key));
@@ -186,8 +183,7 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
         typeof candidate.newConversation === 'boolean' &&
         hasOnlyKeys('type', 'provider', 'sessionId', 'message', 'newConversation')
       );
-    case 'webchat:send': {
-      const hasImage = candidate.imageUrl !== undefined;
+    case 'webchat:send':
       return (
         isWebChatProviderId(candidate.provider) &&
         isWebChatSessionId(candidate.sessionId) &&
@@ -195,17 +191,8 @@ export const isExtensionRequest = (value: unknown): value is ExtensionRequest =>
         candidate.message.trim().length > 0 &&
         candidate.message.length <= MAX_WEB_CHAT_MESSAGE_CHARACTERS &&
         typeof candidate.newConversation === 'boolean' &&
-        (!hasImage || isWebChatImageUrl(candidate.imageUrl)) &&
-        hasOnlyKeys(
-          'type',
-          'provider',
-          'sessionId',
-          'message',
-          'newConversation',
-          ...(hasImage ? ['imageUrl'] : []),
-        )
+        hasOnlyKeys('type', 'provider', 'sessionId', 'message', 'newConversation')
       );
-    }
     default:
       return false;
   }

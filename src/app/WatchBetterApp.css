@@ -43,6 +43,34 @@
   display: none;
 }
 
+.watchbetter-root[data-presentation='floating'][data-quick-learn='true']
+  .ct-identity__copy {
+  display: grid;
+  align-items: center;
+  gap: 0;
+}
+
+.watchbetter-root[data-presentation='floating'][data-quick-learn='true']
+  .ct-identity__copy
+  > strong {
+  color: var(--ct-accent);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.09em;
+  line-height: 11px;
+  text-transform: uppercase;
+}
+
+.watchbetter-root[data-presentation='floating'][data-quick-learn='true']
+  .ct-video-title {
+  display: block;
+  max-width: min(42cqw, 280px);
+  color: var(--ct-text-strong);
+  font-size: 11px;
+  font-weight: 620;
+  line-height: 14px;
+}
+
 /* Room for the resize handles so edge drags never fight the panel's own scrollbars. */
 .watchbetter-root[data-presentation='floating'] .ct-panel {
   border-radius: 14px;
@@ -700,6 +728,22 @@
   .ct-status > span {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+}
+
+@container watchbetter (max-width: 279px) {
+  .ct-tabs--3 .ct-tab {
+    gap: 0;
+    padding-inline: 2px;
+  }
+
+  .ct-tabs--3 .ct-tab svg {
+    display: none;
+  }
+
+  .ct-tabs--3 .ct-tab span {
+    font-size: 10px;
+    white-space: nowrap;
   }
 }
 

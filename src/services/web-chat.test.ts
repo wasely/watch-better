@@ -70,7 +70,7 @@ describe('web chat provider contract', () => {
         newConversation: true,
         imageUrl: 'https://i.ytimg.com/vi/example/hqdefault.jpg',
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       isWebChatPageRequest({
         type: 'watchbetter:webchat-page-analyze',

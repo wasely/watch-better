@@ -323,11 +323,50 @@ const sourceFromResponse = (
       Number(Boolean(left.track.isAutomatic)) -
         Number(Boolean(right.track.isAutomatic)),
   );
+  const hasEnglishTrack = ordered.some(({ track }) =>
+    /^en(?:-|$)/i.test(track.languageCode),
+  );
+  const rawTranslationLanguages: unknown = renderer?.translationLanguages;
+  const translationLanguages: readonly unknown[] = Array.isArray(
+    rawTranslationLanguages,
+  )
+    ? (rawTranslationLanguages as readonly unknown[])
+    : [];
+  const translatedEnglish = !hasEnglishTrack
+    ? translationLanguages.find(
+        (translation) =>
+          isRecord(translation) &&
+          /^en(?:-|$)/i.test(stringAt(translation, 'languageCode') ?? ''),
+      )
+    : undefined;
+  const translationSource = ordered[0];
+  const englishTranslation =
+    translatedEnglish && isRecord(translatedEnglish) && translationSource
+      ? (() => {
+          const languageCode = stringAt(translatedEnglish, 'languageCode');
+          if (!languageCode) return null;
+          const url = new URL(translationSource.baseUrl);
+          url.searchParams.set('tlang', languageCode);
+          return {
+            baseUrl: url.href,
+            preferred: false,
+            track: {
+              id: `${translationSource.track.id}:tlang=${encodeURIComponent(languageCode)}`,
+              languageCode,
+              languageLabel: `${labelFrom(
+                translatedEnglish.languageName,
+                languageCode,
+              )} (translated)`,
+              isAutomatic: translationSource.track.isAutomatic,
+            },
+          } satisfies CaptionSource;
+        })()
+      : null;
   return {
     videoId: stringAt(details, 'videoId') ?? requestedVideoId,
     title: stringAt(details, 'title') ?? document.title.replace(/\s*-\s*YouTube$/, ''),
     durationSeconds: numberFrom(details?.lengthSeconds),
-    captions: ordered,
+    captions: englishTranslation ? [...ordered, englishTranslation] : ordered,
   };
 };
 

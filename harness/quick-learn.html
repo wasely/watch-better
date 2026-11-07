@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./quick-learn.css" />
+    <title>Watch Better Quick Learn Harness</title>
+  </head>
+  <body>
+    <header class="masthead">
+      <strong>Watch Better · Shorts overlay fixture</strong>
+      <span id="status">Persistent before hover</span>
+    </header>
+    <main aria-label="Simulated YouTube Shorts shelf" class="shorts-grid">
+      <ytm-shorts-lockup-view-model class="short-card short-card--one">
+        <a id="thumbnail" href="https://www.youtube.com/shorts/short-a">
+          <img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" />
+        </a>
+        <button class="foreign-save" type="button">▣ Save</button>
+        <span class="foreign-badge">3</span>
+        <a id="video-title" title="Build a faster browser agent"
+          >Build a faster browser agent</a
+        >
+        <small>42K views</small>
+      </ytm-shorts-lockup-view-model>
+      <ytm-shorts-lockup-view-model class="short-card short-card--two">
+        <a id="thumbnail" href="https://www.youtube.com/shorts/short-b">
+          <img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" />
+        </a>
+        <span class="foreign-badge">6</span>
+        <a id="video-title" title="The AI workflow nobody explains"
+          >The AI workflow nobody explains</a
+        >
+        <small>18K views</small>
+      </ytm-shorts-lockup-view-model>
+      <ytm-shorts-lockup-view-model class="short-card short-card--three">
+        <a id="thumbnail" href="https://www.youtube.com/shorts/short-c">
+          <img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" />
+        </a>
+        <button class="foreign-save" type="button">▣ Save</button>
+        <a id="video-title" title="What changed in local AI"
+          >What changed in local AI</a
+        >
+        <small>9K views</small>
+      </ytm-shorts-lockup-view-model>
+    </main>
+    <script type="module" src="./quick-learn.ts"></script>
+  </body>
+</html>

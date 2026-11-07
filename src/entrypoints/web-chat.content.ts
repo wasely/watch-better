@@ -8,9 +8,7 @@ import {
   type WebChatPageResponse,
 } from '@/services/web-chat';
 import {
-  attachImageFile,
   composerText,
-  fetchImageFile,
   fillComposer,
   firstVisible,
   focusComposerAtEnd,
@@ -232,16 +230,6 @@ export default defineContentScript({
       try {
         if (message.newConversation) composer = await startNewConversation(definition);
         const responseCount = responseTexts(definition).length;
-        if (message.type === 'watchbetter:webchat-page-send' && message.imageUrl) {
-          const image = await fetchImageFile(message.imageUrl);
-          if (!image || !(await attachImageFile(composer, image)))
-            return {
-              ok: false,
-              type: 'webchat-page:error',
-              code: 'send-failed',
-              message: `${definition.displayName} could not attach the video thumbnail. Try again.`,
-            };
-        }
         fillComposer(composer, message.message);
         if (!(await waitForComposerText(composer, message.message.trim()))) {
           fillComposer(composer, message.message);

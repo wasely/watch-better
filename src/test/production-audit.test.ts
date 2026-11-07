@@ -7,6 +7,26 @@ const root = resolve(import.meta.dirname, '../..');
 const read = (path: string): string => readFileSync(resolve(root, path), 'utf8');
 
 describe('production privacy and permission audit', () => {
+  it('uses the Watch Better product name on every user-facing surface', () => {
+    const surfaces = [
+      'wxt.config.ts',
+      'src/app/WatchBetterApp.tsx',
+      'src/app/WatchBetterRuntime.tsx',
+      'src/entrypoints/background.ts',
+      'src/entrypoints/youtube.content.tsx',
+      'src/entrypoints/popup/index.html',
+      'src/entrypoints/popup/main.tsx',
+      'src/entrypoints/popup/PopupView.tsx',
+      'src/entrypoints/options/index.html',
+      'src/entrypoints/options/OptionsView.tsx',
+      'src/features/ask/transcript-prompt-provider.ts',
+    ];
+
+    for (const path of surfaces) expect(read(path)).not.toMatch(/YouTube Max/i);
+    expect(read('wxt.config.ts')).toContain("name: 'Watch Better'");
+    expect(read('wxt.config.ts')).toContain("default_title: 'Watch Better'");
+  });
+
   it('keeps fixtures out of production entrypoints', () => {
     for (const path of [
       'src/entrypoints/youtube.content.tsx',
@@ -59,17 +79,12 @@ describe('production privacy and permission audit', () => {
     expect(background).toContain('sendToProviderPage');
   });
 
-  it('requests scoped runtime, clipboard, and supported-host access only', () => {
+  it('requests scoped runtime and supported-host access only', () => {
     const config = read('wxt.config.ts');
     expect(config).toContain("minimum_chrome_version: '133'");
-    for (const permission of [
-      'storage',
-      'declarativeNetRequest',
-      'webNavigation',
-      'clipboardRead',
-      'clipboardWrite',
-    ])
+    for (const permission of ['storage', 'declarativeNetRequest', 'webNavigation'])
       expect(config).toContain(`'${permission}'`);
+    expect(config).not.toMatch(/clipboardRead|clipboardWrite/);
     expect(config).toContain("'https://www.youtube.com/*'");
     expect(config).toContain("'https://chatgpt.com/*'");
     expect(config).toContain("'https://gemini.google.com/*'");
@@ -131,5 +146,15 @@ describe('production privacy and permission audit', () => {
       'src/features/ask/transcript-prompt-provider.ts',
     ])
       expect(read(path)).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket/);
+  });
+
+  it('keeps thumbnails local instead of transferring them to AI providers', () => {
+    for (const path of [
+      'src/messaging/messages.ts',
+      'src/entrypoints/background.ts',
+      'src/entrypoints/web-chat.content.ts',
+      'src/features/ask/AskPanel.tsx',
+    ])
+      expect(read(path)).not.toContain('imageUrl');
   });
 });

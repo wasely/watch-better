@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
-import { tutorialTranscript } from '@/test/fixtures/transcripts';
+import { podcastTranscript, tutorialTranscript } from '@/test/fixtures/transcripts';
 
 import {
   AskPanel,
@@ -43,12 +43,14 @@ describe('AskPanel', () => {
   it('shows the provider site without duplicating its composer', () => {
     render(<AskPanel providerStatuses={readyStatuses} transcript={null} />);
 
-    expect(screen.getByTitle('Gemini embedded chat')).toHaveAttribute(
+    const frame = screen.getByTitle('Gemini embedded chat');
+    expect(frame).toHaveAttribute(
       'src',
       expect.stringMatching(
         /^https:\/\/gemini\.google\.com\/app#watchbetter-frame=gemini%3A/,
       ),
     );
+    expect(frame).not.toHaveAttribute('allow');
     expect(screen.queryByLabelText('Ask about this video')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'New chat' })).not.toBeInTheDocument();
@@ -225,7 +227,7 @@ describe('AskPanel', () => {
     expect(await screen.findByText('Video context ready in Gemini.')).toBeVisible();
   });
 
-  it('answers a Quick Learn thumbnail directly without READY priming', async () => {
+  it('answers Quick Learn directly without uploading the thumbnail', async () => {
     const onPrime = vi
       .fn<NonNullable<AskPanelProps['onPrimeWebChat']>>()
       .mockResolvedValue(undefined);
@@ -253,11 +255,14 @@ describe('AskPanel', () => {
     expect(onPrime).not.toHaveBeenCalled();
     expect(onSend.mock.calls[0]?.[0]).toMatchObject({
       provider: 'gemini',
-      newConversation: false,
-      imageUrl: 'https://i.ytimg.com/vi/tutorial/hqdefault.jpg',
+      newConversation: true,
     });
+    expect(onSend.mock.calls[0]?.[0]).not.toHaveProperty('imageUrl');
     expect(onSend.mock.calls[0]?.[0].message).toContain('TRANSCRIPT CONTEXT');
-    expect(onSend.mock.calls[0]?.[0].message).toMatch(/why.*worth watching/i);
+    expect(onSend.mock.calls[0]?.[0].message).toMatch(
+      /exactly one short paragraph.*no more than 80 words/i,
+    );
+    expect(onSend.mock.calls[0]?.[0].message).toMatch(/first sentence.*direct answer/i);
     expect(onSend.mock.calls[0]?.[0].message).not.toContain('Reply only READY');
     expect(
       await screen.findByText('Answering the video’s click question in Gemini…'),
@@ -268,6 +273,81 @@ describe('AskPanel', () => {
       provider: 'gemini',
     });
     expect(await screen.findByText('Quick answer sent to Gemini.')).toBeVisible();
+  });
+
+  it('keeps the Quick Learn video identifiable while Gemini loads', () => {
+    render(
+      <AskPanel
+        providerStatuses={{
+          gemini: { provider: 'gemini', state: 'not-open' },
+        }}
+        quickLearn={{
+          thumbnailUrl: 'https://i.ytimg.com/vi/tutorial/hqdefault.jpg',
+        }}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    const identity = screen.getByRole('region', {
+      name: `Quick Learn video: ${tutorialTranscript.videoTitle}`,
+    });
+    expect(within(identity).getByText(tutorialTranscript.videoTitle)).toBeVisible();
+    expect(
+      within(identity).getByRole('img', {
+        name: `Thumbnail for ${tutorialTranscript.videoTitle}`,
+      }),
+    ).toHaveAttribute('src', 'https://i.ytimg.com/vi/tutorial/hqdefault.jpg');
+    expect(screen.getByText('Loading Gemini…')).toBeVisible();
+  });
+
+  it('shows a local fallback when the Quick Learn thumbnail cannot load', () => {
+    const { container } = render(
+      <AskPanel
+        providerStatuses={readyStatuses}
+        quickLearn={{ thumbnailUrl: 'https://i.ytimg.com/vi/missing/hqdefault.jpg' }}
+        transcript={tutorialTranscript}
+      />,
+    );
+
+    fireEvent.error(
+      screen.getByRole('img', {
+        name: `Thumbnail for ${tutorialTranscript.videoTitle}`,
+      }),
+    );
+
+    expect(
+      screen.queryByRole('img', {
+        name: `Thumbnail for ${tutorialTranscript.videoTitle}`,
+      }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelector('.ct-quick-learn-context__fallback')).toBeVisible();
+  });
+
+  it('loads the normal full transcript context for the first Quick Learn answer', async () => {
+    const onSend = vi
+      .fn<(request: ChatTurnRequest) => Promise<ChatTurnResult>>()
+      .mockResolvedValue({
+        text: '',
+        responseId: 'full-context-quick-learn-answer',
+        provider: 'gemini',
+      });
+
+    render(
+      <AskPanel
+        onSendWebChat={onSend}
+        providerStatuses={readyStatuses}
+        quickLearn={{}}
+        transcript={podcastTranscript}
+      />,
+    );
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledOnce());
+    const message = onSend.mock.calls[0]?.[0].message ?? '';
+    expect(message.length).toBeGreaterThan(18_000);
+    expect(message.length).toBeLessThan(24_000);
+    expect(message).toContain('CONTEXT LIMITATION');
+    expect(message).toContain('[0:00]');
+    expect(message).toMatch(/\[1:5\d:\d{2}\]/);
   });
 
   it('shares and focuses video context only after Ask becomes visible', async () => {

@@ -68,8 +68,8 @@ without replacing YouTube's player or content.
 
 - No Watch Better backend, analytics, account, payments, tracking, or remote code.
 - No persistent transcripts, prompts, or conversations by default.
-- Keep Quick Learn runtime state tab-memory-only and disclose its embedded Gemini
-  thumbnail/transcript send.
+- Keep Quick Learn runtime state tab-memory-only and disclose its text-only embedded
+  Gemini transcript send. Thumbnails remain local.
 - Optional transcript cache uses browser session storage with hard size/count bounds.
 - Detached-card state remains tab-local and closing resets only that card's frame IDs.
 - Smart Skip maps are bounded and stored only in browser session storage.

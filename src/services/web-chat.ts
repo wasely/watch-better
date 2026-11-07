@@ -22,7 +22,6 @@ export interface WebChatPageSendRequest {
   readonly type: 'watchbetter:webchat-page-send';
   readonly message: string;
   readonly newConversation: boolean;
-  readonly imageUrl?: string;
 }
 
 export interface WebChatPagePrimeRequest {
@@ -200,7 +199,6 @@ export const isWebChatPageRequest = (value: unknown): value is WebChatPageReques
     readonly type?: unknown;
     readonly message?: unknown;
     readonly newConversation?: unknown;
-    readonly imageUrl?: unknown;
   };
   if (
     request.type === 'watchbetter:webchat-page-status' ||
@@ -212,22 +210,13 @@ export const isWebChatPageRequest = (value: unknown): value is WebChatPageReques
     request.type === 'watchbetter:webchat-page-send' ||
     request.type === 'watchbetter:webchat-page-analyze';
   if (!isPromptRequest) return false;
-  const hasImage = request.imageUrl !== undefined;
   return (
     typeof request.message === 'string' &&
     request.message.trim().length > 0 &&
     request.message.length <= MAX_WEB_CHAT_MESSAGE_CHARACTERS &&
     typeof request.newConversation === 'boolean' &&
-    (!hasImage ||
-      (request.type === 'watchbetter:webchat-page-send' &&
-        isWebChatImageUrl(request.imageUrl))) &&
     Object.keys(request).every((key) =>
-      [
-        'type',
-        'message',
-        'newConversation',
-        ...(hasImage ? ['imageUrl'] : []),
-      ].includes(key),
+      ['type', 'message', 'newConversation'].includes(key),
     )
   );
 };

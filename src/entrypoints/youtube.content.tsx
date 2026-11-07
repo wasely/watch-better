@@ -779,7 +779,7 @@ export default defineContentScript({
           return {
             ok: false,
             type: 'error',
-            message: 'YouTube Max is still loading on this page.',
+            message: 'Watch Better is still loading on this page.',
           };
         try {
           await runtime.controls.restore();

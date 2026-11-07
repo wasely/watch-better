@@ -14,7 +14,7 @@ describe('WatchBetterApp foundation shell', () => {
       />,
     );
 
-    expect(screen.getByText('YouTube Max')).toBeInTheDocument();
+    expect(screen.getByText('Watch Better')).toBeInTheDocument();
     const header = screen.getByRole('banner');
     expect(header.lastElementChild).toHaveClass('ct-header__brand');
     expect(screen.queryByText('Transcript ready')).not.toBeInTheDocument();
@@ -67,8 +67,8 @@ describe('WatchBetterApp foundation shell', () => {
     fireEvent.change(search, { target: { value: 'evidence' } });
     fireEvent.click(screen.getByRole('tab', { name: 'Ask' }));
     fireEvent.click(screen.getByRole('tab', { name: 'Transcript' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse YouTube Max' }));
-    fireEvent.click(screen.getByRole('button', { name: /Expand YouTube Max/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Watch Better' }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand Watch Better/ }));
 
     expect(screen.getByPlaceholderText('Search transcript')).toHaveValue('evidence');
   });
@@ -147,7 +147,7 @@ describe('WatchBetterApp foundation shell', () => {
       <WatchBetterApp collapsed onCollapsedChange={onCollapsedChange} />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Expand YouTube Max/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Expand Watch Better/ }));
     expect(onCollapsedChange).toHaveBeenCalledWith(false);
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
 
@@ -161,9 +161,9 @@ describe('WatchBetterApp foundation shell', () => {
     const user = userEvent.setup();
     render(<WatchBetterApp />);
 
-    await user.click(screen.getByRole('button', { name: 'Collapse YouTube Max' }));
+    await user.click(screen.getByRole('button', { name: 'Collapse Watch Better' }));
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    const launcher = screen.getByRole('button', { name: /Expand YouTube Max/ });
+    const launcher = screen.getByRole('button', { name: /Expand Watch Better/ });
     await waitFor(() => expect(launcher).toHaveFocus());
 
     await user.click(launcher);
@@ -178,7 +178,9 @@ describe('WatchBetterApp foundation shell', () => {
     const onOpenSettings = vi.fn();
     render(<WatchBetterApp onOpenSettings={onOpenSettings} />);
 
-    await user.click(screen.getByRole('button', { name: 'Open YouTube Max settings' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Open Watch Better settings' }),
+    );
     expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 
@@ -199,15 +201,42 @@ describe('WatchBetterApp foundation shell', () => {
     expect(screen.getByText('Independent video workspace')).toBeVisible();
     expect(screen.queryByRole('tab', { name: 'Smart Skip' })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: 'Collapse YouTube Max' }),
+      screen.queryByRole('button', { name: 'Collapse Watch Better' }),
     ).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole('button', { name: 'Detach YouTube Max for this video' }),
+      screen.getByRole('button', { name: 'Detach Watch Better for this video' }),
     );
     expect(onDetach).toHaveBeenCalledOnce();
     await user.click(
-      screen.getByRole('button', { name: 'Close detached YouTube Max' }),
+      screen.getByRole('button', { name: 'Close detached Watch Better' }),
     );
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('labels a floating Quick Learn card with its video identity', () => {
+    render(
+      <WatchBetterApp
+        activeTab="ask"
+        ask={{
+          providerStatuses: {
+            gemini: { provider: 'gemini', state: 'ready' },
+          },
+          quickLearn: {
+            thumbnailUrl: 'https://i.ytimg.com/vi/fixture/hqdefault.jpg',
+          },
+          transcript: podcastTranscript,
+        }}
+        minimized
+        presentation="floating"
+        videoTitle="Two-hour creator research roundtable"
+      />,
+    );
+
+    const root = screen.getByLabelText('Watch Better video companion').parentElement;
+    expect(root).toHaveAttribute('data-quick-learn', 'true');
+    expect(screen.getByRole('banner')).toHaveTextContent('Quick Learn');
+    expect(screen.getByRole('banner')).toHaveTextContent(
+      'Two-hour creator research roundtable',
+    );
   });
 });

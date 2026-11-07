@@ -35,6 +35,32 @@ const THUMBNAIL_BOX_SELECTOR = [
 const BUTTON_ATTRIBUTE = 'data-watchbetter-quick-learn-button';
 const STYLE_ATTRIBUTE = 'data-watchbetter-quick-learn-style';
 const POPUP_ATTRIBUTE = 'data-watchbetter-quick-learn-popup';
+const OVERLAY_OWNER = 'watch-better';
+const OVERLAY_OWNER_ATTRIBUTE = 'data-kai-youtube-overlay-owner';
+const OVERLAY_SLOT_ATTRIBUTE = 'data-kai-youtube-overlay-slot';
+const ANCHOR_OWNERS_ATTRIBUTE = 'data-kai-youtube-overlay-anchor-owners';
+const ANCHOR_PATCHED_ATTRIBUTE = 'data-kai-youtube-overlay-anchor-patched';
+const ANCHOR_ORIGINAL_ATTRIBUTE = 'data-kai-youtube-overlay-anchor-original';
+const CONTROL_INSET = 8;
+const COMPACT_CONTROL_INSET = 6;
+const CONTROL_SIZE = 34;
+const COMPACT_CONTROL_SIZE = 30;
+const CONTROL_WIDTH = 122;
+const COMPACT_CONTROL_WIDTH = 116;
+const CONTROL_GAP = 6;
+const COMPACT_CONTROL_GAP = 4;
+const COMPACT_HOST_WIDTH = 240;
+
+const overlayOwners = (host: Element): Set<string> =>
+  new Set(
+    (host.getAttribute(ANCHOR_OWNERS_ATTRIBUTE) ?? '').split(/\s+/).filter(Boolean),
+  );
+
+const writeOverlayOwners = (host: Element, owners: Set<string>): void => {
+  if (owners.size)
+    host.setAttribute(ANCHOR_OWNERS_ATTRIBUTE, [...owners].sort().join(' '));
+  else host.removeAttribute(ANCHOR_OWNERS_ATTRIBUTE);
+};
 
 const isElementNode = (node: unknown): node is Element =>
   (node as Node | null)?.nodeType === 1;
@@ -76,18 +102,21 @@ const PAGE_STYLES = `
     display: flex !important;
     font: 600 12px/1 Arial, sans-serif !important;
     gap: 7px !important;
-    height: 34px !important;
-    justify-content: flex-start !important;
-    left: 8px !important;
-    max-width: 34px !important;
+    height: var(--kai-youtube-overlay-control-size, 34px) !important;
+    justify-content: center !important;
+    inset-inline-start: 8px !important;
+    left: auto !important;
+    max-width: var(--kai-youtube-overlay-control-width, 122px) !important;
+    min-width: var(--kai-youtube-overlay-control-width, 122px) !important;
     overflow: hidden !important;
-    padding: 7px !important;
+    padding: 7px 10px !important;
     pointer-events: auto !important;
     position: absolute !important;
-    top: 8px !important;
-    transition: max-width 150ms ease, border-color 150ms ease, background 150ms ease !important;
+    top: var(--kai-youtube-overlay-block-start, 8px) !important;
+    transition: border-color 150ms ease, background 150ms ease !important;
     white-space: nowrap !important;
-    z-index: 2147483000 !important;
+    width: var(--kai-youtube-overlay-control-width, 122px) !important;
+    z-index: 60 !important;
   }
   [${BUTTON_ATTRIBUTE}] svg {
     display: block !important;
@@ -105,21 +134,18 @@ const PAGE_STYLES = `
     all: initial !important;
     color: inherit !important;
     font: inherit !important;
-    opacity: 0 !important;
-    transition: opacity 100ms ease !important;
+    opacity: 1 !important;
+    white-space: nowrap !important;
   }
   [${BUTTON_ATTRIBUTE}]:hover,
   [${BUTTON_ATTRIBUTE}]:focus-visible,
   [${BUTTON_ATTRIBUTE}][aria-expanded="true"] {
     background: rgba(21, 26, 34, .97) !important;
     border-color: #f5b64a !important;
-    max-width: 112px !important;
-    outline: none !important;
   }
-  [${BUTTON_ATTRIBUTE}]:hover span,
-  [${BUTTON_ATTRIBUTE}]:focus-visible span,
-  [${BUTTON_ATTRIBUTE}][aria-expanded="true"] span {
-    opacity: 1 !important;
+  [${BUTTON_ATTRIBUTE}]:focus-visible {
+    outline: 2px solid #f5b64a !important;
+    outline-offset: 2px !important;
   }
   [${BUTTON_ATTRIBUTE}][data-loading="true"] svg {
     animation: watchbetter-quick-learn-radar 850ms linear infinite !important;
@@ -129,8 +155,13 @@ const PAGE_STYLES = `
     to { transform: rotate(360deg); }
   }
   @media (prefers-reduced-motion: reduce) {
-    [${BUTTON_ATTRIBUTE}], [${BUTTON_ATTRIBUTE}] span { transition: none !important; }
+    [${BUTTON_ATTRIBUTE}] { transition: none !important; }
     [${BUTTON_ATTRIBUTE}][data-loading="true"] svg { animation: none !important; }
+  }
+  [${BUTTON_ATTRIBUTE}][data-compact="true"] {
+    inset-inline-start: 6px !important;
+    font-size: 11px !important;
+    padding: 6px 8px !important;
   }
 `;
 
@@ -307,11 +338,8 @@ export class QuickLearnController {
       .querySelectorAll<HTMLElement>(`[${BUTTON_ATTRIBUTE}]`)
       .forEach((button) => button.remove());
     this.documentRef
-      .querySelectorAll<HTMLElement>('[data-watchbetter-quick-learn-anchored]')
-      .forEach((host) => {
-        host.style.removeProperty('position');
-        delete host.dataset.watchbetterQuickLearnAnchored;
-      });
+      .querySelectorAll<HTMLElement>(`[${ANCHOR_OWNERS_ATTRIBUTE}]`)
+      .forEach((host) => this.#releaseHost(host));
     this.#style?.remove();
     this.#style = null;
     this.#popup?.host.remove();
@@ -376,28 +404,106 @@ export class QuickLearnController {
     );
   }
 
-  /** An absolutely positioned button needs a positioned host or it escapes the card. */
+  /** Share the positioned thumbnail host with other extensions using the same contract. */
   #anchorHost(host: Element): void {
     if (!isHtmlElementNode(host)) return;
-    if (this.#window.getComputedStyle(host).position !== 'static') return;
-    host.dataset.watchbetterQuickLearnAnchored = 'true';
-    host.style.position = 'relative';
+    const owners = overlayOwners(host);
+    owners.add(OVERLAY_OWNER);
+    writeOverlayOwners(host, owners);
+    if (
+      this.#window.getComputedStyle(host).position === 'static' &&
+      !host.hasAttribute(ANCHOR_PATCHED_ATTRIBUTE)
+    ) {
+      host.setAttribute(ANCHOR_PATCHED_ATTRIBUTE, 'true');
+      host.setAttribute(ANCHOR_ORIGINAL_ATTRIBUTE, host.style.position);
+      host.style.position = 'relative';
+    }
+  }
+
+  #releaseHost(host: HTMLElement): void {
+    const owners = overlayOwners(host);
+    if (!owners.delete(OVERLAY_OWNER)) return;
+    writeOverlayOwners(host, owners);
+    if (owners.size || !host.hasAttribute(ANCHOR_PATCHED_ATTRIBUTE)) return;
+    if (host.style.position === 'relative') {
+      const original = host.getAttribute(ANCHOR_ORIGINAL_ATTRIBUTE) ?? '';
+      if (original) host.style.position = original;
+      else host.style.removeProperty('position');
+    }
+    host.removeAttribute(ANCHOR_PATCHED_ATTRIBUTE);
+    host.removeAttribute(ANCHOR_ORIGINAL_ATTRIBUTE);
+  }
+
+  #placeButton(host: Element, button: HTMLButtonElement): void {
+    const hostRect = host.getBoundingClientRect();
+    const compact = hostRect.width > 0 && hostRect.width < COMPACT_HOST_WIDTH;
+    const size = compact ? COMPACT_CONTROL_SIZE : CONTROL_SIZE;
+    const width = compact ? COMPACT_CONTROL_WIDTH : CONTROL_WIDTH;
+    const inset = compact ? COMPACT_CONTROL_INSET : CONTROL_INSET;
+    const gap = compact ? COMPACT_CONTROL_GAP : CONTROL_GAP;
+    const rtl = this.#window.getComputedStyle(host).direction === 'rtl';
+    const obstacleSelector = [
+      `[${OVERLAY_OWNER_ATTRIBUTE}]`,
+      '.vidiq-scope button',
+      '.vidiq-scope [role="button"]',
+      '.vidiq-scope a',
+      'ytd-thumbnail-overlay-toggle-button-renderer',
+    ].join(',');
+    const obstacles = [...host.querySelectorAll<HTMLElement>(obstacleSelector)]
+      .filter((item) => item !== button && !button.contains(item))
+      .map((item) => item.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0);
+    let blockStart = inset;
+    if (hostRect.width > 0 && hostRect.height > 0) {
+      const inlineStart = rtl ? hostRect.right - inset - width : hostRect.left + inset;
+      const maxStart = Math.max(inset, hostRect.height - size - inset);
+      while (blockStart < maxStart) {
+        const top = hostRect.top + blockStart;
+        const candidate = {
+          left: inlineStart,
+          top,
+          right: inlineStart + width,
+          bottom: top + size,
+        };
+        const collisions = obstacles.filter(
+          (rect) =>
+            candidate.right > rect.left &&
+            candidate.left < rect.right &&
+            candidate.bottom > rect.top &&
+            candidate.top < rect.bottom,
+        );
+        if (!collisions.length) break;
+        blockStart = Math.min(
+          maxStart,
+          Math.max(
+            ...collisions.map((rect) => Math.ceil(rect.bottom - hostRect.top + gap)),
+          ),
+        );
+      }
+    }
+    button.dataset.compact = String(compact);
+    button.style.setProperty('--kai-youtube-overlay-control-size', `${size}px`);
+    button.style.setProperty('--kai-youtube-overlay-control-width', `${width}px`);
+    button.style.setProperty('--kai-youtube-overlay-block-start', `${blockStart}px`);
   }
 
   #addButton(anchor: HTMLAnchorElement): void {
     const buttonHost = this.#hostFor(anchor);
     const card = anchor.closest(CARD_SELECTOR);
-    if (
-      !buttonHost ||
-      card?.querySelector(`[${BUTTON_ATTRIBUTE}]`) ||
-      buttonHost.querySelector(`[${BUTTON_ATTRIBUTE}]`) ||
-      !parseYouTubeVideoUrl(anchor.href)
-    )
-      return;
+    if (!buttonHost || !parseYouTubeVideoUrl(anchor.href)) return;
+    const existing =
+      card?.querySelector<HTMLButtonElement>(`[${BUTTON_ATTRIBUTE}]`) ??
+      buttonHost.querySelector<HTMLButtonElement>(`[${BUTTON_ATTRIBUTE}]`);
     this.#anchorHost(buttonHost);
+    if (existing) {
+      this.#placeButton(buttonHost, existing);
+      return;
+    }
     const button = this.documentRef.createElement('button');
     button.type = 'button';
     button.setAttribute(BUTTON_ATTRIBUTE, '');
+    button.setAttribute(OVERLAY_OWNER_ATTRIBUTE, OVERLAY_OWNER);
+    button.setAttribute(OVERLAY_SLOT_ATTRIBUTE, 'top-start');
     button.setAttribute('aria-haspopup', 'dialog');
     button.setAttribute('aria-expanded', 'false');
     button.setAttribute('aria-label', `Quick Learn: ${cardTitleFor(anchor)}`);
@@ -411,6 +517,7 @@ export class QuickLearnController {
       void this.#toggle(anchor, button);
     });
     buttonHost.append(button);
+    this.#placeButton(buttonHost, button);
   }
 
   async #toggle(anchor: HTMLAnchorElement, button: HTMLButtonElement): Promise<void> {
@@ -552,11 +659,17 @@ export class QuickLearnController {
   }
 
   readonly #schedulePosition = (): void => {
-    if (!this.#activeButton || this.#positionScheduled) return;
+    if (this.#positionScheduled) return;
     this.#positionScheduled = true;
     this.#window.requestAnimationFrame(() => {
       this.#positionScheduled = false;
-      this.#position();
+      this.documentRef
+        .querySelectorAll<HTMLButtonElement>(`[${BUTTON_ATTRIBUTE}]`)
+        .forEach((button) => {
+          const host = button.parentElement;
+          if (host) this.#placeButton(host, button);
+        });
+      if (this.#activeButton) this.#position();
     });
   };
 

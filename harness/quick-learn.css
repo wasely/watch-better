@@ -1,0 +1,135 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, sans-serif;
+  background: #0f0f0f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  color: #f1f1f1;
+}
+
+.masthead {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #181818;
+  border-bottom: 1px solid #303030;
+}
+
+.masthead span {
+  color: #aaa;
+  font-size: 12px;
+}
+
+.shorts-grid {
+  display: grid;
+  max-width: 980px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding: 34px 20px;
+  margin-inline: auto;
+}
+
+.short-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.short-card > a#thumbnail {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 9 / 16;
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 28%);
+}
+
+.short-card > a#thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 34%, #ffc7a0 0 12%, transparent 13%),
+    radial-gradient(circle at 50% 42%, #1e293b 0 22%, transparent 23%),
+    linear-gradient(155deg, #334155, #111827 56%, #020617);
+}
+
+.short-card--two > a#thumbnail img {
+  background:
+    radial-gradient(circle at 45% 36%, #d9f99d 0 12%, transparent 13%),
+    radial-gradient(circle at 45% 45%, #312e81 0 24%, transparent 25%),
+    linear-gradient(155deg, #7c3aed, #172554 56%, #020617);
+}
+
+.short-card--three > a#thumbnail img {
+  background:
+    radial-gradient(circle at 54% 34%, #bae6fd 0 12%, transparent 13%),
+    radial-gradient(circle at 54% 44%, #164e63 0 24%, transparent 25%),
+    linear-gradient(155deg, #155e75, #172554 56%, #020617);
+}
+
+.short-card > a#video-title {
+  overflow: hidden;
+  color: #f1f1f1;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.short-card > small {
+  color: #aaa;
+  font-size: 12px;
+}
+
+.foreign-save,
+.foreign-badge {
+  position: absolute;
+  z-index: 40;
+  bottom: 58px;
+  color: #fff;
+  background: rgb(18 18 18 / 88%);
+  border: 1px solid rgb(255 255 255 / 24%);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 30%);
+}
+
+.foreign-save {
+  left: 8px;
+  height: 32px;
+  padding-inline: 10px;
+  border-radius: 999px;
+}
+
+.foreign-badge {
+  right: 8px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-color: #d946ef;
+  border-radius: 50%;
+}
+
+@media (max-width: 720px) {
+  .shorts-grid {
+    max-width: 360px;
+    grid-template-columns: 1fr;
+  }
+
+  .short-card:nth-child(n + 2) {
+    display: none;
+  }
+}
