@@ -230,6 +230,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Chrome Web Store preparation is tracked 
 [join the Watch Better Discord](https://discord.gg/dpx3RhJM9).
 
 <!-- discord-incentive:start -->
+
 ### 💬 Why join the Discord first
 
 **[discord.gg/grokbot](https://discord.gg/grokbot)** is the one server for every blixvip repo, and it gets you more than a chat window:
@@ -238,6 +239,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Chrome Web Store preparation is tracked 
 - 🏷️ **A contributor role** on the server the moment your first pull request is merged.
 - 🗺️ **A say in what gets built.** The roadmap is argued out there before it turns into issues.
 - 🙋 **A human to ask.** Stuck on setup, or unsure whether an idea is even wanted? Faster than waiting on an issue thread.
+
 <!-- discord-incentive:end -->
 
 ## License
