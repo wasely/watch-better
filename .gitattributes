@@ -1,0 +1,7 @@
+# Check every text file out with LF, on every platform.
+#
+# Without this, the Windows CI runner checks the tree out with CRLF while Linux
+# and macOS use LF, so `prettier . --check` passes on two legs of the matrix and
+# fails on the third with every file listed. `text=auto` still lets Git detect
+# and leave binary files alone.
+* text=auto eol=lf
